@@ -94,7 +94,7 @@ fun! awiwi#show_tasks(...) abort "{{{
 
   let arg = get(a:000, 0, s:tasks_todo_cmd)
 
-  if arg == s:tasks_urgent_cmd || arg == s:tasks_all_cmd
+  if arg == s:tasks_urgent_cmd || arg == s:tasks_all_cmd || arg == s:tasks_todo_cmd
     let markers = [awiwi#get_markers('urgent')]
   else
     let markers = []
@@ -128,8 +128,10 @@ fun! awiwi#show_tasks(...) abort "{{{
   let rg_cmd = [
         \ 'rg', '-u', '--column', '--line-number',
         \ '--no-heading', '--color=always',
-        \ '-g', shellescape('!awiwi*'), shellescape(pattern), '|' , 'sort -r'
+        \ '-g', shellescape('!awiwi*'), shellescape(pattern),
         \ ]
+  " FIXME: sort by urgency (most urgent last, so it appears first in
+  " fzf-terminal)
   let with_preview = fzf#vim#with_preview('right:50%:hidden', '?')
   call fzf#vim#grep(join(rg_cmd, ' '), 1, with_preview, 0)
 
