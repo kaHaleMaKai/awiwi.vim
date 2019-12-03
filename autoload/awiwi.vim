@@ -6,8 +6,10 @@ let g:autoloaded_awiwi = v:true
 let s:date_pattern = '^[0-9]\{4}-[0-9]\{2}-[0-9]\{2}$'
 let s:journal_cmd = 'journal'
 let s:continuation_cmd = 'continue'
+let s:entry_cmd = 'entries'
 let s:link_cmd = 'link'
 let s:open_asset_cmd = 'open-asset'
+let s:search_cmd = 'search'
 let s:show_cmd = 'show'
 let s:tasks_cmd = 'tasks'
 
@@ -21,46 +23,98 @@ let s:search_engine_fuzzy = 'fuzzy'
 let s:subcommands = [
       \ s:continuation_cmd,
       \ s:journal_cmd,
+      \ s:entry_cmd,
       \ s:link_cmd,
       \ s:open_asset_cmd,
+      \ s:search_cmd,
       \ s:show_cmd,
       \ s:tasks_cmd,
       \ ]
 
 let s:tasks_all_cmd = 'all'
-let s:tasks_delegates_cmd = 'delegates'
+let s:tasks_delegate_cmd = 'delegate'
+let s:tasks_due_cmd = 'due'
 let s:tasks_filter_cmd = 'filter'
-let s:tasks_fixme_cmd = 'fixme'
+let s:tasks_urgent_cmd = 'urgent'
 let s:tasks_onhold_cmd = 'onhold'
+let s:tasks_question_cmd = 'question'
 let s:tasks_todo_cmd = 'todo'
 
 let s:journal_new_window_cmd = '+new'
 
 let s:tasks_subcommands = [
       \ s:tasks_all_cmd,
-      \ s:tasks_delegates_cmd,
+      \ s:tasks_delegate_cmd,
+      \ s:tasks_due_cmd,
       \ s:tasks_filter_cmd,
-      \ s:tasks_fixme_cmd,
+      \ s:tasks_urgent_cmd,
       \ s:tasks_onhold_cmd,
+      \ s:tasks_question_cmd,
       \ s:tasks_todo_cmd
       \ ]
 
-fun! awiwi#ShowTasks(...) abort "{{{
+let s:todo_markers = ['TODO']
+let s:onhold_markers = [
+      \ 'ONHOLD',
+      \ 'HOLD'
+      \ ]
+let s:urgent_markers = [
+      \ 'FIXME',
+      \ 'CRITICAL',
+      \ 'URGENT',
+      \ 'IMPORTANT'
+      \ ]
+let s:delegate_markers = ['@todo']
+let s:question_markers = ['QUESTION']
+let s:due_markers = ['DUE', 'DUE TO', 'UNTIL', '@until', '@due']
+
+fun! awiwi#get_markers(type, ...) abort "{{{
+  let do_join = get(a:000, 0, v:true)
+
+  if !exists(printf('s:%s_markers', a:type))
+    throw printf('AwiwiError: type %s does not exist', a:type)
+  endif
+
+  let custom_markers = get(g:, printf('awiwi_custom_%s_markers', a:type), [])
+  let markers = copy(get(s:, a:type.'_markers')) + custom_markers
+  let result = uniq(map(markers, {_, v -> s:escape_rg_pattern(v)}))
+  if do_join
+    return join(result, '|')
+  else
+    return result
+  endif
+endfun "}}}
+
+
+fun! awiwi#show_tasks(...) abort "{{{
   let markers = []
-  if !a:0 || a:1 == s:tasks_todo_cmd || a:1 == s:tasks_all_cmd
-    let awiwi_todo_markers = get(g:, 'awiwi_todo_markers', ['TODO', 'FIXME'])
-    let idx = index(awiwi_todo_markers, 'FIXME')
-    if idx > -1
-      let awiwi_todo_markers[idx] = '.*FIXME.*'
-    endif
-    call add(markers, '\b'. join(awiwi_todo_markers, '|') . '\b')
-  elseif a:1 == s:tasks_fixme_cmd || a:1 == s:tasks_all_cmd
-    call add(markers, '\bFIXME\b')
-  elseif a:1 == s:tasks_delegates_cmd || a:1 == s:tasks_all_cmd
-    call add(markers, '\(?@todo( [a-zA-Z-]+){0,2}\]?')
-  elseif a:1 == s:tasks_onhold_cmd || a:1 == s:tasks_all_cmd
-    call extend(markers, ['ONHOLD', 'HOLD'])
-  elseif a:1 == s:tasks_filter_cmd
+
+  let arg = get(a:000, 0, s:tasks_todo_cmd)
+
+  if arg == s:tasks_urgent_cmd || arg == s:tasks_all_cmd
+    let markers = [awiwi#get_markers('urgent')]
+  else
+    let markers = []
+  endif
+
+  if arg == s:tasks_todo_cmd || arg == s:tasks_all_cmd
+    call add(markers, awiwi#get_markers('todo'))
+  endif
+  if arg == s:tasks_delegate_cmd || arg == s:tasks_all_cmd
+    let delegates = awiwi#get_markers('delegate')
+    call add(markers, printf('\(?(%s):?( [a-zA-Z-]+){0,2}\)?', delegates))
+  endif
+  if arg == s:tasks_due_cmd || arg == s:tasks_all_cmd
+    let due = awiwi#get_markers('due')
+    call add(markers, printf('\(?(%s):?( [0-9a-zA-Z_-]+)?\)?', due))
+  endif
+  if arg == s:tasks_onhold_cmd || arg == s:tasks_all_cmd
+    call add(markers, awiwi#get_markers('onhold'))
+  endif
+  if arg == s:tasks_question_cmd || arg == s:tasks_all_cmd
+    call add(markers, awiwi#get_markers('question'))
+  endif
+  if arg == s:tasks_filter_cmd
     if a:0 == 1
       throw 'AwiwiError: missing argument for "Awiwi tasks filter"'
     endif
@@ -76,6 +130,47 @@ fun! awiwi#ShowTasks(...) abort "{{{
   let with_preview = fzf#vim#with_preview('right:50%:hidden', '?')
   call fzf#vim#grep(join(rg_cmd, ' '), 1, with_preview, 0)
 
+endfun "}}}
+
+
+fun! s:open_fuzzy_match(line) abort "{{{
+  let [file, line, col] = split(a:line, ':')[:2]
+  exe printf('e +%s %s', line, file)
+  exe printf('normal! %s|', col)
+endfun "}}}
+
+
+fun! awiwi#fuzzy_search(...) abort "{{{
+  if !a:0
+    echoerr 'Awiwi search: no pattern given'
+  endif
+  let pattern = join(map(copy(a:000), {_, v -> s:escape_pattern(v)}), '.*?')
+  let rg_cmd = [
+        \ 'rg', '-U', '--multiline-dotall', '--color=never',
+        \ '--column', '--line-number', '--no-heading',
+        \ '-g', shellescape('!awiwi*'), shellescape(pattern)
+        \ ]
+  let matches = filter(systemlist(join(rg_cmd, ' ')), {_, v -> !str#is_empty(v)})
+  if a:0 > 1
+    let start = printf('\<%s\>', s:escape_pattern(a:1))
+    let matches = filter(matches, {_, v -> match(v, start) > -1})
+  endif
+  call fzf#run(fzf#wrap({'source': matches, 'sink': funcref('s:open_fuzzy_match')}))
+endfun "}}}
+
+
+fun! s:format_search_result(start, ...) abort "{{{
+  let end = !a:0 ? '' : a:1
+  let start_len = strlen(start.content)
+  let end_len = strlen(end)
+  let max_len = 80
+  let total_len = start_len + end_len
+  if total_len <= max_len
+    let line = prinft('%s...%s', start.content, end)
+  elseif start_len >= max_len/2 && end_len >= max_len/2
+    let line = prinft('%s...%s', start.content[:max_len/2-1], end[-(max_len/2-1):])
+  elseif start_len < max_len/2
+    let line = prinft('%s...%s', start.content, end[-(max_len/2-1):])
 endfun "}}}
 
 
@@ -189,7 +284,7 @@ fun! s:open_asset_by_name(date, name) abort "{{{
   if !filewritable(dir)
     call mkdir(dir, 'p')
   endif
-  exe 'new '.path
+  exe 'new + '.path
   write
 endfun "}}}
 
@@ -203,8 +298,14 @@ endfun "}}}
 
 
 fun! s:escape_pattern(pattern) abort "{{{
-  return escape(a:pattern, " \t.*\\\[\]\-")
+  return escape(a:pattern, " \t.*?\\\[\]")
 endfun "}}}
+
+
+fun! s:escape_rg_pattern(pattern) abort "{{{
+  return escape(a:pattern, ".*?\\\[\]")
+endfun "}}}
+
 
 
 fun! s:get_asset_under_cursor(accept_date) abort "{{{
@@ -339,7 +440,7 @@ fun! awiwi#edit_journal(date, new_window) abort "{{{
   else
     let cmd = 'e'
   endif
-  exe printf('%s %s', cmd, file)
+  exe printf('%s + %s', cmd, file)
 endfun "}}}
 
 
@@ -475,7 +576,7 @@ fun! awiwi#run(...) abort "{{{
     if a:2 == s:journal_new_window_cmd
       let new_window = v:true
       let date = a:3
-    elseif a:3 == s:journal_new_window_cmd
+    elseif a:0 == 3 && a:3 == s:journal_new_window_cmd
       let new_window = v:true
       let date = a:2
     else
@@ -490,8 +591,25 @@ fun! awiwi#run(...) abort "{{{
   elseif a:1 == s:open_asset_cmd
     call awiwi#open_file_or_asset()
   elseif a:1 == s:tasks_cmd
-    call func#apply(funcref('awiwi#ShowTasks'), func#spread(a:000[1:]))
+    call func#apply(funcref('awiwi#show_tasks'), func#spread(a:000[1:]))
   elseif a:1 == s:show_cmd
     echoerr 'Awiwi show: should render markdown in browser, but has not been implemented that'
+  elseif a:1 == s:search_cmd
+    call call(funcref('awiwi#fuzzy_search'), a:000[1:])
+  elseif a:1 == s:entry_cmd
+    let pattern = '^#{2,}[[:space:]]+.*$'
+    let rg_cmd = [
+          \ 'rg', '-u', '--column', '--line-number',
+          \ '--no-heading', '--color=never',
+          \ '-g', shellescape('!awiwi*'), shellescape(pattern)
+          \ ]
+    let rg_result = systemlist(join(rg_cmd, ' '))
+    let entries = map(
+          \ filter(
+          \   rg_result,
+          \   {_, v -> !str#is_empty(v)}),
+          \ {_, v -> substitute(v, '^\(.\{-}\)\(##\+[[:space:]]\+\)', '\1', '')})
+
+    call fzf#run(fzf#wrap({'source': entries}))
   endif
 endfun "}}}
