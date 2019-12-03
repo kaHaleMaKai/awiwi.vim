@@ -12,6 +12,7 @@ let s:open_asset_cmd = 'open-asset'
 let s:search_cmd = 'search'
 let s:show_cmd = 'show'
 let s:tasks_cmd = 'tasks'
+let s:todo_cmd = 'todo'
 
 let s:journal_subpath = path#join(g:awiwi_home, 'journal')
 let s:asset_subpath = path#join(g:awiwi_home, 'assets')
@@ -29,6 +30,7 @@ let s:subcommands = [
       \ s:search_cmd,
       \ s:show_cmd,
       \ s:tasks_cmd,
+      \ s:todo_cmd,
       \ ]
 
 let s:tasks_all_cmd = 'all'
@@ -41,6 +43,7 @@ let s:tasks_question_cmd = 'question'
 let s:tasks_todo_cmd = 'todo'
 
 let s:journal_new_window_cmd = '+new'
+let s:journal_height_window_cmd = '+height='
 
 let s:tasks_subcommands = [
       \ s:tasks_all_cmd,
@@ -102,11 +105,11 @@ fun! awiwi#show_tasks(...) abort "{{{
   endif
   if arg == s:tasks_delegate_cmd || arg == s:tasks_all_cmd
     let delegates = awiwi#get_markers('delegate')
-    call add(markers, printf('\(?(%s):?( [a-zA-Z-]+){0,2}\)?', delegates))
+    call add(markers, printf('\(?(%s):?( \S+){0,2}\)?', delegates))
   endif
   if arg == s:tasks_due_cmd || arg == s:tasks_all_cmd
     let due = awiwi#get_markers('due')
-    call add(markers, printf('\(?(%s):?( [0-9a-zA-Z_-]+)?\)?', due))
+    call add(markers, printf('\(?(%s):?( \S+)*\)?', due))
   endif
   if arg == s:tasks_onhold_cmd || arg == s:tasks_all_cmd
     call add(markers, awiwi#get_markers('onhold'))
@@ -397,7 +400,7 @@ fun! awiwi#open_file_or_asset() abort "{{{
   if name == ''
     normal! gf
   elseif s:is_date(name)
-    call awiwi#edit_journal(name, v:false)
+    call awiwi#edit_journal(name)
   else
     call awiwi#open_asset()
   endif
@@ -409,7 +412,8 @@ fun! s:get_today() abort "{{{
 endfun "}}}
 
 
-fun! awiwi#edit_journal(date, new_window) abort "{{{
+fun! awiwi#edit_journal(date, ...) abort "{{{
+  let options = get(a:000, 0, {})
   if a:date == 'previous'
     try
       let date = s:get_offset_date(s:get_own_date(), -1)
@@ -435,8 +439,13 @@ fun! awiwi#edit_journal(date, new_window) abort "{{{
     return
   endif
   let file = s:get_journal_file_by_date(date)
-  if a:new_window
-    let cmd = 'new'
+  if get(options, 'new_window', v:false)
+    let height = str2nr(get(options, 'height', 0))
+    if height
+      let cmd = printf('%dnew', height)
+    else
+      let cmd = 'new'
+    endif
   else
     let cmd = 'e'
   endif
@@ -473,7 +482,7 @@ fun! awiwi#insert_and_open_continuation() abort "{{{
   call append(line('.'), link)
   " move to the next line
   +
-  call awiwi#edit_journal(today, v:true)
+  call awiwi#edit_journal(today, {'new_window': v:true})
   let lines = [
         \ '',
         \ printf('%s %s (cont. from %s)', marker, title, own_date),
@@ -546,19 +555,33 @@ fun! awiwi#_get_completion(ArgLead, CmdLine, CursorPos) abort "{{{
 
   if args[1] == s:tasks_cmd && current_arg_pos == 2
     return s:match_subcommands(s:tasks_subcommands, a:ArgLead)
-  elseif args[1] == s:journal_cmd && (current_arg_pos == 2 || (current_arg_pos == 3 && args[2] == s:journal_new_window_cmd))
-    let files = s:get_all_files()
-    let todos_idx = index(files, 'todos')
-    if todos_idx != -1
-      call remove(files, todos_idx)
-    endif
-    call extend(files, ['todos', 'today', 'next', 'previous'], 0)
+  elseif args[1] == s:journal_cmd
+    let has_new_window_cmd = v:false
+    let has_win_height_cmd = v:false
+    let insert_files = v:false
     if current_arg_pos == 2
-      call insert(files, s:journal_new_window_cmd)
+      let insert_files = v:true
+    else
+      let has_new_window_cmd = len(filter(copy(args[2:]), {_, v -> v == s:journal_new_window_cmd}))
+      let has_win_height_cmd = len(filter(copy(args[2:]), {_, v -> str#startswith(v, s:journal_height_window_cmd)}))
+      let insert_files = (current_arg_pos - has_new_window_cmd - has_win_height_cmd) == 2
     endif
-    return s:match_subcommands(files, a:ArgLead)
-  elseif args[1] == s:journal_cmd && current_arg_pos == 3 && args[2] != s:journal_new_window_cmd
-    return [s:journal_new_window_cmd]
+
+    let submatches = []
+    if insert_files
+      call extend(submatches, s:get_all_files())
+      let todos_idx = index(submatches, 'todos')
+      if todos_idx != -1
+        call remove(submatches, todos_idx)
+      endif
+      call extend(submatches, ['todos', 'today', 'next', 'previous'], 0)
+    endif
+    if !has_new_window_cmd
+      call insert(submatches, s:journal_new_window_cmd)
+    elseif !has_win_height_cmd
+      call insert(submatches, s:journal_height_window_cmd)
+    endif
+    return s:match_subcommands(submatches, a:ArgLead)
   endif
 
   return []
@@ -570,20 +593,24 @@ fun! awiwi#run(...) abort "{{{
     throw 'AwiwiError: Awiwi expects 1+ arguments'
   endif
   if a:1 == s:journal_cmd
-    if a:0 == 1 || a:0 > 3
-      echoerr printf('Awiwi journal: 1 or 2 arguments expected. got %d', a:0-1)
+    if a:0 == 1 || a:0 > 4
+      echoerr printf('Awiwi journal: 1 to 3 arguments expected. got %d', a:0-1)
     endif
-    if a:2 == s:journal_new_window_cmd
-      let new_window = v:true
-      let date = a:3
-    elseif a:0 == 3 && a:3 == s:journal_new_window_cmd
-      let new_window = v:true
-      let date = a:2
-    else
-      let new_window = v:false
-      let date = a:2
+    let options = {}
+    let date = ''
+    for arg in a:000[1:]
+      if arg == s:journal_new_window_cmd
+        let options.new_window = v:true
+      elseif str#startswith(arg, s:journal_height_window_cmd)
+        let options.height = str2nr(split(arg, '=')[-1])
+      else
+        let date = arg
+      endif
+    endfor
+    if date == ''
+      echoerr 'Awiwi journal: missing file to open'
     endif
-    call awiwi#edit_journal(date, new_window)
+    call awiwi#edit_journal(date, options)
   elseif a:1 == s:continuation_cmd
     call awiwi#insert_and_open_continuation()
   elseif a:1 == s:link_cmd
@@ -611,5 +638,7 @@ fun! awiwi#run(...) abort "{{{
           \ {_, v -> substitute(v, '^\(.\{-}\)\(##\+[[:space:]]\+\)', '\1', '')})
 
     call fzf#run(fzf#wrap({'source': entries}))
+  elseif a:1 == s:todo_cmd
+    call awiwi#edit_journal('todo', {'new_window': v:true, 'height': 10})
   endif
 endfun "}}}

@@ -30,7 +30,7 @@ command!
 
 nnoremap <silent> <buffer> gf :Awiwi open-asset<CR>
 nnoremap <silent> <buffer> gC :Awiwi continue<CR>
-nnoremap <silent> <buffer> gT :Awiwi journal todos<CR>
+nnoremap <silent> <buffer> gT :Awiwi todo<CR>
 nnoremap <silent> <buffer> ge :Awiwi journal today<CR>
 nnoremap <silent> <buffer> <F12> :Awiwi tasks<CR>
 nnoremap <silent> <buffer> gn :Awiwi journal next<CR>
