@@ -8,6 +8,7 @@ let markers = []
 for type in s:types
   call extend(markers, awiwi#get_markers(type, v:false))
 endfor
+syn case match
 exe printf('syn match AwiwiTodo /\<\(%s\)\>/', join(markers, '\|'))
 
 exe printf('syn match awiwiUrgentEnd /\(\<%s\>\)\@<=.\+$/', join(awiwi#get_markers('urgent', v:false), '\|'))
