@@ -89,35 +89,54 @@ fun! awiwi#get_markers(type, ...) abort "{{{
 endfun "}}}
 
 
+fun! s:contains(li, el, ...) abort "{{{
+  if !a:0
+    return index(a:li, a:el) > -1 ? v:true : v:false
+  endif
+
+  let els = [a:el] + a:000
+  for x in a:li
+    if index(els, x) > -1
+      return v:true
+    endif
+  endfor
+  return v:false
+endfun "}}}
+
+
 fun! awiwi#show_tasks(...) abort "{{{
   let markers = []
 
-  let arg = get(a:000, 0, s:tasks_todo_cmd)
+  if a:0
+    let args = a:000
+  else
+    let args = [s:tasks_todo_cmd]
+  endif
 
-  if arg == s:tasks_urgent_cmd || arg == s:tasks_all_cmd || arg == s:tasks_todo_cmd
+  if s:contains(args, s:tasks_urgent_cmd, s:tasks_all_cmd, s:tasks_todo_cmd)
     let markers = [awiwi#get_markers('urgent')]
   else
     let markers = []
   endif
 
-  if arg == s:tasks_todo_cmd || arg == s:tasks_all_cmd
+  if s:contains(args, s:tasks_todo_cmd, s:tasks_all_cmd)
     call add(markers, awiwi#get_markers('todo'))
   endif
-  if arg == s:tasks_delegate_cmd || arg == s:tasks_all_cmd
+  if s:contains(args, s:tasks_delegate_cmd, s:tasks_all_cmd)
     let delegates = awiwi#get_markers('delegate')
     call add(markers, printf('\(?(%s):?( \S+){0,2}\)?', delegates))
   endif
-  if arg == s:tasks_due_cmd || arg == s:tasks_all_cmd
+  if s:contains(args, s:tasks_due_cmd, s:tasks_all_cmd)
     let due = awiwi#get_markers('due')
     call add(markers, printf('\(?(%s):?( \S+)*\)?', due))
   endif
-  if arg == s:tasks_onhold_cmd || arg == s:tasks_all_cmd
+  if s:contains(args, s:tasks_onhold_cmd, s:tasks_all_cmd)
     call add(markers, awiwi#get_markers('onhold'))
   endif
-  if arg == s:tasks_question_cmd || arg == s:tasks_all_cmd
+  if s:contains(args, s:tasks_question_cmd, s:tasks_all_cmd)
     call add(markers, awiwi#get_markers('question'))
   endif
-  if arg == s:tasks_filter_cmd
+  if args[0] == s:tasks_filter_cmd
     if a:0 == 1
       throw 'AwiwiError: missing argument for "Awiwi tasks filter"'
     endif
@@ -513,7 +532,7 @@ endfun "}}}
 
 fun! s:match_subcommands(subcommands, ArgLead) abort "{{{
   if a:ArgLead == ''
-    return a:subcommands
+    return copy(a:subcommands)
   endif
   let subcommands = copy(a:subcommands)
   let search_engine = s:get_search_engine()
@@ -555,8 +574,15 @@ fun! awiwi#_get_completion(ArgLead, CmdLine, CursorPos) abort "{{{
   endif
   let args = split(a:CmdLine)
 
-  if args[1] == s:tasks_cmd && current_arg_pos == 2
-    return s:match_subcommands(s:tasks_subcommands, a:ArgLead)
+  if args[1] == s:tasks_cmd && current_arg_pos >= 2
+    let matches = s:match_subcommands(s:tasks_subcommands, a:ArgLead)
+    if current_arg_pos == 2
+      return matches
+    elseif args[2] == s:tasks_filter_cmd
+      return []
+    endif
+    let prev_cmds = uniq(args[2:current_arg_pos-1]) + [s:tasks_filter_cmd]
+    return filter(matches, {_, v -> index(prev_cmds, v) == -1})
   elseif args[1] == s:journal_cmd
     let has_new_window_cmd = v:false
     let has_win_height_cmd = v:false
