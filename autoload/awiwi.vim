@@ -8,11 +8,13 @@ let s:journal_cmd = 'journal'
 let s:continuation_cmd = 'continue'
 let s:entry_cmd = 'entries'
 let s:link_cmd = 'link'
-let s:open_asset_cmd = 'open-asset'
+let s:asset_cmd = 'asset'
 let s:search_cmd = 'search'
 let s:show_cmd = 'show'
 let s:tasks_cmd = 'tasks'
 let s:todo_cmd = 'todo'
+
+let s:new_asset_cmd = 'create'
 
 let s:journal_subpath = path#join(g:awiwi_home, 'journal')
 let s:asset_subpath = path#join(g:awiwi_home, 'assets')
@@ -26,7 +28,7 @@ let s:subcommands = [
       \ s:journal_cmd,
       \ s:entry_cmd,
       \ s:link_cmd,
-      \ s:open_asset_cmd,
+      \ s:asset_cmd,
       \ s:search_cmd,
       \ s:show_cmd,
       \ s:tasks_cmd,
@@ -164,6 +166,12 @@ fun! s:open_fuzzy_match(line) abort "{{{
 endfun "}}}
 
 
+fun! s:open_asset_sink(expr) abort "{{{
+  let [date, name] = split(a:expr, ':')
+  call s:open_asset_by_name(date, name)
+endfun "}}}
+
+
 fun! awiwi#fuzzy_search(...) abort "{{{
   if !a:0
     echoerr 'Awiwi search: no pattern given'
@@ -236,7 +244,7 @@ endfun "}}}
 
 
 fun! s:get_offset_date(date, offset) abort "{{{
-  let files = s:get_all_files()
+  let files = s:get_all_journal_files()
   let idx = index(files, a:date)
   if idx == -1
     throw printf('AwiwiError: date %s not found', a:date)
@@ -301,14 +309,15 @@ fun! s:get_asset_path(date, name) abort "{{{
 endfun "}}}
 
 
-fun! s:open_asset_by_name(date, name) abort "{{{
+fun! s:open_asset_by_name(date, name, ...) abort "{{{
+  let options = get(a:000, 0, {})
   let date = s:parse_date(a:date)
   let path = s:get_asset_path(date, a:name)
   let dir = fnamemodify(path, ':h')
   if !filewritable(dir)
     call mkdir(dir, 'p')
   endif
-  exe 'new + '.path
+  call s:open_file(path, options)
   write
 endfun "}}}
 
@@ -401,8 +410,8 @@ endfun "}}}
 
 
 fun! awiwi#open_asset(...) abort "{{{
-  if len(a:000) > 0
-    let name = a:0
+  if a:0
+    let name = a:1
   else
     let name = awiwi#add_asset_link()
   endif
@@ -416,7 +425,10 @@ fun! s:is_date(expr) abort "{{{
 endfun "}}}
 
 
-fun! awiwi#open_file_or_asset() abort "{{{
+fun! awiwi#open_journal_or_asset(...) abort "{{{
+  if a:0
+    call awiwi#open_asset()
+  endif
   let [name, rem] = s:get_asset_under_cursor(v:true)
   if name == ''
     normal! gf
@@ -433,8 +445,26 @@ fun! s:get_today() abort "{{{
 endfun "}}}
 
 
+fun! s:open_file(file, options) abort "{{{
+  if get(a:options, 'new_window', v:false)
+    let height = str2nr(get(a:options, 'height', 0))
+    if height
+      let cmd = printf('%dnew', height)
+    else
+      let cmd = 'new'
+    endif
+  else
+    let cmd = 'e'
+  endif
+  let jump_mod = get(a:options, 'last_line', v:false)
+        \ ? '+' : ''
+  exe printf('%s %s %s', cmd, jump_mod, a:file)
+endfun "}}}
+
+
 fun! awiwi#edit_journal(date, ...) abort "{{{
   let options = get(a:000, 0, {})
+  let options.last_line = v:true
   if a:date == 'previous'
     try
       let date = s:get_offset_date(s:get_own_date(), -1)
@@ -460,17 +490,7 @@ fun! awiwi#edit_journal(date, ...) abort "{{{
     return
   endif
   let file = s:get_journal_file_by_date(date)
-  if get(options, 'new_window', v:false)
-    let height = str2nr(get(options, 'height', 0))
-    if height
-      let cmd = printf('%dnew', height)
-    else
-      let cmd = 'new'
-    endif
-  else
-    let cmd = 'e'
-  endif
-  exe printf('%s + %s', cmd, file)
+  call s:open_file(file, options)
 endfun "}}}
 
 
@@ -560,10 +580,55 @@ fun! s:match_subcommands(subcommands, ArgLead) abort "{{{
 endfun "}}}
 
 
-fun! s:get_all_files() abort "{{{
+fun! s:get_all_journal_files() abort "{{{
     return sort(map(
-          \ split(glob(path#join(g:awiwi_home, '**', '*.md'))),
+          \ split(glob(path#join(g:awiwi_home, 'journal', '**', '*.md'))),
           \ {_, v -> fnamemodify(v, ':t:r')}))
+endfun "}}}
+
+
+fun! s:get_all_asset_files() abort "{{{
+    return map(
+          \  map(
+          \    filter(
+          \      glob(path#join(g:awiwi_home, 'assets', '**'), v:false, v:true),
+          \      {_, v -> filereadable(v)}),
+          \    {_, v -> split(v, '/')[-4:]}),
+          \  {_, v -> {'date': join(v[:2], '-'), 'name': v[-1]}})
+endfun "}}}
+
+
+fun! s:need_to_insert_files(current_arg_pos, args) abort "{{{
+  if a:current_arg_pos == 2
+    return v:true
+  endif
+  return (a:current_arg_pos - s:has_new_win_cmd(a:args) - s:has_win_height_cmd(a:args)) == 2
+        \ ? v:true : v:false
+endfun "}}}
+
+
+fun! s:has_new_win_cmd(args) abort "{{{
+  return len(filter(copy(a:args), {_, v -> v == s:journal_new_window_cmd})) > 0
+        \ ? v:true : v:false
+endfun "}}}
+
+
+fun! s:has_win_height_cmd(args) abort "{{{
+  return len(filter(copy(a:args), {_, v -> str#startswith(v, s:journal_height_window_cmd)})) > 0
+        \ ? v:true : v:false
+endfun "}}}
+
+
+fun! s:insert_win_cmds(li, current_arg_pos, args) abort "{{{
+  if a:current_arg_pos == 2
+    return a:li
+  elseif !s:has_new_win_cmd(a:args)
+    call insert(a:li, s:journal_new_window_cmd)
+    return
+  elseif !s:has_win_height_cmd(a:args)
+    call insert(a:li, s:journal_height_window_cmd)
+  endif
+  return a:li
 endfun "}}}
 
 
@@ -584,30 +649,29 @@ fun! awiwi#_get_completion(ArgLead, CmdLine, CursorPos) abort "{{{
     let prev_cmds = uniq(args[2:current_arg_pos-1]) + [s:tasks_filter_cmd]
     return filter(matches, {_, v -> index(prev_cmds, v) == -1})
   elseif args[1] == s:journal_cmd
-    let has_new_window_cmd = v:false
-    let has_win_height_cmd = v:false
-    let insert_files = v:false
-    if current_arg_pos == 2
-      let insert_files = v:true
-    else
-      let has_new_window_cmd = len(filter(copy(args[2:]), {_, v -> v == s:journal_new_window_cmd}))
-      let has_win_height_cmd = len(filter(copy(args[2:]), {_, v -> str#startswith(v, s:journal_height_window_cmd)}))
-      let insert_files = (current_arg_pos - has_new_window_cmd - has_win_height_cmd) == 2
-    endif
-
     let submatches = []
-    if insert_files
-      call extend(submatches, s:get_all_files())
+    if s:need_to_insert_files(current_arg_pos, args[2:])
+      call extend(submatches, s:get_all_journal_files())
       let todos_idx = index(submatches, 'todos')
       if todos_idx != -1
         call remove(submatches, todos_idx)
       endif
       call extend(submatches, ['todos', 'today', 'next', 'previous'], 0)
     endif
-    if !has_new_window_cmd
-      call insert(submatches, s:journal_new_window_cmd)
-    elseif !has_win_height_cmd
-      call insert(submatches, s:journal_height_window_cmd)
+    call s:insert_win_cmds(submatches, current_arg_pos, args[2:])
+    return s:match_subcommands(submatches, a:ArgLead)
+  elseif args[1] == s:asset_cmd
+    let submatches = []
+    if current_arg_pos > 2 && args[2] == s:new_asset_cmd
+      return []
+    endif
+    if s:need_to_insert_files(current_arg_pos, args[2:])
+      let files = map(s:get_all_asset_files(), {_, v -> printf('%s:%s', v.date, v.name)})
+      call extend(submatches, files)
+    endif
+    call s:insert_win_cmds(submatches, current_arg_pos, args[2:])
+    if current_arg_pos == 2
+      call insert(submatches, s:new_asset_cmd)
     endif
     return s:match_subcommands(submatches, a:ArgLead)
   endif
@@ -616,35 +680,55 @@ fun! awiwi#_get_completion(ArgLead, CmdLine, CursorPos) abort "{{{
 endfun "}}}
 
 
-fun! awiwi#run(...) abort "{{{
-  if !a:0
-    throw 'AwiwiError: Awiwi expects 1+ arguments'
-  endif
-  if a:1 == s:journal_cmd
-    if a:0 == 1 || a:0 > 4
-      echoerr printf('Awiwi journal: 1 to 3 arguments expected. got %d', a:0-1)
+fun! s:parse_file_and_options(args) abort "{{{
+    if len(a:args) == 0 || len(a:args) > 3
+      echoerr printf('Awiwi journal: 1 to 3 arguments expected. got %d', len(a:args)-1)
     endif
     let options = {}
-    let date = ''
-    for arg in a:000[1:]
+    let file = ''
+    for arg in a:args
       if arg == s:journal_new_window_cmd
         let options.new_window = v:true
       elseif str#startswith(arg, s:journal_height_window_cmd)
         let options.height = str2nr(split(arg, '=')[-1])
       else
-        let date = arg
+        let file = arg
       endif
     endfor
-    if date == ''
+    if file == ''
       echoerr 'Awiwi journal: missing file to open'
     endif
+    return [file, options]
+endfun "}}}
+
+
+fun! awiwi#run(...) abort "{{{
+  if !a:0
+    throw 'AwiwiError: Awiwi expects 1+ arguments'
+  endif
+  if a:1 == s:journal_cmd
+    let [date, options] = s:parse_file_and_options(a:000[1:])
     call awiwi#edit_journal(date, options)
   elseif a:1 == s:continuation_cmd
     call awiwi#insert_and_open_continuation()
   elseif a:1 == s:link_cmd
     call awiwi#add_asset_link()
-  elseif a:1 == s:open_asset_cmd
-    call awiwi#open_file_or_asset()
+  elseif a:1 == s:asset_cmd
+    if a:0 == 1
+      "let files = map(s:get_all_asset_files(), {_, v -> printf('%s:%s', v.date, v.name)})
+      "return fzf#run(fzf#wrap({'source': files, 'sink': funcref('s:open_asset_sink')}))
+      return fzf#vim#files(s:asset_subpath)
+    elseif a:0 == 2 && a:2 == s:new_asset_cmd
+      return awiwi#open_journal_or_asset()
+    endif
+    let [date_file_expr, options] = s:parse_file_and_options(a:000[1:])
+    if str#contains(date_file_expr, ':')
+      let [date, file] = split(date_file_expr, ':')
+    else
+      let date = s:get_own_date()
+      let file = date_file_expr
+    endif
+    call s:open_asset_by_name(date, file, options)
   elseif a:1 == s:tasks_cmd
     call func#apply(funcref('awiwi#show_tasks'), func#spread(a:000[1:]))
   elseif a:1 == s:show_cmd
