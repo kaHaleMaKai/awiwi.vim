@@ -20,9 +20,23 @@ exe printf('syn match awiwiDelegate /(\?\(%s\)\([[:space:]]\+[^[:space:])]\+\)\{
 let s:due_markers = join(awiwi#get_markers('due', v:false), '\|')
 exe printf('syn match awiwiDue /\(%s\)\([[:space:]]\+[[:digit:]-.:]\+\)\{0,2}\|(\(%s\)\([[:space:]]\+[^[:space:])]\+\)*)/', s:due_markers, s:due_markers)
 
+syn region awiwiLink
+      \ start=/\(^\|[^[]\)\@<=\[\S\@=/
+    \ end=/\S\@<=)\($\|[^)]\)\@=/
+      \ keepend
+      \ contains=awiwiLinkStart,awiwiLinkName,awiwiLinkEnd,awiwiLinkTarget
+syn match awiwiLinkStart  /\(^\|[^[]\)\@<=\[\S\@=/           contained conceal cchar=<
+syn match awiwiLinkName   /\[\@<=.\{-}\]\@=/
+syn match awiwiLinkEnd    /\S\@<=\](\@=/                     contained conceal cchar=>
+syn match awiwiLinkTarget /\]\@<=([^h)].\{-})\($\|[^)]\)\@=/ contained conceal
+
 hi awiwiTodo cterm=bold ctermfg=3
 hi awiwiUrgent cterm=bold ctermfg=190 ctermbg=3
 hi awiwiUrgentStart ctermbg=237
 hi awiwiUrgentEnd ctermbg=237
 hi awiwiDelegate cterm=italic ctermfg=4
 hi awiwiDue cterm=bold ctermfg=190
+
+hi awiwiLinkName cterm=bold ctermfg=142
+hi awiwiLinkStart cterm=bold ctermfg=142
+hi awiwiLinkEnd cterm=bold ctermfg=142
