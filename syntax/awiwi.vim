@@ -15,9 +15,10 @@ exe printf('syn match awiwiUrgentEnd /\(\<%s\>\)\@<=.\+$/', join(awiwi#get_marke
 exe printf('syn match awiwiUrgentStart /^.*\ze\<\(%s\)\>/', join(awiwi#get_markers('urgent', v:false), '\|'))
 exe printf('syn match awiwiUrgent /\<\(%s\)\>/', join(awiwi#get_markers('urgent', v:false), '\|'))
 
-exe printf('syn match awiwiDelegate /(\?\(%s\)\( \S\+\)\{0,2})\?/', join(awiwi#get_markers('delegate', v:false), '\|'))
-exe printf('syn match awiwiDue /(\?\(%s\)\([[:space:]]\+\S\+\)*)\?/', join(awiwi#get_markers('due', v:false), '\|'))
+exe printf('syn match awiwiDelegate /(\?\(%s\)\([[:space:]]\+[^[:space:])]\+\)\{0,2})\?/', join(awiwi#get_markers('delegate', v:false), '\|'))
 
+let s:due_markers = join(awiwi#get_markers('due', v:false), '\|')
+exe printf('syn match awiwiDue /\(%s\)\([[:space:]]\+[[:digit:]-.:]\+\)\{0,2}\|(\(%s\)\([[:space:]]\+[^[:space:])]\+\)*)/', s:due_markers, s:due_markers)
 
 hi awiwiTodo cterm=bold ctermfg=3
 hi awiwiUrgent cterm=bold ctermfg=190 ctermbg=3
