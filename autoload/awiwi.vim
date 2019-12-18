@@ -4,6 +4,8 @@ endif
 let g:autoloaded_awiwi = v:true
 
 let s:date_pattern = '^[0-9]\{4}-[0-9]\{2}-[0-9]\{2}$'
+let s:activate_cmd = 'activate'
+let s:deactivate_cmd = 'deactivate'
 let s:journal_cmd = 'journal'
 let s:continuation_cmd = 'continue'
 let s:entry_cmd = 'entries'
@@ -19,12 +21,43 @@ let s:new_asset_cmd = 'create'
 let s:journal_subpath = path#join(g:awiwi_home, 'journal')
 let s:asset_subpath = path#join(g:awiwi_home, 'assets')
 
+if exists('g:awiwi_data_dir')
+  let s:awiwi_data_dir = g:awiwi_data_dir
+elseif exists('$XDG_DATA_DIR')
+  let s:awiwi_data_dir = path#join($XDG_DATA_DIR, 'awiwi')
+else
+  let s:awiwi_data_dir = path#join(g:awiwi_home, 'data')
+endif
+
+if !filewritable(s:awiwi_data_dir)
+  if !mkdir(s:awiwi_data_dir, 'p')
+    echoerr printf('cannot create data directory %s', s:awiwi_data_dir)
+    finish
+  endif
+endif
+
+let s:log_file = path#join(s:awiwi_data_dir, 'awiwi.log')
+let s:task_log_file = path#join(s:awiwi_data_dir, 'task.log')
+if !filereadable(s:task_log_file)
+  if writefile([], s:task_log_file) != 0
+    echoerr printf('could not create task log file "%s"', s:task_log_file)
+    finish
+  endif
+endif
+
+let s:log_file_size = get(g:, 'awiwi_history_length', 10000)
+let s:history = []
+
+let s:active_task = {}
+
 let s:search_engine_plain = 'plain'
 let s:search_engine_regex = 'regex'
 let s:search_engine_fuzzy = 'fuzzy'
 
 let s:subcommands = [
+      \ s:activate_cmd,
       \ s:continuation_cmd,
+      \ s:deactivate_cmd,
       \ s:journal_cmd,
       \ s:entry_cmd,
       \ s:link_cmd,
@@ -72,6 +105,42 @@ let s:urgent_markers = [
 let s:delegate_markers = ['@todo']
 let s:question_markers = ['QUESTION']
 let s:due_markers = ['DUE', 'DUE TO', 'UNTIL', '@until', '@due']
+
+
+fun! s:get_empty_task() abort "{{{
+  return {'title': '', 'marker': '', 'type': v:false, 'activity': [], 'state': 'inactive', 'created': 0, 'updated': 0, 'duration': 0}
+endfun "}}}
+
+
+fun! s:get_epoch() abort "{{{
+  return str2nr(strftime('%s'))
+endfun "}}}
+
+
+fun! s:get_current_timestamp() abort "{{{
+  return strftime('%F %T')
+endfun "}}}
+
+
+fun! s:log(data) abort "{{{
+  let ts = s:get_current_timestamp()
+  let msg = printf('%s %s', ts, string(a:data))
+  return writefile([msg], s:log_file, "a") == 0
+        \ ? v:true : v:false
+endfun "}}}
+
+
+fun! s:log_task_action(task, action) abort "{{{
+  if a:action != 'activate' && a:action != 'deactivate'
+    echoerr printf('action must be either of ("activate", "deactivate"). got: "%s"', a:action)
+    return
+  endif
+
+  call s:log({'type': printf('%s task', a:action), 'content': a:task})
+  return writefile([string(a:task)], s:task_log_file, "a") == 0
+        \ ? v:true : v:false
+endfun "}}}
+
 
 fun! awiwi#get_markers(type, ...) abort "{{{
   let do_join = get(a:000, 0, v:true)
@@ -494,6 +563,22 @@ fun! awiwi#edit_journal(date, ...) abort "{{{
 endfun "}}}
 
 
+fun! s:get_current_task() abort "{{{
+  let result = {'marker': '', 'title': ''}
+  let title = ''
+  for line_nr in range(line('.'), 1, -1)
+    let line = getline(line_nr)
+     let matches = matchlist(line, '^\(#\{2,4}\)[[:space:]]\+\([^[:space:]].*\)')
+     if matches != []
+       let [marker, title] = matches[1:2]
+       let result = {'marker': marker, 'title': title}
+       break
+     endif
+  endfor
+  return result
+endfun "}}}
+
+
 fun! awiwi#insert_and_open_continuation() abort "{{{
   let own_date = s:get_own_date()
   let today = s:parse_date('today')
@@ -502,18 +587,9 @@ fun! awiwi#insert_and_open_continuation() abort "{{{
   endif
   let today_file = s:get_journal_file_by_date(today)
   let link = s:add_link(printf('continued on %s', today), today_file)
-
+  let current_task = s:get_current_task()
   " get the task name
-  let title = ''
-  for line_nr in range(line('.'), 1, -1)
-    let line = getline(line_nr)
-     let matches = matchlist(line, '^\(#\{1,4}\)[[:space:]]\+\([^[:space:]].*\)')
-     if matches != []
-       let [marker, title] = matches[1:2]
-       break
-     endif
-  endfor
-  if title == ''
+  if !current_task.title
     throw 'AwiwiError: could not find task title'
   endif
 
@@ -702,6 +778,101 @@ fun! s:parse_file_and_options(args) abort "{{{
 endfun "}}}
 
 
+fun! s:get_most_recent_task_from_file() abort "{{{
+  if filereadable(s:task_log_file)
+    let lines = readfile(s:task_log_file, '', -1)
+    if empty(lines)
+      return s:get_empty_task()
+    endif
+    return eval(lines[0])
+  else
+    return s:get_empty_task()
+  endif
+endfun "}}}
+
+
+fun! s:get_most_recent_task_activty(title) abort "{{{
+  let task = s:get_empty_task()
+  if !filereadable(s:task_log_file)
+    return task
+  endif
+  for line in readfile(s:task_log_file)
+    let t = eval(line)
+    if t.title == a:title
+      let task = t
+    endif
+  endfor
+  return task
+endfun "}}}
+
+
+fun! s:get_active_task() abort "{{{
+  if get(s:active_task, 'state', 'inactive') == 'active'
+    return s:active_task
+  endif
+  return s:get_empty_task()
+endfun "}}}
+
+
+fun! awiwi#activate_current_task() abort "{{{
+  let current_task = s:get_current_task()
+  if current_task.title == ''
+    echoerr 'not in a task section'
+    return
+  endif
+  let active_task = s:get_active_task()
+  if active_task.state == 'active'
+    if active_task.title == current_task.title
+      echo 'task is already active'
+      return
+    else
+      echoerr printf('you must deactive the active task "%s"', active_task.title)
+      return
+    endif
+  endif
+
+  let recent_task = s:get_most_recent_task_from_file()
+  if recent_task.title == current_task.title
+    let task = recent_task
+  else
+    let task = s:get_most_recent_task_activty(current_task.title)
+  endif
+
+  if task.title == ''
+    let task.title = current_task.title
+    let task.marker = current_task.marker
+  endif
+  let ts = s:get_epoch()
+  let task.state = 'active'
+  let task.updated = ts
+  call add(task.activity, {'action': 'activate', 'ts': ts})
+  call s:log_task_action(task, 'activate')
+  let s:active_task = task
+  let g:awiwi_active_task = deepcopy(task)
+endfun "}}}
+
+
+fun! awiwi#deactivate_active_task() abort "{{{
+  let task = s:get_active_task()
+  if task.state != 'active'
+    echo "no task active"
+    return
+  endif
+
+  let ts = s:get_epoch()
+  let start_ts = task.activity[-1]['ts']
+  let duration = ts - start_ts
+  call add(task.activity, {'action': 'deactivate', 'ts': ts})
+  let task.state = 'inactive'
+  let task.updated = ts
+  let task.duration = task.duration + duration
+  call s:log_task_action(task, 'deactivate')
+  if exists('g:awiwi_active_task')
+    unlet g:awiwi_active_task
+  endif
+endfun "}}}
+
+
 fun! awiwi#run(...) abort "{{{
   if !a:0
     throw 'AwiwiError: Awiwi expects 1+ arguments'
@@ -711,6 +882,10 @@ fun! awiwi#run(...) abort "{{{
     call awiwi#edit_journal(date, options)
   elseif a:1 == s:continuation_cmd
     call awiwi#insert_and_open_continuation()
+  elseif a:1 == s:activate_cmd
+    call awiwi#activate_current_task()
+  elseif a:1 == s:deactivate_cmd
+    call awiwi#deactivate_active_task()
   elseif a:1 == s:link_cmd
     call awiwi#add_asset_link()
   elseif a:1 == s:asset_cmd
@@ -754,3 +929,38 @@ fun! awiwi#run(...) abort "{{{
     call awiwi#edit_journal('todo', {'new_window': v:true, 'height': 10})
   endif
 endfun "}}}
+
+let task = s:get_most_recent_task_from_file()
+if task.state == 'active'
+  let s:active_task = task
+  let g:awiwi_active_task = s:active_task
+endif
+unlet task
+
+if exists('g:airline_section_x')
+  fun! awiwi#add_active_task_to_airline() abort "{{{
+    if exists('g:awiwi_active_task') && g:awiwi_active_task.state == 'active'
+      let t = g:awiwi_active_task
+      let now = str2nr(strftime('%s'))
+      let duration = t.duration + now - t.activity[-1].ts
+      if duration < 60
+        let format = printf('%ds', duration)
+      elseif duration < 3600
+        let format = strftime('%Mm %Ss', duration)
+      elseif duration < 86400
+        let format = strftime('%Hh %Mm', duration)
+      else
+        let format = strftime('%dd %Hh', duration)
+      endif
+      return printf('[ %s (%s) ]', g:awiwi_active_task.title, format)
+    else
+      return ''
+    endif
+  endfun "}}}
+
+  hi awiwiAirlineTask cterm=bold ctermfg=160 ctermbg=232
+
+  let g:airline_section_b = ''
+  let g:airline_section_x = '%#awiwiAirlineTask#%{awiwi#add_active_task_to_airline()}'
+  let g:airline_section_y = ''
+endif
