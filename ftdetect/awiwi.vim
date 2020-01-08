@@ -1,4 +1,4 @@
-augroup awiwi
+augroup awiwiFtDetect
   au!
   exe printf('au! BufEnter %s/journal/**/*.md setlocal filetype=markdown.awiwi', g:awiwi_home)
   let s:au_assets = [

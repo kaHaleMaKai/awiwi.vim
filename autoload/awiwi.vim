@@ -122,12 +122,46 @@ fun! s:get_current_timestamp() abort "{{{
 endfun "}}}
 
 
-fun! s:log(data) abort "{{{
+fun! s:log(level, msg, ...) abort "{{{
   let ts = s:get_current_timestamp()
-  let msg = printf('%s %s', ts, string(a:data))
+  let level = toupper(a:level)
+  if a:0
+    let params = ['[%s] %-5s - ' . a:msg, ts, level] + a:000
+    let msg = call('printf', params)
+  else
+    let msg = printf('[%s] %-5s - %s', ts, level, a:msg)
+  endif
   return writefile([msg], s:log_file, "a") == 0
         \ ? v:true : v:false
 endfun "}}}
+
+
+fun! s:info(msg, ...) abort "{{{
+  if a:0
+    return call('s:log', ['INFO', a:msg] + a:000)
+  else
+    return s:log('INFO', a:msg)
+  endif
+endfun "}}}
+
+
+fun! s:warn(msg, ...) abort "{{{
+  if a:0
+    return call('s:log', ['WARN', a:msg] + a:000)
+  else
+    return s:log('WARN', a:msg)
+  endif
+endfun "}}}
+
+
+fun! s:error(msg, ...) abort "{{{
+  if a:0
+    return call('s:log', ['ERROR', a:msg] + a:000)
+  else
+    return s:log('ERROR', a:msg)
+  endif
+endfun "}}}
+
 
 
 fun! s:log_task_action(task, action) abort "{{{
@@ -136,14 +170,15 @@ fun! s:log_task_action(task, action) abort "{{{
     return
   endif
 
-  call s:log({'type': printf('%s task', a:action), 'content': a:task})
+  call s:info('%s task "%s"', a:action, a:task.title)
   return writefile([string(a:task)], s:task_log_file, "a") == 0
         \ ? v:true : v:false
 endfun "}}}
 
 
 fun! awiwi#get_markers(type, ...) abort "{{{
-  let do_join = get(a:000, 0, v:true)
+  let options = {'join': v:true, 'escape_mode': 'rg'}
+  call extend(options, get(a:000, 0, {}))
 
   if !exists(printf('s:%s_markers', a:type))
     throw printf('AwiwiError: type %s does not exist', a:type)
@@ -151,8 +186,17 @@ fun! awiwi#get_markers(type, ...) abort "{{{
 
   let custom_markers = get(g:, printf('awiwi_custom_%s_markers', a:type), [])
   let markers = copy(get(s:, a:type.'_markers')) + custom_markers
-  let result = uniq(map(markers, {_, v -> s:escape_rg_pattern(v)}))
-  if do_join
+  if options.escape_mode == 'rg'
+    let result = uniq(map(markers, {_, v -> s:escape_rg_pattern(v)}))
+  else
+    let result = uniq(map(markers, {_, v -> s:escape_pattern(v)}))
+  endif
+  if a:type == 'todo' && options.escape_mode == 'rg'
+    let task_list = '^[-*][[:space:]]+\[[[:space:]]+\]'
+    call add(result, task_list)
+  endif
+  if options.join
+    let join_char = options.escape_mode == 'vim' ? '\|' : '|'
     return join(result, '|')
   else
     return result
@@ -563,18 +607,38 @@ fun! awiwi#edit_journal(date, ...) abort "{{{
 endfun "}}}
 
 
+fun! s:get_title_and_tags(title) abort "{{{
+  let result = {'title': a:title, 'bare_title': '', 'tags': {}}
+  if a:title == ''
+    return result
+  endif
+
+  let splits = split(a:title, ' (cont. ', v:false)
+  if len(splits) == 1
+    let result.bare_title = a:title
+  else
+    let result.bare_title = splits[0]
+    let result.tags.cont = '(cont. ' . splits[1]
+  endif
+  return result
+endfun "}}}
+
+
 fun! s:get_current_task() abort "{{{
-  let result = {'marker': '', 'title': ''}
+  let result = {'marker': '', 'title': '', 'tags': {}, 'bare_title': ''}
   let title = ''
   for line_nr in range(line('.'), 1, -1)
     let line = getline(line_nr)
      let matches = matchlist(line, '^\(#\{2,4}\)[[:space:]]\+\([^[:space:]].*\)')
      if matches != []
        let [marker, title] = matches[1:2]
-       let result = {'marker': marker, 'title': title}
+       let result = {'marker': marker, 'title': title, 'tags': {}, 'bare_title': ''}
        break
      endif
   endfor
+
+  let values = s:get_title_and_tags(title)
+  call extend(result, values)
   return result
 endfun "}}}
 
@@ -589,7 +653,7 @@ fun! awiwi#insert_and_open_continuation() abort "{{{
   let link = s:add_link(printf('continued on %s', today), today_file)
   let current_task = s:get_current_task()
   " get the task name
-  if !current_task.title
+  if current_task.title == ''
     throw 'AwiwiError: could not find task title'
   endif
 
@@ -602,7 +666,7 @@ fun! awiwi#insert_and_open_continuation() abort "{{{
   call awiwi#edit_journal(today, {'new_window': v:true})
   let lines = [
         \ '',
-        \ printf('%s %s (cont. from %s)', marker, title, own_date),
+        \ printf('%s %s (cont. from %s)', current_task.marker, current_task.title, own_date),
         \ '',
         \ back_link,
         \ '',
@@ -816,13 +880,13 @@ endfun "}}}
 
 fun! awiwi#activate_current_task() abort "{{{
   let current_task = s:get_current_task()
-  if current_task.title == ''
+  if current_task.bare_title == ''
     echoerr 'not in a task section'
     return
   endif
   let active_task = s:get_active_task()
   if active_task.state == 'active'
-    if active_task.title == current_task.title
+    if active_task.title == current_task.bare_title
       echo 'task is already active'
       return
     else
@@ -832,14 +896,14 @@ fun! awiwi#activate_current_task() abort "{{{
   endif
 
   let recent_task = s:get_most_recent_task_from_file()
-  if recent_task.title == current_task.title
+  if recent_task.title == current_task.bare_title
     let task = recent_task
   else
-    let task = s:get_most_recent_task_activty(current_task.title)
+    let task = s:get_most_recent_task_activty(current_task.bare_title)
   endif
 
   if task.title == ''
-    let task.title = current_task.title
+    let task.title = current_task.bare_title
     let task.marker = current_task.marker
   endif
   let ts = s:get_epoch()

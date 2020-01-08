@@ -5,19 +5,20 @@ let s:types = [
       \ ]
 
 let markers = []
+let marker_opts = {'escape_mode': 'vim'}
 for type in s:types
-  call extend(markers, awiwi#get_markers(type, v:false))
+  call extend(markers, awiwi#get_markers(type, {'join': v:false, 'escape_mode': 'vim'}))
 endfor
 syn case match
 exe printf('syn match AwiwiTodo /\<\(%s\)\>/', join(markers, '\|'))
 
-exe printf('syn match awiwiUrgentEnd /\(\<%s\>\)\@<=.\+$/', join(awiwi#get_markers('urgent', v:false), '\|'))
-exe printf('syn match awiwiUrgentStart /^.*\ze\<\(%s\)\>/', join(awiwi#get_markers('urgent', v:false), '\|'))
-exe printf('syn match awiwiUrgent /\<\(%s\)\>/', join(awiwi#get_markers('urgent', v:false), '\|'))
+exe printf('syn match awiwiUrgentEnd /\(\<%s\>\)\@<=.\+$/', awiwi#get_markers('urgent', marker_opts))
+exe printf('syn match awiwiUrgentStart /^.*\ze\<\(%s\)\>/', awiwi#get_markers('urgent', marker_opts))
+exe printf('syn match awiwiUrgent /\<\(%s\)\>/', awiwi#get_markers('urgent', marker_opts))
 
-exe printf('syn match awiwiDelegate /(\?\(%s\)\([[:space:]]\+[^[:space:])]\+\)\{0,2})\?/', join(awiwi#get_markers('delegate', v:false), '\|'))
+exe printf('syn match awiwiDelegate /(\?\(%s\)\([[:space:]]\+[^[:space:])]\+\)\{0,2})\?/', awiwi#get_markers('delegate', marker_opts))
 
-let s:due_markers = join(awiwi#get_markers('due', v:false), '\|')
+let s:due_markers = awiwi#get_markers('due', marker_opts)
 exe printf('syn match awiwiDue /\(%s\)\([[:space:]]\+[[:digit:]-.:]\+\)\{0,2}\|(\(%s\)\([[:space:]]\+[^[:space:])]\+\)*)/', s:due_markers, s:due_markers)
 
 hi awiwiTodo cterm=bold ctermfg=3
@@ -27,9 +28,16 @@ hi awiwiUrgentEnd ctermbg=237
 hi awiwiDelegate cterm=italic ctermfg=4
 hi awiwiDue cterm=bold ctermfg=190
 
+syn match awiwiTaskListOpen /^[-*] \[ \]$\@!/
+hi awiwiTaskListOpen cterm=bold ctermfg=3
+
+syn match awiwiTaskListDone /^[-*] \[x\]$\@!/
+hi awiwiTaskListDone ctermfg=241
+
+
 if get(g:, 'awiwi_highlight_links', v:true)
   syn region awiwiLink
-        \ start=/\(^\|[^[]\)\@<=\[\S\@=/
+        \ start=/\(^\|[^[]\)\@<=\(^[-*] \+\)\@<!\[\S\@=/
         \ end=/\S\@<=)\($\|[^)]\)\@=/
         \ keepend
         \ contains=awiwiLinkStart,awiwiLinkName,awiwiLinkEnd,awiwiLinkTarget,awiwiLinkStart,awiwiLinkEnd
