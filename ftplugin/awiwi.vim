@@ -37,47 +37,106 @@ nnoremap <silent> <buffer> gn :Awiwi journal next<CR>
 nnoremap <silent> <buffer> gp :Awiwi journal previous<CR>
 
 fun! s:handle_enter_on_insert() abort "{{{
-  let line = getline('.')
-  let m = matchlist(getline('.'), '^\([-*]\)\([[:space:]]\+\[[ x]\+\]\)')
+  let m = matchlist(getline('.'), '^\([-*]\)\([[:space:]]\+\)\(\[[ x]\+\]\)\?')
+  let append = v:true
   if empty(m)
-    return "\n"
+    let text = ''
+    let pos = 0
+  elseif empty(m[3])
+    let text = m[1].m[2]
+    let pos = strlen(text)
   else
-    let marker = "\n".m[1].' [ ] '
-    return marker
+    let marker = m[1].' [ ] '
+    let pos = strlen(marker) + 1
+    if str#endswith(&ft, '.todo')
+      let text = marker.printf(' (from %s)', strftime('%F'))
+      let append = v:false
+    else
+      let text = marker
+    endif
+  endif
+  let cursor = getcurpos()
+  let cursor[1] += 1
+  let cursor[2] = pos
+  call append('.', text)
+  call setpos('.', cursor)
+  if append
+    starti!
+  else
+    starti
   endif
 endfun "}}}
 
 
 fun! s:handle_enter() abort "{{{
+  if mode() != 'n'
+    stopi
+  endif
   let line = getline('.')
-  let pos = matchend(getline('.'), '^[-*][[:space:]]\+\[[ x]\(\]\)\@=')
+  let pos = matchend(line, '^[-*][[:space:]]\+\[[ x]\(\]\)\@=')
   if pos == -1
+    let m = matchstr(line, '^[-*][[:space:]]\+')
+    if empty(m)
+      normal! <Enter>
+      return
+    endif
+    call append(line('.'), m)
+    normal! j
+    startinsert!
     return
   endif
 
   let ch = line[pos-1]
   let cursor = getcurpos()
-  if ch == 'x'
-    let new_char = ' '
-  else
+  let is_open = ch == ' '
+  let markers = awiwi#get_markers('due', {'join': v:false, 'escape_mode': 'vim'})
+  let ms = join(markers, '\|')
+  let pattern = printf('\(\(%s\)\([[:space:]]\+[[:digit:]-.:]\+\)\{0,2}\|(\?\(%s\)\([[:space:]]\+[^[:space:])]\+\)*)\?\)', ms, ms)
+  let anti_pattern = '\~\~' . pattern . '\~\~'
+  let due_pos = []
+  if is_open
     let new_char = 'x'
+    let m = matchstrpos(line, pattern)
+    if m[1] != -1 && line[m[1] - 1] != '~'
+      let due_pos = m[1:]
+    endif
+  else
+    let new_char = ' '
+    let m = matchstrpos(line, anti_pattern)
+    if m[1] != -1
+      let due_pos = m[1:]
+    endif
   endif
-  exe printf('normal! %d|r%s', pos, new_char)
+
+  let new_line = line[:pos-2] . new_char . line[pos:]
+  let offset = 0
+  if !empty(due_pos)
+    let [start, end] = due_pos
+    if is_open
+      let new_line = new_line[:start-1] . '~~' . new_line[start:end] . '~~' . new_line[end+1:]
+      if cursor[2] >= end
+        let cursor[2] += 4
+      elseif cursor[2] >= start
+        let cursor[2] += 2
+      endif
+    else
+      let new_line = new_line[:start-1] . new_line[start+2:end-3] . new_line[end:]
+      if cursor[2] >= end
+        let cursor[2] -= 4
+      elseif cursor[2] >= start
+        let cursor[2] -= 2
+      endif
+    endif
+  endif
+  call setline(cursor[1], new_line)
   call setpos('.', cursor)
   sil w
   normal! j
 endfun "}}}
 
-
-if str#endswith(&ft, '.todo')
-  nnoremap <silent> <buffer> o o*<Space>
-  nnoremap <silent> <buffer> O O*<Space>
-  inoremap <silent> <buffer> <Enter> <CR>*<Space>
-else
-  nnoremap <silent> <buffer> o A<C-r>=<sid>handle_enter_on_insert()<CR>
-  inoremap <silent> <buffer> <Enter> <C-r>=<sid>handle_enter_on_insert()<CR>
-  nnoremap <silent> <buffer> <Enter> :call <sid>handle_enter()<CR>
-endif
+nnoremap <silent> <buffer> o :call <sid>handle_enter_on_insert()<CR>
+inoremap <silent> <buffer> <Enter> <Esc>:call <sid>handle_enter_on_insert()<CR>
+nnoremap <silent> <buffer> <Enter> :call <sid>handle_enter()<CR>
 
 augroup awiwiAutosave
   au!

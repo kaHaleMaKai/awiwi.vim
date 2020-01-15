@@ -3,6 +3,8 @@ if exists('g:autoloaded_awiwi')
 endif
 let g:autoloaded_awiwi = v:true
 
+" {{{1 variables
+
 let s:date_pattern = '^[0-9]\{4}-[0-9]\{2}-[0-9]\{2}$'
 let s:activate_cmd = 'activate'
 let s:deactivate_cmd = 'deactivate'
@@ -11,6 +13,7 @@ let s:continuation_cmd = 'continue'
 let s:entry_cmd = 'entries'
 let s:link_cmd = 'link'
 let s:asset_cmd = 'asset'
+let s:recipe_cmd = 'recipe'
 let s:search_cmd = 'search'
 let s:show_cmd = 'show'
 let s:tasks_cmd = 'tasks'
@@ -20,6 +23,7 @@ let s:new_asset_cmd = 'create'
 
 let s:journal_subpath = path#join(g:awiwi_home, 'journal')
 let s:asset_subpath = path#join(g:awiwi_home, 'assets')
+let s:recipe_subpath = path#join(s:asset_subpath, 'recipes')
 
 if exists('g:awiwi_data_dir')
   let s:awiwi_data_dir = g:awiwi_data_dir
@@ -29,12 +33,14 @@ else
   let s:awiwi_data_dir = path#join(g:awiwi_home, 'data')
 endif
 
-if !filewritable(s:awiwi_data_dir)
-  if !mkdir(s:awiwi_data_dir, 'p')
-    echoerr printf('cannot create data directory %s', s:awiwi_data_dir)
-    finish
+for dir in [s:awiwi_data_dir, s:journal_subpath, s:asset_subpath, s:recipe_subpath]
+  if !filewritable(dir)
+    if !mkdir(dir, 'p')
+      echoerr printf('cannot create data directory %s', dir)
+      finish
+    endif
   endif
-endif
+endfor
 
 let s:log_file = path#join(s:awiwi_data_dir, 'awiwi.log')
 let s:task_log_file = path#join(s:awiwi_data_dir, 'task.log')
@@ -62,6 +68,7 @@ let s:subcommands = [
       \ s:entry_cmd,
       \ s:link_cmd,
       \ s:asset_cmd,
+      \ s:recipe_cmd,
       \ s:search_cmd,
       \ s:show_cmd,
       \ s:tasks_cmd,
@@ -106,6 +113,7 @@ let s:delegate_markers = ['@todo']
 let s:question_markers = ['QUESTION']
 let s:due_markers = ['DUE', 'DUE TO', 'UNTIL', '@until', '@due']
 
+" 1}}}
 
 fun! s:get_empty_task() abort "{{{
   return {'title': '', 'marker': '', 'type': v:false, 'activity': [], 'state': 'inactive', 'created': 0, 'updated': 0, 'duration': 0}
@@ -162,8 +170,6 @@ fun! s:error(msg, ...) abort "{{{
   endif
 endfun "}}}
 
-
-
 fun! s:log_task_action(task, action) abort "{{{
   if a:action != 'activate' && a:action != 'deactivate'
     echoerr printf('action must be either of ("activate", "deactivate"). got: "%s"', a:action)
@@ -197,7 +203,7 @@ fun! awiwi#get_markers(type, ...) abort "{{{
   endif
   if options.join
     let join_char = options.escape_mode == 'vim' ? '\|' : '|'
-    return join(result, '|')
+    return join(result, join_char)
   else
     return result
   endif
@@ -233,7 +239,7 @@ fun! awiwi#show_tasks(...) abort "{{{
   else
     let markers = []
   endif
-
+  let has_due = v:false
   if s:contains(args, s:tasks_todo_cmd, s:tasks_all_cmd)
     call add(markers, awiwi#get_markers('todo'))
   endif
@@ -244,6 +250,7 @@ fun! awiwi#show_tasks(...) abort "{{{
   if s:contains(args, s:tasks_due_cmd, s:tasks_all_cmd)
     let due = awiwi#get_markers('due')
     call add(markers, printf('\(?(%s):?( \S+)*\)?', due))
+    let has_due = v:true
   endif
   if s:contains(args, s:tasks_onhold_cmd, s:tasks_all_cmd)
     call add(markers, awiwi#get_markers('onhold'))
@@ -262,10 +269,11 @@ fun! awiwi#show_tasks(...) abort "{{{
   let rg_cmd = [
         \ 'rg', '-u', '--column', '--line-number',
         \ '--no-heading', '--color=always',
-        \ '-g', shellescape('!awiwi*'), shellescape(pattern),
-        \ ]
-  " FIXME: sort by urgency (most urgent last, so it appears first in
-  " fzf-terminal)
+        \ '-g', shellescape('!awiwi*'), shellescape(pattern)]
+  if has_due
+    let anti_pattern = printf('0m:[*-] +\[x\] |~~.{20}(%s)', pattern)
+    call extend(rg_cmd, ['|', 'rg', '-v', '--color=always', shellescape(anti_pattern)])
+  endif
   let with_preview = fzf#vim#with_preview('right:50%:hidden', '?')
   call fzf#vim#grep(join(rg_cmd, ' '), 1, with_preview, 0)
 
@@ -444,14 +452,13 @@ endfun "}}}
 
 
 fun! s:escape_pattern(pattern) abort "{{{
-  return escape(a:pattern, " \t.*?\\\[\]")
+  return escape(a:pattern, " \t.*\\\[\]")
 endfun "}}}
 
 
 fun! s:escape_rg_pattern(pattern) abort "{{{
   return escape(a:pattern, ".*?\\\[\]")
 endfun "}}}
-
 
 
 fun! s:get_asset_under_cursor(accept_date) abort "{{{
@@ -568,6 +575,10 @@ fun! s:open_file(file, options) abort "{{{
     endif
   else
     let cmd = 'e'
+  endif
+  if get(a:options, 'create_dirs', v:false)
+    let dir = fnamemodify(a:file, ':p:h')
+    call mkdir(dir, 'p')
   endif
   let jump_mod = get(a:options, 'last_line', v:false)
         \ ? '+' : ''
@@ -731,10 +742,18 @@ fun! s:get_all_asset_files() abort "{{{
     return map(
           \  map(
           \    filter(
-          \      glob(path#join(g:awiwi_home, 'assets', '**'), v:false, v:true),
+          \      glob(path#join(g:awiwi_home, 'assets', '2*', '**'), v:false, v:true),
           \      {_, v -> filereadable(v)}),
           \    {_, v -> split(v, '/')[-4:]}),
           \  {_, v -> {'date': join(v[:2], '-'), 'name': v[-1]}})
+endfun "}}}
+
+
+fun! s:get_all_recipe_files() abort "{{{
+    return sort(
+          \ filter(
+          \   glob(path#join(g:awiwi_home, 'assets', 'recipes'), v:false, v:true),
+          \   {_, v -> filereadable(v)}))
 endfun "}}}
 
 
@@ -813,6 +832,14 @@ fun! awiwi#_get_completion(ArgLead, CmdLine, CursorPos) abort "{{{
     if current_arg_pos == 2
       call insert(submatches, s:new_asset_cmd)
     endif
+    return s:match_subcommands(submatches, a:ArgLead)
+  elseif args[1] == s:recipe_cmd
+    let submatches = []
+    if s:need_to_insert_files(current_arg_pos, args[2:])
+      call extend(submatches, s:get_all_recipe_files())
+      call add(submatches, 'create')
+    endif
+    call s:insert_win_cmds(submatches, current_arg_pos, args[2:])
     return s:match_subcommands(submatches, a:ArgLead)
   endif
 
@@ -968,6 +995,14 @@ fun! awiwi#run(...) abort "{{{
       let file = date_file_expr
     endif
     call s:open_asset_by_name(date, file, options)
+  elseif a:1 == s:recipe_cmd
+    if a:0 == 1
+      return fzf#vim#files(s:recipe_subpath)
+    endif
+    let [recipe, options] = s:parse_file_and_options(a:000[1:])
+    let options.create_dirs = v:true
+    let recipe_file = path#join(s:recipe_subpath, recipe)
+    call s:open_file(recipe_file, options)
   elseif a:1 == s:tasks_cmd
     call func#apply(funcref('awiwi#show_tasks'), func#spread(a:000[1:]))
   elseif a:1 == s:show_cmd
