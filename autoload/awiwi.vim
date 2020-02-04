@@ -23,7 +23,7 @@ let s:new_asset_cmd = 'create'
 
 let s:journal_subpath = path#join(g:awiwi_home, 'journal')
 let s:asset_subpath = path#join(g:awiwi_home, 'assets')
-let s:recipe_subpath = path#join(s:asset_subpath, 'recipes')
+let s:recipe_subpath = path#join(g:awiwi_home, 'recipes')
 
 if exists('g:awiwi_data_dir')
   let s:awiwi_data_dir = g:awiwi_data_dir
@@ -301,9 +301,9 @@ fun! awiwi#fuzzy_search(...) abort "{{{
   let rg_cmd = [
         \ 'rg', '-U', '--multiline-dotall', '--color=never',
         \ '--column', '--line-number', '--no-heading',
-        \ '-g', shellescape('!awiwi*'), shellescape(pattern)
+        \ '-g', '!awiwi*', pattern
         \ ]
-  let matches = filter(systemlist(join(rg_cmd, ' ')), {_, v -> !str#is_empty(v)})
+  let matches = filter(systemlist(rg_cmd), {_, v -> !str#is_empty(v)})
   if a:0 > 1
     let start = printf('\<%s\>', s:escape_pattern(a:1))
     let matches = filter(matches, {_, v -> match(v, start) > -1})
@@ -750,10 +750,14 @@ endfun "}}}
 
 
 fun! s:get_all_recipe_files() abort "{{{
+    let prefix_len = str#endswith(s:recipe_subpath , '/')
+          \ ? strlen(s:recipe_subpath) : strlen(s:recipe_subpath)+1
     return sort(
-          \ filter(
-          \   glob(path#join(g:awiwi_home, 'assets', 'recipes'), v:false, v:true),
-          \   {_, v -> filereadable(v)}))
+          \ map(
+          \   filter(
+          \     glob(path#join(s:recipe_subpath, '**', '*'), v:false, v:true),
+          \     {_, v -> filereadable(v)}),
+          \   {_, v -> v[prefix_len:]}))
 endfun "}}}
 
 
@@ -837,7 +841,6 @@ fun! awiwi#_get_completion(ArgLead, CmdLine, CursorPos) abort "{{{
     let submatches = []
     if s:need_to_insert_files(current_arg_pos, args[2:])
       call extend(submatches, s:get_all_recipe_files())
-      call add(submatches, 'create')
     endif
     call s:insert_win_cmds(submatches, current_arg_pos, args[2:])
     return s:match_subcommands(submatches, a:ArgLead)
@@ -1014,9 +1017,9 @@ fun! awiwi#run(...) abort "{{{
     let rg_cmd = [
           \ 'rg', '-u', '--column', '--line-number',
           \ '--no-heading', '--color=never',
-          \ '-g', shellescape('!awiwi*'), shellescape(pattern)
+          \ '-g', '!awiwi*', pattern
           \ ]
-    let rg_result = systemlist(join(rg_cmd, ' '))
+    let rg_result = systemlist(rg_cmd)
     let entries = map(
           \ filter(
           \   rg_result,

@@ -37,15 +37,29 @@ nnoremap <silent> <buffer> gn :Awiwi journal next<CR>
 nnoremap <silent> <buffer> gp :Awiwi journal previous<CR>
 
 fun! s:handle_enter_on_insert() abort "{{{
-  let m = matchlist(getline('.'), '^\([-*]\)\([[:space:]]\+\)\(\[[ x]\+\]\)\?')
+  let line = getline('.')
+  let m = matchlist(line, '^\([-*]\)\([[:space:]]\+\)\(\[[ x]\+\]\)\?')
   let append = v:true
   if empty(m)
     let text = ''
     let pos = 0
   elseif empty(m[3])
+    if match(line, '[[:space:]][^[:space:]]') == -1
+      call setline('.', '')
+      normal! o
+      starti
+      return
+    endif
     let text = m[1].m[2]
     let pos = strlen(text)
   else
+    if match(line, '\][[:space:]]*[^[:space:]]') == -1
+          \ || match(line, '^[-*][[:space:]]\+\[[x ]\][[:space:]]\+(from [-0-9]\+)[[:space:]]*$') > -1
+      call setline('.', '')
+      normal! o
+      starti
+      return
+    endif
     let marker = m[1].' [ ] '
     let pos = strlen(marker) + 1
     if str#endswith(&ft, '.todo')
@@ -77,11 +91,9 @@ fun! s:handle_enter() abort "{{{
   if pos == -1
     let m = matchstr(line, '^[-*][[:space:]]\+')
     if empty(m)
-      normal! <Enter>
+      normal! <CR>
       return
     endif
-    call append(line('.'), m)
-    normal! j
     startinsert!
     return
   endif
@@ -113,7 +125,7 @@ fun! s:handle_enter() abort "{{{
   if !empty(due_pos)
     let [start, end] = due_pos
     if is_open
-      let new_line = new_line[:start-1] . '~~' . new_line[start:end] . '~~' . new_line[end+1:]
+      let new_line = new_line[:start-1] . '~~' . new_line[start:end-1] . '~~' . new_line[end:]
       if cursor[2] >= end
         let cursor[2] += 4
       elseif cursor[2] >= start
