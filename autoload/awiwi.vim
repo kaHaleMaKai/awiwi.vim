@@ -42,6 +42,12 @@ for dir in [s:awiwi_data_dir, s:journal_subpath, s:asset_subpath, s:recipe_subpa
   endif
 endfor
 
+
+fun! awiwi#get_data_dir() abort "{{{
+  return s:awiwi_data_dir
+endfun "}}}
+
+
 let s:log_file = path#join(s:awiwi_data_dir, 'awiwi.log')
 let s:task_log_file = path#join(s:awiwi_data_dir, 'task.log')
 if !filereadable(s:task_log_file)
