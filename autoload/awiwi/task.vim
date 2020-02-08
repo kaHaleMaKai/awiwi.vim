@@ -5,7 +5,10 @@
 
 let s:script = expand('<sfile>:p')
 let s:db = path#join(awiwi#get_data_dir(), 'task.db')
-call awiwi#sql#create_db(s:db, v:true)
+let s:ids = {}
+let s:tables = ['urgency', 'tag', 'task', 'task_tags', 'setting', 'task_log']
+let s:default_duration_increment = get(g:, 'awiwi_task_update_frequency', 30)
+
 
 let s:screensavers = {
       \ 'gnome': 'org.gnome.ScreenSaver',
@@ -29,16 +32,90 @@ let s:screensaver_cmd = [
       \ ]
 
 
+fun! s:get_current_timestamp() abort "{{{
+  return strftime('%F %T')
+endfun "}}}
+
+
+fun! s:get_resource(path, ...) abort "{{{
+  let paths = [fnamemodify(s:script, ':h:h:h'), 'resources', a:path]
+  call extend(paths, a:000)
+  let resource_path = call(funcref('path#join'), paths)
+  if !filereadable(resource_path)
+    throw printf('AwiwiTaskError: resource does not exist: "%s"', resource_path)
+  endif
+  return join(readfile(resource_path, ''), "\n")
+endfun "}}}
+
+
+fun! s:create_db(path) abort "{{{
+  let parent = fnamemodify(a:path, ':h')
+  if filewritable(parent) != 2 && !mkdir(parent, 'p')
+    echoerr printf('could not create parent dir for sqlite db: "%s"', parent)
+    return v:false
+  endif
+  if filewritable(a:path)
+    return v:true
+  endif
+  let init_queries = s:get_resource('db', 'init.sql')
+  let success = awiwi#sql#ddl(a:path, init_queries)
+  if !success
+    call delete(a:path)
+    call delete(a:path . '-journal')
+    echoerr printf('could not init sqlite db "%s"', a:path)
+    return v:false
+  endif
+  return v:true
+endfun "}}}
+call s:create_db(s:db)
+
+
+fun! s:get_id(table) abort "{{{
+  if has_key(s:ids, a:table)
+    return s:ids[a:table]
+  endif
+  let res = awiwi#sql#select(s:db, 'SELECT IfNull(Max(id), 0) as id@n FROM ?', {'value': a:table, 'type': 'table'})
+  return res[0].id
+  endif
+endfun "}}}
+
+
+for table in s:tables
+  let s:ids[table] = s:get_id(table)
+endfor
+
+
+fun! s:increment_and_get_id(table, ...) abort "{{{
+  let id = s:ids[a:table]
+  let s:ids[a:table] += get(a:000, 0, 1)
+  return id + 1
+endfun "}}}
+
+
+fun! awiwi#task#increment_duration(...) abort "{{{
+  let inc = get(a:000, 0, s:default_duration_increment)
+  let task = awiwi#task#get_active_task()
+  if empty(task)
+    return v:false
+  endif
+  let t = awiwi#sql#start_transaction(s:db)
+  call t.exec(
+        \ 'UPDATE task SET duration = duration + ? WHERE id = ?',
+        \ inc, task.id)
+  return t.commit()
+endfun "}}}
+
+
 fun! awiwi#task#get_urgencies() abort "{{{
   if exists('s:urgencies')
-    return copy(s:urgencies)
+    return s:urgencies
   endif
   let res = awiwi#sql#select(s:db, 'SELECT id@n, name@s, value@n FROM urgency')
   let s:urgencies = {}
   for row in res
     let s:urgencies[row.name] = row
   endfor
-  return copy(s:urgencies)
+  return s:urgencies
 endfun "}}}
 
 
@@ -49,33 +126,41 @@ endfun "}}}
 
 
 fun! awiwi#task#get_all_tags() abort "{{{
-  if exits('s:tags')
-    return copy(s:tags)
+  if exists('s:tags')
+    return s:tags
   endif
 
-  let res = awiwi#sql#select(s:db, 'SELECT id@n, name@s FROM tags')
+  let res = awiwi#sql#select(s:db, 'SELECT id@n, name@s FROM tag')
   let s:tags = {}
   for tag in res
     let s:tags[tag.name] = tag.id
-  endif
-  return copy(s:tags)
+  endfor
+  return s:tags
+endfun "}}}
+
+
+fun! awiwi#task#get_tag_id(tag) abort "{{{
+  return awiwi#task#get_all_tags()[a:tag]
 endfun "}}}
 
 
 fun! awiwi#task#add_tag(tag) abort "{{{
   let tags = awiwi#task#get_all_tags()
   if has_key(tags, a:tag)
-    return v:true
+    return v:false
   endif
-  let res = awiwi#sql#insert(s:db, 'INSERT INTO tag (`name`) VALUES (?)', a:tag)
+  let next_id = s:increment_and_get_id('tag')
+  let res = awiwi#sql#ddl(s:db, 'INSERT INTO tag (`id`, `name`) VALUES (?, ?)', next_id, a:tag)
   if res
-    let id = s:get_max_id('tag')
-    let s:tags[a:tag] = id
+    let s:tags[a:tag] = next_id
+  else
+    call s:increment_and_get_id('tag', -1)
   endif
+  return v:true
 endfun "}}}
 
 
-fun! awiwi#task#get_tags_by_title(title) abort "{{{
+fun! awiwi#task#get_task_tags_by_title(title) abort "{{{
   let query =
         \ 'SELECT tag.id@n, tag.name@s FROM tag JOIN task_tags '
         \ . 'ON (tag.id = task_tags.tag_id) '
@@ -90,8 +175,7 @@ endfun "}}}
 
 
 fun! awiwi#task#get_active_task() abort "{{{
-  let col_def = [{'name': 'id', 'type': v:t_number}, 'title']
-  let query =  "SELECT id@n, title@s FROM task WHERE state = 'started'"
+  let query =  "SELECT id@n, title@s, duration@n FROM task WHERE state = 'started'"
   let res = awiwi#sql#select(s:db, query)
   if empty(res)
     return {}
@@ -107,48 +191,56 @@ fun! awiwi#task#get_tasks_by_title(title) abort "{{{
 endfun "}}}
 
 
-fun! s:get_max_id(table) abort "{{{
-  let res = awiwi#sql#select(s:db, 'SELECT Max(id) as id@n FROM ?', {'value': a:table, 'type': 'table'})
-  if empty(res)
-    return v:null
-  else
-    return res[0].id
-  endif
-endfun "}}}
-
-
-fun! awiwi#task#add_task(title, date, urgency, tags) abort "{{{
-  let activate_task = awiwi#task#get_active_task()
-  let queries = ['BEGIN']
-  let params = []
-  if !empty(activate_task)
-    call add(queries, 'UPDATE task SET state = ? WHERE id = ?')
-    call extend(params, ['paused', activate_task.id])
+fun! awiwi#task#add_task(title, date, stop_active_task, urgency, tags) abort "{{{
+  let active_task = awiwi#task#get_active_task()
+  let t = awiwi#sql#start_transaction(s:db)
+  if !empty(active_task)
+    let new_state = a:stop_active_task ? 'done' : 'paused'
+    if a:stop_active_task
+      call t.exec(
+            \ 'UPDATE task SET state = ?, updated = CURRENT_TIMESTAMP WHERE id = ?',
+            \ new_state,
+            \ active_task.id)
+    else
+      let q = 'UPDATE task SET state = ?, updated = CURRENT_TIMESTAMP, '
+            \ .'end = CURRENT_TIMESTAMP WHERE id = ?'
+      call t.exec(q, new_state, active_task.id)
+    endif
+    call t.exec(
+          \ 'INSERT INTO task_log (task_id, change) VALUES (?, ?)',
+          \ active_task.id,
+          \ new_state)
   endif
   " check if task is already known
   let prev_tasks = awiwi#task#get_tasks_by_title(a:title)
   if empty(prev_tasks)
-    let prev_task = v:false
+    let prev_task = {}
     let prev_task_id = v:null
   else
     let prev_task = prev_tasks[0]
     let prev_task_id = prev_task.id
   endif
 
-  let new_query = 'INSERT INTO task (title, `date`, backlink, urgency_id) VALUES (?, ?, ?, ?)'
-  call add(queries, new_query)
   let urgency_id = awiwi#task#get_urgency(a:urgency).id
-  call extend(params, [a:title, a:date, prev_task_id, urgency_id])
+  let id = s:increment_and_get_id('task')
+  call t.exec(
+        \ 'INSERT INTO task (`id`, `title`, `date`, `backlink`, `urgency_id`) VALUES (?, ?, ?, ?, ?)',
+        \ id, a:title, a:date, prev_task_id, urgency_id)
+  call t.exec(
+        \ 'INSERT INTO task_log (task_id, change) VALUES (?, ?)',
+        \ id, 'created')
 
-  let max_task_id = s:get_max_id('task')
-  let next_id = max_task_id ? max_task_id + 1 : 1
-
-  if prev_task
-    let next_id = s:get_max_id('task') + 1
-    call add(queries, 'UPDATE task SET forwardlink = ? WHERE id = ?')
-    call extend(params, [next_id, prev_task.id])
-    let tags = map(awiwi#task#get_tags_by_title(prev_task.title),
+  if !empty(prev_task)
+    let q = 'UPDATE task SET forwardlink = ?, updated = CURRENT_TIMESTAMP WHERE id = ?'
+    call t.exec(q, id, prev_task.id)
+    let tags = map(awiwi#task#get_task_tags_by_title(prev_task.title),
           \ {_, v -> v.name })
+    call t.exec(
+          \ 'INSERT INTO task_log (task_id, change) VALUES (?, ?)',
+          \ prev_task.id, 'forwardlink_added')
+    call t.exec(
+          \ 'INSERT INTO task_log (task_id, change) VALUES (?, ?)',
+          \ id, 'backlink_added')
   else
     let tags = []
   endif
@@ -157,54 +249,21 @@ fun! awiwi#task#add_task(title, date, urgency, tags) abort "{{{
 
   if !empty(a:tags)
     for tag in a:tags
-      awiwi#task#add_tag(tolower(tag))
+      call awiwi#task#add_tag(tolower(tag))
     endfor
   endif
 
-  let tag_query = 'INSERT INTO task_tags (tag_id, task_id) SELECT tag.id, ? FROM tag WHERE tag.name = ?'
+  let tag_query = 'INSERT INTO task_tags (id, task_id, tag_id) VALUES (?, ?, ?)'
   for tag in tags
-    call add(queries, tag_query)
-    call extend(params, [next_id, tag])
+    let tag_id = awiwi#task#get_tag_id(tag)
+    call t.exec(tag_query, s:increment_and_get_id('task_tags'), id, tag_id)
   endfor
-  call add(queries, 'COMMIT')
-  let query = join(queries, '; ')
-  let args = [s:db, query]
-  call extend(args, params)
-  return call(funcref('awiwi#sql#insert'), args)
-endfun "}}}
-
-
-fun! s:get_resource(path, ...) abort "{{{
-  let paths = [fnamemodify(s:script, ':h:h:h'), 'resources', path]
-  call extend(paths, a:000)
-  let resource_path = call(funcref'path#join', paths)
-  if !filereadable(resource_path)
-    throw printf('AwiwiTaskError: resource does not exist: "%s"', resource_path)
-  endif
-  return join(readfile(resource_path, ''), "\n")
-endfun "}}}
-
-
-fun! awiwi#task(path, exists_ok) abort "{{{
-  let path = fnamemodify(a:path, ':p')
-  let parent = fnamemodify(path, ':h')
-  if !a:exists_ok && filewritable(path)
-    echoerr printf('sqlite db "%s" already exists, but exists_ok=false', path)
-    return v:false
-  endif
-  if filewritable(parent) != 2 && !mkdir(parent, 'p')
-    echoerr printf('could not create parent dir for sqlite db: "%s"', parent)
-    return v:false
-  endif
-  if filewritable(path)
-    return v:true
-  endif
-  let init_queries = s:get_resource('db', 'init.sql')
-  let success = awiwi#sql#ddl(path, init_queries)
+  let success = t.commit()
   if !success
-    call delete(path)
-    echoerr printf('could not init sqlite db "%s"', path)
-    return v:false
+    " rollback all id changes
+    call s:increment_and_get_id('task_tags', -len(tags))
+    call s:increment_and_get_id('task', -1)
+    echoerr 'could not create new task'
   endif
-  return v:true
+  return success
 endfun "}}}

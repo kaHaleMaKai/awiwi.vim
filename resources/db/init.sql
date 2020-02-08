@@ -4,7 +4,7 @@ PRAGMA foreign_keys = 1;
 BEGIN;
 
 CREATE TABLE urgency (
-  `id` INTEGER PRIMARY KEY AUTOINCREMENT,
+  `id` int NOT NULL PRIMARY KEY,
   `name` varchar(255) NOT NULL,
   `value` int unsigned NOT NULL,
   `added` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -14,7 +14,7 @@ CREATE TABLE urgency (
 CREATE UNIQUE INDEX urgency_name ON urgency (name);
 
 CREATE TABLE tag (
-  `id` INTEGER PRIMARY KEY AUTOINCREMENT,
+  `id` int NOT NULL PRIMARY KEY,
   `name` varchar(255) NOT NULL,
   `added` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CHECK (`name` BETWEEN 'a' AND 'z')
@@ -22,7 +22,7 @@ CREATE TABLE tag (
 CREATE UNIQUE INDEX tag_name ON tag (name);
 
 CREATE TABLE task (
-  `id` integer PRIMARY KEY AUTOINCREMENT,
+  `id` int NOT NULL PRIMARY KEY,
   `title` varchar(255) NOT NULL,
   `state` varchar(255) NOT NULL DEFAULT 'started',
   `date` date NOT NULL,
@@ -40,7 +40,7 @@ CREATE UNIQUE INDEX task_title ON task (title, date);
 CREATE INDEX task_state ON task (state);
 
 CREATE TABLE task_tags (
-  `id` INTEGER PRIMARY KEY AUTOINCREMENT,
+  `id` int NOT NULL PRIMARY KEY,
   `task_id` int NOT NULL,
   `tag_id` int NOT NULL,
   FOREIGN KEY (`task_id`) REFERENCES task(`id`),
@@ -60,33 +60,35 @@ BEGIN
 END;
 
 CREATE TABLE setting (
-  `id` INTEGER PRIMARY KEY AUTOINCREMENT,
+  `id` int NOT NULL PRIMARY KEY,
   `name` varchar(255) NOT NULL,
   `value` varchar(255)
 );
 CREATE UNIQUE INDEX setting_name ON setting (name);
 
 CREATE TABLE task_log (
-  `id` INTEGER PRIMARY KEY AUTOINCREMENT,
+  `id` integer PRIMARY KEY AUTOINCREMENT,
+  `timestamp` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `task_id` int NOT NULL,
   `change` varchar(255) NOT NULL,
-  `value` varchar(255),
-  CHECK (`change` IN ('created', 'started', 'paused', 'finished', 'duration_updated')),
+  CHECK (`change` IN (
+    'created', 'restarted', 'paused', 'done', 'duration_updated',
+    'forwardlink_added', 'backlink_added')),
   FOREIGN KEY (`task_id`) REFERENCES task(`id`)
 );
 CREATE INDEX task_log_task_id ON task_log (`task_id`);
 
-INSERT INTO setting (`name`, `value`)
+INSERT INTO setting (`id`, `name`, `value`)
 VALUES
-  ('version', 1),
-  ('db_created', CURRENT_TIMESTAMP);
+  (1, 'version', 1),
+  (2, 'db_created', CURRENT_TIMESTAMP);
 
-INSERT INTO urgency (`name`, `value`)
+INSERT INTO urgency (`id`, `name`, `value`)
 VALUES
-  ('backlog', 0),
-  ('low', 3),
-  ('normal', 5),
-  ('high', 7),
-  ('immediate', 10);
+  (1, 'backlog', 0),
+  (2, 'low', 3),
+  (3, 'normal', 5),
+  (4, 'high', 7),
+  (5, 'immediate', 10);
 
 COMMIT;

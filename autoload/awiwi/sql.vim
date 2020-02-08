@@ -317,14 +317,6 @@ endfun "}}}
 let s:Transaction = {}
 
 
-fun! s:Transaction.begin(db) abort "{{{
-  let t = copy(s:Transaction)
-  let t.db = a:db
-  let t.queries = []
-  return t
-endfun "}}}
-
-
 fun! s:Transaction.exec(query, ...) abort "{{{
   let query = [a:query]
   call extend(query, a:000)
@@ -339,6 +331,7 @@ fun! s:Transaction.commit() abort "{{{
     let query = call(funcref('awiwi#sql#escape_query'), entry)
     call add(queries, query)
   endfor
+  call add(queries, 'COMMIT')
   return awiwi#sql#ddl(self.db, join(queries, '; '))
 endfun "}}}
 
@@ -352,6 +345,7 @@ fun! s:Transaction.commit_as_select() abort "{{{
   let query = self.queries[-1][0]
   let params = self.queries[-1][1:]
   call add(queries, query)
+  call add(queries, 'COMMIT')
   let args = [self.db, join(queries, '; ')]
   call extend(args, params)
   return call(funcref('awiwi#sql#select'), args)
@@ -359,5 +353,8 @@ endfun "}}}
 
 
 fun! awiwi#sql#start_transaction(db) abort "{{{
-  return s:Transaction.begin(a:db)
+  let t = copy(s:Transaction)
+  let t.db = a:db
+  let t.queries = [['BEGIN EXCLUSIVE TRANSACTION']]
+  return t
 endfun "}}}
