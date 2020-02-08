@@ -3,6 +3,7 @@
 " endif
 " let g:autoloaded_awiwi_task = v:true
 
+let s:script = expand('<sfile>:p')
 let s:db = path#join(awiwi#get_data_dir(), 'task.db')
 call awiwi#sql#create_db(s:db, v:true)
 
@@ -170,4 +171,40 @@ fun! awiwi#task#add_task(title, date, urgency, tags) abort "{{{
   let args = [s:db, query]
   call extend(args, params)
   return call(funcref('awiwi#sql#insert'), args)
+endfun "}}}
+
+
+fun! s:get_resource(path, ...) abort "{{{
+  let paths = [fnamemodify(s:script, ':h:h:h'), 'resources', path]
+  call extend(paths, a:000)
+  let resource_path = call(funcref'path#join', paths)
+  if !filereadable(resource_path)
+    throw printf('AwiwiTaskError: resource does not exist: "%s"', resource_path)
+  endif
+  return join(readfile(resource_path, ''), "\n")
+endfun "}}}
+
+
+fun! awiwi#task(path, exists_ok) abort "{{{
+  let path = fnamemodify(a:path, ':p')
+  let parent = fnamemodify(path, ':h')
+  if !a:exists_ok && filewritable(path)
+    echoerr printf('sqlite db "%s" already exists, but exists_ok=false', path)
+    return v:false
+  endif
+  if filewritable(parent) != 2 && !mkdir(parent, 'p')
+    echoerr printf('could not create parent dir for sqlite db: "%s"', parent)
+    return v:false
+  endif
+  if filewritable(path)
+    return v:true
+  endif
+  let init_queries = s:get_resource('db', 'init.sql')
+  let success = awiwi#sql#ddl(path, init_queries)
+  if !success
+    call delete(path)
+    echoerr printf('could not init sqlite db "%s"', path)
+    return v:false
+  endif
+  return v:true
 endfun "}}}

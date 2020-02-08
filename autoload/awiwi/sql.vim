@@ -8,33 +8,6 @@ let s:null_value = '\N'
 let s:char_map = {"\t": '\t', "\n": '\n', "\0": '\0', "\b": '\b', '\': '\\', s:col_sep: '\1'}
 let s:escape_map = {'t': '\t', 'n': '\n', '0': '\0', 'b': '\b', '1': '\1'}
 let s:reverse_escape_map = {'t': "\t", 'n': "\n", '0': "\0", 'b': "\b", '\': '\'}
-let s:script = expand('<sfile>:p')
-
-
-fun! awiwi#sql#create_db(path, exists_ok) abort "{{{
-  let path = fnamemodify(a:path, ':p')
-  let parent = fnamemodify(path, ':h')
-  if !a:exists_ok && filewritable(path)
-    echoerr printf('sqlite db "%s" already exists, but exists_ok=false', path)
-    return v:false
-  endif
-  if filewritable(parent) != 2 && !mkdir(parent, 'p')
-    echoerr printf('could not create parent dir for sqlite db: "%s"', parent)
-    return v:false
-  endif
-  if filewritable(path)
-    return v:true
-  endif
-  let init_file = path#join(fnamemodify(s:script, ':h:h:h'), 'resources', 'init.sql')
-  let init_queries = join(readfile(init_file, ''), "\n")
-  let success = awiwi#sql#ddl(path, init_queries)
-  if !success
-    call delete(path)
-    echoerr printf('could not init sqlite db "%s"', path)
-    return v:false
-  endif
-  return v:true
-endfun "}}}
 
 
 fun! s:escape_string_param(param, ...) abort "{{{
