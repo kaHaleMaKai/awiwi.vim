@@ -4,7 +4,7 @@
 " let g:autoloaded_awiwi_task = v:true
 
 let s:script = expand('<sfile>:p')
-let s:db = path#join(awiwi#get_data_dir(), 'task.db')
+let s:db = path#join(g:awiwi_home, 'task.db')
 let s:ids = {}
 let s:tables = ['urgency', 'tag', 'task', 'task_tags', 'setting', 'task_log']
 let s:duration_increment = get(g:, 'awiwi_task_update_frequency', 30) " FIXME set to 30
