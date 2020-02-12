@@ -62,10 +62,6 @@ let s:history = []
 
 let s:active_task = {}
 
-let s:search_engine_plain = 'plain'
-let s:search_engine_regex = 'regex'
-let s:search_engine_fuzzy = 'fuzzy'
-
 let s:subcommands = [
       \ s:activate_cmd,
       \ s:continuation_cmd,
@@ -201,7 +197,7 @@ fun! awiwi#get_markers(type, ...) abort "{{{
   if options.escape_mode == 'rg'
     let result = uniq(map(markers, {_, v -> s:escape_rg_pattern(v)}))
   else
-    let result = uniq(map(markers, {_, v -> s:escape_pattern(v)}))
+    let result = uniq(map(markers, {_, v -> awiwi#util#escape_pattern(v)}))
   endif
   if a:type == 'todo' && options.escape_mode == 'rg'
     let task_list = '^[-*][[:space:]]+\[[[:space:]]+\]'
@@ -303,7 +299,7 @@ fun! awiwi#fuzzy_search(...) abort "{{{
   if !a:0
     echoerr 'Awiwi search: no pattern given'
   endif
-  let pattern = join(map(copy(a:000), {_, v -> s:escape_pattern(v)}), '.*?')
+  let pattern = join(map(copy(a:000), {_, v -> awiwi#util#escape_pattern(v)}), '.*?')
   let rg_cmd = [
         \ 'rg', '-U', '--multiline-dotall', '--color=never',
         \ '--column', '--line-number', '--no-heading',
@@ -311,7 +307,7 @@ fun! awiwi#fuzzy_search(...) abort "{{{
         \ ]
   let matches = filter(systemlist(rg_cmd), {_, v -> !str#is_empty(v)})
   if a:0 > 1
-    let start = printf('\<%s\>', s:escape_pattern(a:1))
+    let start = printf('\<%s\>', awiwi#util#escape_pattern(a:1))
     let matches = filter(matches, {_, v -> match(v, start) > -1})
   endif
   call fzf#run(fzf#wrap({'source': matches, 'sink': funcref('s:open_fuzzy_match')}))
@@ -457,11 +453,6 @@ fun! s:get_own_date() abort "{{{
 endfun "}}}
 
 
-fun! s:escape_pattern(pattern) abort "{{{
-  return escape(a:pattern, " \t.*\\\[\]")
-endfun "}}}
-
-
 fun! s:escape_rg_pattern(pattern) abort "{{{
   return escape(a:pattern, ".*?\\\[\]")
 endfun "}}}
@@ -511,7 +502,7 @@ endfun "}}}
 
 fun! awiwi#add_asset_link() abort "{{{
   let [name, rem] = s:get_asset_under_cursor(v:false)
-  let name_pattern = s:escape_pattern(printf('[%s]', name))
+  let name_pattern = awiwi#util#escape_pattern(printf('[%s]', name))
   if name == ''
     throw AwiwiError "no asset under cursor"
   endif
@@ -695,45 +686,6 @@ endfun "}}}
 
 fun! s:get_argument_number(expr) abort "{{{
   return len(split(a:expr, '[[:space:]]\+', v:true)) - 1
-endfun "}}}
-
-
-fun! s:get_search_engine() abort "{{{
-  let search_engine = get(g:, 'awiwi_search_engine', 'plain')
-  if index([s:search_engine_regex, s:search_engine_fuzzy], search_engine) > -1
-    return search_engine
-  endif
-  return s:search_engine_plain
-endfun "}}}
-
-
-fun! s:match_subcommands(subcommands, ArgLead) abort "{{{
-  if a:ArgLead == ''
-    return copy(a:subcommands)
-  endif
-  let subcommands = copy(a:subcommands)
-  let search_engine = s:get_search_engine()
-  if search_engine == s:search_engine_plain
-    return filter(subcommands, {_, v -> str#startswith(v, a:ArgLead)})
-  elseif search_engine == s:search_engine_regex
-    return filter(subcommands, {_, v -> match(v, a:ArgLead) > -1})
-  endif
-  let chars = map(range(strlen(a:ArgLead)), {i -> a:ArgLead[i]})
-  let pattern = join(map(chars, {_, v -> s:escape_pattern(v)}), '.\{-}')
-
-  let all_items = map(
-        \ copy(subcommands),
-        \ {_, v -> {'name': v, 'match': matchstrpos(v, pattern)}})
-  let filtered_items = filter(
-        \ all_items,
-        \ {_, v -> v.match[0] != '' })
-  let normalized_items = map(
-        \ filtered_items,
-        \ {_, v -> {'name': v.name, 'score': v.match[2] - v.match[1]}})
-  let sorted_items = sort(
-        \ normalized_items,
-        \ {x, y -> x.score > y.score ? 1 : (x.score < y.score ? -1 : (x.name >= y.name ? 1 : -1))})
-  return map(sorted_items, {_, v -> v.name})
 endfun "}}}
 
 
