@@ -358,3 +358,21 @@ fun! awiwi#sql#start_transaction(db) abort "{{{
   let t.queries = [['BEGIN EXCLUSIVE TRANSACTION']]
   return t
 endfun "}}}
+
+
+fun! awiwi#sql#select_as_dict(key_col, prototype, db, query, ...) abort "{{{
+  let args = [a:db, a:query]
+  call extend(args, a:000)
+  let res = call(funcref('awiwi#sql#select'), args)
+  let d = {}
+  if empty(res)
+    return d
+  endif
+  for row in res
+    let key = row[a:key_col]
+    let v = copy(a:prototype)
+    call extend(v, row)
+    let d[key] = v
+  endfor
+  return d
+endfun "}}}

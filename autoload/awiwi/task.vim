@@ -3,15 +3,11 @@
 " endif
 " let g:autoloaded_awiwi_task = v:true
 
-let s:script = expand('<sfile>:p')
-let s:db = path#join(g:awiwi_home, 'task.db')
 let s:ids = {}
-let s:tables = ['urgency', 'tag', 'task', 'task_tags', 'setting', 'task_log']
+let s:tables = ['urgency', 'tag', 'task', 'task_tags', 'setting', 'task_log', 'project']
 let s:duration_increment = get(g:, 'awiwi_task_update_frequency', 30) " FIXME set to 30
-let s:resources = {}
 let s:timer = 0
-let s:previous_timer_run = str2nr(strftime('%s'))
-
+let s:previous_timer_run =
 
 let s:screensavers = {
       \ 'gnome': 'org.gnome.ScreenSaver',
@@ -47,30 +43,76 @@ fun! s:AwiwiTaskError(msg, ...) abort "{{{
 endfun "}}}
 
 
-fun! s:get_current_timestamp() abort "{{{
-  return strftime('%F %T')
+let s:urgencies = {}
+let s:Urgency = s:Entity.__prototype__('urgency', s:urgencies)
+call extend(s:urgencies, awiwi#sql#select_as_dict('name', s:Urgency, s:db, 'SELECT id@n, name@s, value@n FROM urgency'))
+
+
+let s:projects = {}
+let s:Project = s:Entity.__prototype__('project', s:projects)
+
+fun! s:Project.__new__(name, url) abort dict "{{{
+  let p = copy(s:Project)
+  let p.name = self.__validate__(a:name)
+  let p.url = a:url
+  call p.use_next_id()
+  return p
+endfun "}}}
+
+fun! s:Project.create() abort dict "{{{
+  let query = awiwi#util#get_resource('db', 'create-project.sql')
+  let res = awiwi#sql#ddl(s:db, query, self.id, self.name, self.url)
+  if !res
+    throw s:AwiwiTaskError("could not create project %s", self.name)
+  endif
+  let s:projects[self.name] = self
+endfun "}}}
+call extend(s:projects, awiwi#sql#select_as_dict('name', s:Project, s:db, 'SELECT id@n, name@s, url@s FROM project'))
+
+
+fun! awiwi#task#add_project(name, url) abort "{{{
+  let p = s:Project.__new__(a:name, a:url)
+  call p.create()
+  return p
 endfun "}}}
 
 
-fun! s:get_resource(path, ...) abort "{{{
-  let paths = [fnamemodify(s:script, ':h:h:h'), 'resources', a:path]
-  call extend(paths, a:000)
-  let resource_path = call(funcref('path#join'), paths)
-  if has_key(s:resources, resource_path)
-    return s:resources[resource_path]
-  endif
-  if !filereadable(resource_path)
-    throw s:AwiwiTaskError('resource does not exist: "%s"', resource_path)
-  endif
-  let content = join(readfile(resource_path, ''), "\n")
-  let s:resources[resource_path] = content
-  return s:resources[resource_path]
+let s:tasks = {}
+let s:Task = s:Entity.__prototype__('task', s:tasks)
+
+fun! s:Task.__new__(title, date, state, urgency, project, issue_id, tags) abort dict "{{{
+  let t = copy(s:Task)
+  let t.title = a:title
+  let t.date = a:date
+  let t.state = a:state
+  let t.urgency = a:urgency
+  let t.project = a:project
+  let t.issue_id = a:issue_id
+  let t.tags = copy(a:tags)
+  call t.use_next_id()
+endfun "}}}
+
+fun! awiwi#task#get_all_tasks() abort "{{{
+  let query = awiwi#util#get_resource('db', 'get-all-tasks.sql')
+  let tasks = awiwi#sql#select_as_dict('id', s:Task, s:db, query)
+  for t in tasks
+    let t.state = s:states[t.state]
+    let t.urgency = s:urgencies[t.urgency]
+    if t.project != v:null
+      let t.project = s:projects[t.project]
+    endif
+    if t.backlink_id != v:null
+      let t.backlink = projects[t.backlink_id]
+    endif
+    if t.forwardlink_id != v:null
+      let t.forwardlink = projects[t.forwardlink_id]
+    endif
 endfun "}}}
 
 
 fun! s:start_timer(...) abort "{{{
   if get(a:000, 0, v:false)
-    let s:previous_timer_run = str2nr(strftime('%s'))
+    let s:previous_timer_run = awiwi#util#get_epoch_seconds()
   endif
   let s:timer = timer_start(
         \ s:duration_increment * 1000,
@@ -92,7 +134,7 @@ fun! awiwi#task#get_active_task() abort "{{{
   if exists('s:active_task')
     return s:active_task
   endif
-  let query = s:get_resource('db', 'get-active-task.sql')
+  let query = awiwi#util#get_resource('db', 'get-active-task.sql')
   let res = awiwi#sql#select(s:db, query)
   let s:active_task = empty(res) ? {} : res[0]
   if !empty(s:active_task)
@@ -100,29 +142,8 @@ fun! awiwi#task#get_active_task() abort "{{{
   endif
   return s:active_task
 endfun "}}}
-let s:active_task = awiwi#task#get_active_task()
-
-
-fun! s:create_db(path) abort "{{{
-  let parent = fnamemodify(a:path, ':h')
-  if filewritable(parent) != 2 && !mkdir(parent, 'p')
-    echoerr printf('could not create parent dir for sqlite db: "%s"', parent)
-    return v:false
-  endif
-  if filewritable(a:path)
-    return v:true
-  endif
-  let init_queries = s:get_resource('db', 'init.sql')
-  let success = awiwi#sql#ddl(a:path, init_queries)
-  if !success
-    call delete(a:path)
-    call delete(a:path . '-journal')
-    echoerr printf('could not init sqlite db "%s"', a:path)
-    return v:false
-  endif
-  return v:true
-endfun "}}}
-call s:create_db(s:db)
+" TODO: fix and reactivate this
+" let s:active_task = awiwi#task#get_active_task()
 
 
 fun! s:get_id(table) abort "{{{
@@ -148,7 +169,7 @@ endfun "}}}
 
 
 fun! awiwi#task#update_duration_handler(...) abort "{{{
-  let now = str2nr(strftime('%s'))
+  let now = awiwi#util#get_epoch_seconds()
   try
     call s:update_duration_helper(now - s:previous_timer_run)
   finally
@@ -194,43 +215,13 @@ fun! awiwi#task#get_urgency(urgency) abort "{{{
 endfun "}}}
 
 
-fun! awiwi#task#get_all_tags() abort "{{{
-  if exists('s:tags')
-    return s:tags
-  endif
-
-  let res = awiwi#sql#select(s:db, 'SELECT id@n, name@s FROM tag')
-  let s:tags = {}
-  for tag in res
-    let s:tags[tag.name] = tag.id
-  endfor
-  return s:tags
-endfun "}}}
-
-
 fun! awiwi#task#get_tag_id(tag) abort "{{{
   return awiwi#task#get_all_tags()[a:tag]
 endfun "}}}
 
 
-fun! awiwi#task#add_tag(tag) abort "{{{
-  let tags = awiwi#task#get_all_tags()
-  if has_key(tags, a:tag)
-    return v:false
-  endif
-  let next_id = s:increment_and_get_id('tag')
-  let res = awiwi#sql#ddl(s:db, 'INSERT INTO tag (`id`, `name`) VALUES (?, ?)', next_id, a:tag)
-  if res
-    let s:tags[a:tag] = next_id
-  else
-    call s:increment_and_get_id('tag', -1)
-  endif
-  return v:true
-endfun "}}}
-
-
 fun! awiwi#task#get_task_tags_by_title(title) abort "{{{
-  let query = s:get_resource('db', 'get-task-tags-by-title.sql')
+  let query = awiwi#util#get_resource('db', 'get-task-tags-by-title.sql')
   return awiwi#sql#select(s:db, query, a:title)
 endfun "}}}
 
@@ -241,13 +232,13 @@ endfun "}}}
 
 
 fun! awiwi#task#get_tasks_by_title(title) abort "{{{
-  let query = s:get_resource('db', 'get-tasks-by-title.sql')
+  let query = awiwi#util#get_resource('db', 'get-tasks-by-title.sql')
   return awiwi#sql#select(s:db, query, a:title)
 endfun "}}}
 
 
 fun! awiwi#task#get_most_recent_task_by_title(title) abort "{{{
-  let query = s:get_resource('db', 'get-most-recent-task-by-title.sql')
+  let query = awiwi#util#get_resource('db', 'get-most-recent-task-by-title.sql')
   let res = awiwi#sql#select(s:db, query, a:title)
   return empty(res) ? {} : res[0]
 endfun "}}}

@@ -7,6 +7,8 @@ let s:search_engine_plain = 'plain'
 let s:search_engine_regex = 'regex'
 let s:search_engine_fuzzy = 'fuzzy'
 
+let s:resources = {}
+let s:script = expand('<sfile>:p')
 
 fun! awiwi#util#escape_pattern(pattern) abort "{{{
   return escape(a:pattern, " \t.*\\\[\]")
@@ -49,4 +51,51 @@ fun! awiwi#util#match_subcommands(subcommands, ArgLead) abort "{{{
         \ normalized_items,
         \ {x, y -> x.score > y.score ? 1 : (x.score < y.score ? -1 : (x.name >= y.name ? 1 : -1))})
   return map(sorted_items, {_, v -> v.name})
+endfun "}}}
+
+
+fun! s:AwiwiUtilError(msg, ...) abort "{{{
+  if a:0
+    let args = [a:msg]
+    call extend(args, a:000)
+    let msg = call('printf', args)
+  else
+    let msg = a:msg
+  endif
+  return 'AwiwiTaskError: ' . msg
+endfun "}}}
+
+
+fun! awiwi#util#get_resource(path, ...) abort "{{{
+  let paths = [fnamemodify(s:script, ':h:h:h'), 'resources', a:path]
+  call extend(paths, a:000)
+  let resource_path = call(funcref('path#join'), paths)
+  if has_key(s:resources, resource_path)
+    return s:resources[resource_path]
+  endif
+  if !filereadable(resource_path)
+    throw s:AwiwiTaskError('resource does not exist: "%s"', resource_path)
+  endif
+  let content = join(readfile(resource_path, ''), "\n")
+  let s:resources[resource_path] = content
+  return s:resources[resource_path]
+endfun "}}}
+
+
+fun! awiwi#util#empty_resources_cache() abort "{{{
+  let s:resources = {}
+endfun "}}}
+
+
+fun! awiwi#util#get_iso_timestamp() abort "{{{
+  return strftime('%F %T')
+endfun "}}}
+
+
+fun! awiwi#util#get_iso_timestamp() abort "{{{
+  return strftime('%F %T')
+endfun "}}}
+
+fun! awiwi#util#get_epoch_seconds() abort "{{{
+  return str2nr(strftime('%s'))
 endfun "}}}
