@@ -395,7 +395,8 @@ fun! awiwi#entity#Task.new(
   let t.issue_link = s:check_url(a:issue)
   let t.urgency = a:urgency
   let t.duration = 0
-  let t.tags = s:unique(t.project.tags, a:tags)
+  let backlink_tags = s:is_null(a:backlink) ? [] : a:backlink.tags
+  let t.tags = s:unique(t.project.tags, backlink_tags, a:tags)
   call t.__register__()
   return t
 endfun "}}}
@@ -444,4 +445,20 @@ fun! awiwi#entity#Task.delete() abort dict "{{{
     let self.__class__.__ids__[self.backlink.id].forwardlink = v:null
   endif
   return self.__delete__()
+endfun "}}}
+
+
+fun! awiwi#entity#Task.change_state(state) abort dict "{{{
+  if self.state.id == a:state.id
+    return v:false
+  endif
+  let res = awiwi#sql#ddl(s:db,
+        \ 'UPDATE task SET task_state_id = ? WHERE id = ?',
+        \ a:state.id, self.id)
+  if !res
+    throw s:AwiwiEntityError('could not change state for task %s to %s',
+          \ self.title, a:state.name)
+  endif
+  let self.state = a:state
+  return v:true
 endfun "}}}
