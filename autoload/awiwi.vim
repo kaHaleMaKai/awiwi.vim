@@ -756,12 +756,12 @@ endfun "}}}
 fun! awiwi#_get_completion(ArgLead, CmdLine, CursorPos) abort "{{{
   let current_arg_pos = s:get_argument_number(a:CmdLine[:a:CursorPos])
   if current_arg_pos < 2
-    return s:match_subcommands(s:subcommands, a:ArgLead)
+    return awiwi#util#match_subcommands(s:subcommands, a:ArgLead)
   endif
   let args = split(a:CmdLine)
 
   if args[1] == s:tasks_cmd && current_arg_pos >= 2
-    let matches = s:match_subcommands(s:tasks_subcommands, a:ArgLead)
+    let matches = awiwi#util#match_subcommands(s:tasks_subcommands, a:ArgLead)
     if current_arg_pos == 2
       return matches
     elseif args[2] == s:tasks_filter_cmd
@@ -780,7 +780,7 @@ fun! awiwi#_get_completion(ArgLead, CmdLine, CursorPos) abort "{{{
       call extend(submatches, ['todos', 'today', 'next', 'previous'], 0)
     endif
     call s:insert_win_cmds(submatches, current_arg_pos, args[2:])
-    return s:match_subcommands(submatches, a:ArgLead)
+    return awiwi#util#match_subcommands(submatches, a:ArgLead)
   elseif args[1] == s:asset_cmd
     let submatches = []
     if current_arg_pos > 2 && args[2] == s:new_asset_cmd
@@ -794,14 +794,14 @@ fun! awiwi#_get_completion(ArgLead, CmdLine, CursorPos) abort "{{{
     if current_arg_pos == 2
       call insert(submatches, s:new_asset_cmd)
     endif
-    return s:match_subcommands(submatches, a:ArgLead)
+    return awiwi#util#match_subcommands(submatches, a:ArgLead)
   elseif args[1] == s:recipe_cmd
     let submatches = []
     if s:need_to_insert_files(current_arg_pos, args[2:])
       call extend(submatches, s:get_all_recipe_files())
     endif
     call s:insert_win_cmds(submatches, current_arg_pos, args[2:])
-    return s:match_subcommands(submatches, a:ArgLead)
+    return awiwi#util#match_subcommands(submatches, a:ArgLead)
   endif
 
   return []
