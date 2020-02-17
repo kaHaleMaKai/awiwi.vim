@@ -96,6 +96,7 @@ fun! awiwi#util#get_iso_timestamp() abort "{{{
   return strftime('%F %T')
 endfun "}}}
 
+
 fun! awiwi#util#get_epoch_seconds() abort "{{{
   return str2nr(strftime('%s'))
 endfun "}}}
