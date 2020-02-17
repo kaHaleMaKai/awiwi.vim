@@ -47,7 +47,7 @@ if get(g:, 'awiwi_highlight_links', v:true)
         \ start=/\(^\|[^[]\)\@<=\(^[-*] \+\)\@<!\[\S\@=/
         \ end=/\S\@<=)\($\|[^)]\)\@=/
         \ keepend
-        \ contains=awiwiLinkStart,awiwiLinkName,awiwiLinkEnd,awiwiLinkTarget,awiwiLinkStart,awiwiLinkEnd
+        \ contains=awiwiLinkStart,awiwiLinkName,awiwiLinkEnd,awiwiLinkInternalTarget,awiwiLinkProtocol,awiwiLinkDomain ",awiwiLinkTargetStart,awiwiLinkTargetEnd
 
   let conceal = get(g:, 'awiwi_conceal_links', v:true) ? 'conceal cchar=' : ''
   if conceal != ''
@@ -58,12 +58,16 @@ if get(g:, 'awiwi_highlight_links', v:true)
     let [conceal_start_char, conceal_end_char, conceal_target_char] = ['', '', '']
   endif
 
-  exe printf('syn match awiwiLinkStart  /\(^\|[^[]\)\@<=\[\(..\{-}]([^h)].\{-})\)\@=/ contained %s%s', conceal, conceal_start_char)
-  syn match awiwiLinkName   /\[\@<=.\{-}\(]([^h)].\{-})\)\@=/
-  exe printf('syn match awiwiLinkEnd    /\S\@<=\]\(([^h)].\{-})\)\@=/                 contained %s%s', conceal, conceal_end_char)
-  syn match awiwiLinkTargetStart /\]\@<=(\([^h)].\{-})\($\|[^)]\)\)\@=/   contained
-  syn match awiwiLinkTargetEnd /\]\@<=([^h)].\{-})\($\|[^)]\)\@=/         contained
-  exe printf('syn match awiwiLinkTarget /\(\](\)\@<=[^h)].\{-}\()$\|)[^)]\)\@=/       contained %s%s', conceal, conceal_target_char)
+  exe printf('syn match awiwiLinkStart  /\(^\|[^[]\)\@<=\[\(..\{-}]([^)].\{-})\)\@=/ contained %s%s', conceal, conceal_start_char)
+  syn match awiwiLinkName   /\[\@<=.\{-}\(]([^)].\{-})\)\@=/
+  exe printf('syn match awiwiLinkEnd    /\S\@<=\]\(([^)].\{-})\)\@=/                 contained %s%s', conceal, conceal_end_char)
+  "syn match awiwiLinkTargetStart /\]\@<=(\([^)].\{-})\($\|[^)]\)\)\@=/   contained
+  "syn match awiwiLinkTargetEnd /\]\@<=([^)].\{-})\($\|[^)]\)\@=/         contained
+  if conceal != ''
+    syn match awiwiLinkProtocol _\(\](\)\@<=https://\([^)].\{-})\($\|[^)]\)\)\@=_ contained conceal
+  endif
+  exe printf('syn match awiwiLinkDomain   _\(\](\(https://[^/]\+/\)\)\@<=[^)].\{-}\()$\|)[^)]\)\@=_  contained %s%s', conceal, conceal_target_char)
+  exe printf('syn match awiwiLinkInternalTarget   _\(\](\)\@<=[^h)].\{-}\()$\|)[^h)]\)\@=_                   contained %s%s', conceal, conceal_target_char)
 
   let link_color = get(g:, 'awiwi_link_color', 142)
   let link_style = get(g:, 'awiwi_link_style', 'underline')
