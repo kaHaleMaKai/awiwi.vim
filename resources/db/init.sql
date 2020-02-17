@@ -127,8 +127,8 @@ VALUES
 INSERT INTO task_state (name)
 VALUES
   ('started'),
-  ('done'),
-  ('paused');
+  ('paused'),
+  ('done');
 
 INSERT INTO task_log_state (name)
 VALUES
@@ -136,8 +136,6 @@ VALUES
   ('restarted'),
   ('paused'),
   ('done'),
-  ('duration_updated'),
-  ('forwardlink_added'),
-  ('backlink_added');
+  ('duration_updated');
 
 COMMIT;
