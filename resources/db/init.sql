@@ -136,6 +136,7 @@ VALUES
   ('restarted'),
   ('paused'),
   ('done'),
-  ('duration_updated');
+  ('duration_updated'),
+  ('urgency_changed');
 
 COMMIT;
