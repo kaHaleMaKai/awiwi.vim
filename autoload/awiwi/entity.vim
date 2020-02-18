@@ -55,7 +55,7 @@ endfun "}}}
 
 
 fun! s:check_url(url) abort "{{{
-  if a:url == v:null || a:url == ''
+  if s:is_null(a:url) || a:url == ''
     return v:null
   elseif type(a:url) == v:t_number || match(a:url, '^#\?[1-9][0-9]\{4,}$') > -1
     let url = type(a:url) == v:t_number ?
@@ -94,23 +94,34 @@ fun! s:Entity.subclass(table) abort dict "{{{
   let e.__ids__ = {}
   let e.__names__ = {}
   let e.__class__ = e
-  let e.class_fields = [
+  let e.__class_fields__ = [
         \ '__ids__', '__names__', '__new__',
         \ 'subclass', 'get_all', 'get_by_id',
-        \ 'get_by_name', 'class_fields',
+        \ 'get_by_name', '__class_fields__',
         \ 'slurp_from_db', 'get_all_names',
-        \ 'get_all_ids', 'get_next_id'
+        \ 'get_all_ids', 'get_next_id',
+        \ 'add_class_field'
         \ ]
   return e
 endfun "}}}
 
 fun! s:Entity.__new__() abort dict "{{{
   let e = copy(self)
-  for attr in self.class_fields
-    unlet e[attr]
+  for attr in self.__class_fields__
+    if has_key(e, attr)
+      unlet e[attr]
+    endif
   endfor
   let e.id = v:null
   return e
+endfun "}}}
+
+
+fun! s:Entity.add_class_field(field, ...) abort dict "{{{
+  call add(self.__class_fields__, a:field)
+  for field in a:000
+    call add(self.__class_fields__, field)
+  endfor
 endfun "}}}
 
 
@@ -119,7 +130,7 @@ fun! s:Entity.__register__() abort dict "{{{
     throw s:AwiwiEntityError('%s of name "%s" already exists',
           \ self.get_type(), self.name)
   endif
-  if self.id == v:null
+  if s:is_null(self.id)
     let self.id = self.__class__.get_next_id()
   endif
   if has_key(self.__class__.__ids__, self.id)
@@ -171,9 +182,8 @@ fun! s:Entity.get_by_name(name) abort dict "{{{
 endfun "}}}
 
 fun! s:Entity.__delete__() abort dict "{{{
-  if self.id == v:null
-    echoerr 'trying to delete entity that has not been created yet'
-    return
+  if s:is_null(self.id)
+    throw 'trying to delete entity that has not been created yet'
   endif
   let res = awiwi#sql#ddl(
         \ s:db, 'DELETE FROM ? WHERE id = ?',
@@ -191,14 +201,19 @@ let s:Entity.delete = s:Entity.__delete__
 
 
 let awiwi#entity#State = s:Entity.subclass('task_state')
+let awiwi#entity#TaskLogState = s:Entity.subclass('task_state')
 let awiwi#entity#Tag = s:Entity.subclass('tag')
 let awiwi#entity#Urgency = s:Entity.subclass('urgency')
 let awiwi#entity#Task = s:Entity.subclass('task')
+call awiwi#entity#Task.add_class_field(
+      \ 'get_active_task', 'has_active_task', '__active_task__')
+let awiwi#entity#Task.__active_task__ = v:null
 
-let s:_state = awiwi#entity#State
-let s:_tag = awiwi#entity#Tag
-let s:_urgency = awiwi#entity#Urgency
-let s:_task = awiwi#entity#Task
+let s:State = awiwi#entity#State
+let s:Tag = awiwi#entity#Tag
+let s:Urgency = awiwi#entity#Urgency
+let s:Task = awiwi#entity#Task
+let s:TaskLogState = awiwi#entity#TaskLogState
 
 fun! awiwi#entity#Tag.new(name) abort dict "{{{
   let t = self.__new__()
@@ -364,9 +379,10 @@ endfun "}}}
 
 fun! awiwi#entity#init() abort "{{{
   call s:create_db(s:db)
-  call s:_state.slurp_from_db('SELECT id@n, name@s FROM task_state')
-  call s:_tag.slurp_from_db('SELECT id@n, name@s FROM tag')
-  call s:_urgency.slurp_from_db('SELECT id@n, name@s, value@n FROM urgency')
+  call s:State.slurp_from_db('SELECT id@n, name@s FROM task_state')
+  call s:Tag.slurp_from_db('SELECT id@n, name@s FROM tag')
+  call s:Urgency.slurp_from_db('SELECT id@n, name@s, value@n FROM urgency')
+  call s:TaskLogState.slurp_from_db('SELECT id@n, name@s FROM task_log_state')
 endfun "}}}
 
 fun! awiwi#entity#init_test_data() abort "{{{
@@ -379,12 +395,40 @@ fun! awiwi#entity#init_test_data() abort "{{{
 endfun "}}}
 
 
+fun! awiwi#entity#Task.get_active_task() abort dict "{{{
+  return self.__active_task__
+endfun "}}}
+
+
+fun! awiwi#entity#Task.has_active_task() abort dict "{{{
+  return !s:is_null(self.get_active_task())
+endfun "}}}
+
+
+fun! awiwi#entity#Task.set_active_task(task) abort dict "{{{
+  if self.has_active_task()
+    throw s:AwiwiEntityError('cannot activate task %s. %s already started',
+          \ a:task.name, self.get_active_task().name)
+  endif
+  let self.__active_task__ = a:task
+endfun "}}}
+
+
+fun! awiwi#entity#Task.deactive_active_task() abort dict "{{{
+  let self.__active_task__ = v:null
+endfun "}}}
+
+
 fun! awiwi#entity#Task.new(
       \ title, date, backlink, project, issue,
       \ urgency, tags) abort dict "{{{
+  if self.has_active_task()
+    throw s:AwiwiEntityError('cannot create task. "%s" is already started',
+          \ self.get_active_task().name)
+  endif
   let t = self.__new__()
   let t.title = a:title
-  let t.state = s:_state.get_by_name('started')
+  let t.state = s:State.get_by_name('started')
   let t.date = a:date
   " use this for lookups
   let t.name = printf('%s:%s', t.date, t.title)
@@ -398,6 +442,7 @@ fun! awiwi#entity#Task.new(
   let backlink_tags = s:is_null(a:backlink) ? [] : a:backlink.tags
   let t.tags = s:unique(t.project.tags, backlink_tags, a:tags)
   call t.__register__()
+  call self.set_active_task(t)
   return t
 endfun "}}}
 
@@ -414,7 +459,7 @@ fun! awiwi#entity#Task.persist() abort dict "{{{
           \ self.id, tag.id)
   endfor
   if !s:is_null(self.backlink)
-    t.exec('UPDATE task SET forwardlink = ? WHERE id = ?',
+    call t.exec('UPDATE task SET forwardlink = ? WHERE id = ?',
           \ self.id, self.backlink.id)
   endif
   let res = t.commit()
@@ -433,7 +478,7 @@ fun! awiwi#entity#Task.delete() abort dict "{{{
   let t = awiwi#sql#start_transaction(s:db)
   call t.exec('DELETE FROM task_tags WHERE task_id = ?', self.id)
   call t.exec('DELETE FROM task_log WHERE task_id = ?', self.id)
-  if self.backlink != v:null
+  if !s:is_null(self.backlink)
     call t.exec('UPDATE task SET forwardlink = NULL WHERE id = ?',
           \ self.backlink.id)
   endif
@@ -441,24 +486,76 @@ fun! awiwi#entity#Task.delete() abort dict "{{{
   if !res
     throw s:AwiwiEntityError('could not delete task %s', self.title)
   endif
-  if self.backlink != v:null
+  if !s:is_null(self.backlink)
     let self.__class__.__ids__[self.backlink.id].forwardlink = v:null
   endif
   return self.__delete__()
 endfun "}}}
 
 
-fun! awiwi#entity#Task.change_state(state) abort dict "{{{
+fun! awiwi#entity#Task.set_state(state) abort dict "{{{
   if self.state.id == a:state.id
     return v:false
   endif
-  let res = awiwi#sql#ddl(s:db,
+  if a:state.name == 'started'
+    call self.__class__.set_active_task(self)
+    let log_state = s:TaskLogState.get_by_name('restarted')
+  else
+    call self.__class__.deactive_active_task()
+    let log_state = s:TaskLogState.get_by_name(a:state.name)
+  endif
+  let t = awiwi#sql#start_transaction(s:db)
+  call t.exec(
         \ 'UPDATE task SET task_state_id = ? WHERE id = ?',
         \ a:state.id, self.id)
+  call t.exec(
+        \ 'INSERT INTO task_log (task_id, state_id) VALUES (?, ?)', self.id, log_state.id)
+  let res = t.commit()
   if !res
     throw s:AwiwiEntityError('could not change state for task %s to %s',
           \ self.title, a:state.name)
   endif
   let self.state = a:state
+  return v:true
+endfun "}}}
+
+
+fun! awiwi#entity#Task.pause(...) abort dict "{{{
+  return self.set_state(s:State.get_by_name('paused'))
+endfun "}}}
+
+
+fun! awiwi#entity#Task.done() abort dict "{{{
+  return self.set_state(s:State.get_by_name('done'))
+endfun "}}}
+
+
+fun! awiwi#entity#Task.restart(...) abort dict "{{{
+  if get(a:000, 0, v:false) &&
+        \ self.__class__.has_active_task() &&
+        \ self.__class__.get_active_task().id != self.id
+    call self.__class__.get_active_task().set_state(s:State.get_by_name('paused'))
+  endif
+  return self.set_state(s:State.get_by_name('started'))
+endfun "}}}
+
+
+fun! awiwi#entity#Task.set_urgency(urgency) abort dict "{{{
+  if self.urgency.id == a:urgency.id
+    return v:false
+  endif
+  let log_state = s:TaskLogState.get_by_name('urgency_changed')
+  let t = awiwi#sql#start_transaction(s:db)
+  call t.exec(
+        \ 'UPDATE task SET urgency_id = ? WHERE id = ?',
+        \ a:urgency.id, self.id)
+  call t.exec(
+        \ 'INSERT INTO task_log (task_id, state_id) VALUES (?, ?)', self.id, log_state.id)
+  let res = t.commit()
+  if !res
+    throw s:AwiwiEntityError('could not change urgency for task %s to %s',
+          \ self.title, a:urgency.name)
+  endif
+  let self.urgency = a:urgency
   return v:true
 endfun "}}}
