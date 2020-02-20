@@ -116,7 +116,7 @@ CREATE TABLE checklist (
   `title` varchar(255) NOT NULL,
   `created` timestamp NOT NULL,
   `checked` boolean NOT NULL DEFAULT '0',
-  `updated` timestamp DEFAULT NULL
+  `updated` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 -- insert values

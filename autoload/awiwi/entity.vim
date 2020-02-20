@@ -51,12 +51,13 @@ fun! s:Entity.get_next_id() abort dict "{{{
   endfor
 endfun "}}}
 
-fun! s:Entity.subclass(table) abort dict "{{{
+fun! s:Entity.subclass(table, ...) abort dict "{{{
   let e = copy(self)
   let e.__table__ = a:table
   let e.__ids__ = {}
   let e.__names__ = {}
   let e.__class__ = e
+  let e.class_name = a:get(a:000, 0, toupper(a:table[0]) . substitute(a:table[0][1:], '\(_\+\)\([a-z]\)', '\u\2', 'g'))
   let e.__class_fields__ = [
         \ '__ids__', '__names__', '__new__',
         \ 'subclass', 'get_all', 'get_by_id',
@@ -203,19 +204,30 @@ fun! s:Entity.id_exists(id) abort dict "{{{
 endfun "}}}
 
 
+let s:TitleBasedEntity = s:Entity.subclass(v:null, 'TitleBasedEntity')
 
-let awiwi#entity#State = s:Entity.subclass('task_state')
-let awiwi#entity#TaskLogState = s:Entity.subclass('task_state')
+fun! s:TitleBasedEntity.set_title(title) abort dict "{{{
+  let name = printf('%s:%s', t.date, t.title)
+  if self.__class__.name_exists(name)
+    throw s:AwiwiEntityError('cannot rename %s "%s:%s". name "%s" already in use', self.__table__, self.name, name)
+  endif
+  call self.update_attribute('title', a:title)
+  let self.title = a:title
+endfun "}}}
+
+
+let awiwi#entity#TaskState = s:Entity.subclass('task_state')
+let awiwi#entity#TaskLogState = s:Entity.subclass('task_log_state')
 let awiwi#entity#Tag = s:Entity.subclass('tag')
 let awiwi#entity#Urgency = s:Entity.subclass('urgency')
-let awiwi#entity#ChecklistEntry = s:Entity.subclass('checklist')
+let awiwi#entity#ChecklistEntry = s:TitleBasedEntity.subclass('checklist', 'ChecklistEntry')
 let awiwi#entity#Project = s:Entity.subclass('project')
-let awiwi#entity#Task = s:Entity.subclass('task')
+let awiwi#entity#Task = s:TitleBasedEntity.subclass('task')
 call awiwi#entity#Task.add_class_field(
       \ 'get_active_task', 'has_active_task', '__active_task__')
 let awiwi#entity#Task.__active_task__ = v:null
 
-let s:State = awiwi#entity#State
+let s:TaskState = awiwi#entity#TaskState
 let s:Tag = awiwi#entity#Tag
 let s:Urgency = awiwi#entity#Urgency
 let s:Task = awiwi#entity#Task
@@ -380,12 +392,12 @@ fun! s:create_db(path) abort "{{{
 endfun "}}}
 
 
-" scoping issue: awiwi#entity#State is unknown inside of
+" scoping issue: awiwi#entity#TaskState is unknown inside of
 " function awiwi#entity#init for some reason
 
 fun! awiwi#entity#init() abort "{{{
   call s:create_db(s:db)
-  call s:State.slurp_from_db('SELECT id@n, name@s FROM task_state')
+  call s:TaskState.slurp_from_db('SELECT id@n, name@s FROM task_state')
   call s:Tag.slurp_from_db('SELECT id@n, name@s FROM tag')
   call s:Urgency.slurp_from_db('SELECT id@n, name@s, value@n FROM urgency')
   call s:TaskLogState.slurp_from_db('SELECT id@n, name@s FROM task_log_state')
@@ -434,7 +446,7 @@ fun! awiwi#entity#Task.new(
   endif
   let t = self.__new__()
   let t.title = a:title
-  let t.state = s:State.get_by_name('started')
+  let t.state = s:TaskState.get_by_name('started')
   let t.date = a:date
   " use this for lookups
   let t.name = printf('%s:%s', t.date, t.title)
@@ -524,12 +536,12 @@ endfun "}}}
 
 
 fun! awiwi#entity#Task.pause(...) abort dict "{{{
-  return self.set_state(s:State.get_by_name('paused'))
+  return self.set_state(s:TaskState.get_by_name('paused'))
 endfun "}}}
 
 
 fun! awiwi#entity#Task.done() abort dict "{{{
-  return self.set_state(s:State.get_by_name('done'))
+  return self.set_state(s:TaskState.get_by_name('done'))
 endfun "}}}
 
 
@@ -537,9 +549,9 @@ fun! awiwi#entity#Task.restart(...) abort dict "{{{
   if get(a:000, 0, v:false) &&
         \ self.__class__.has_active_task() &&
         \ self.__class__.get_active_task().id != self.id
-    call self.__class__.get_active_task().set_state(s:State.get_by_name('paused'))
+    call self.__class__.get_active_task().set_state(s:TaskState.get_by_name('paused'))
   endif
-  return self.set_state(s:State.get_by_name('started'))
+  return self.set_state(s:TaskState.get_by_name('started'))
 endfun "}}}
 
 
@@ -559,13 +571,6 @@ fun! awiwi#entity#Task.set_urgency(urgency) abort dict "{{{
   endif
   let self.urgency = a:urgency
   return v:true
-endfun "}}}
-
-
-fun! awiwi#entity#Task.set_title(title) abort dict "{{{
-  let name = printf('%s:%s', t.date, t.title)
-
-  call self.update_attribute('title', )
 endfun "}}}
 
 
@@ -589,16 +594,6 @@ fun! awiwi#entity#ChecklistEntry.persist() abort dict "{{{
     throw s:AwiwiEntityError('could not create checklist entry %s', self.title)
   endif
   return self
-endfun "}}}
-
-
-fun! awiwi#entity#ChecklistEntry.set_title(title) abort dict "{{{
-  let query = 'UPDATE checklist SET title = ?, `updated` = CURRENT_TIMESTAMP WHERE id = ?'
-  let res = awiwi#sql#ddl(s:db, query, a:title. self.id)
-  if !res
-    throw s:AwiwiEntityError('could not update title for task %s', self.title)
-  endif
-  let self.title = a:title
 endfun "}}}
 
 
