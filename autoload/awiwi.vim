@@ -565,11 +565,21 @@ endfun "}}}
 fun! s:open_file(file, options) abort "{{{
   if get(a:options, 'new_window', v:false)
     let height = str2nr(get(a:options, 'height', 0))
-    if height
-      let cmd = printf('%dnew', height)
+    let position = get(a:options, 'position', 'bottom')
+    if position == 'left'
+      let win_cmd == 'left vnew'
+    elseif position == 'right'
+      let win_cmd = 'vnew'
+    elseif position == 'top'
+      let win_cmd = 'lefta new'
     else
-      let cmd = 'new'
+      let win_cmd = 'new'
+    " bottom is the default case
+      if position != 'bottom'
+        echoerr printf('wrong position for s:open_file() specified: "%s"', position)
+      endif
     endif
+    let cmd = printf('%s%s', height ? height : '', win_cmd)
   else
     let cmd = 'e'
   endif
@@ -671,11 +681,11 @@ fun! awiwi#insert_and_open_continuation() abort "{{{
   call append(line('.'), link)
   " move to the next line
   +
-  call awiwi#edit_journal(today, {'new_window': v:true})
+  w
+  call awiwi#edit_journal(today, {'new_window': v:true, 'position': 'top'})
   let lines = [
         \ '',
         \ printf('%s %s (cont. from %s)', current_task.marker, current_task.title, own_date),
-        \ '',
         \ back_link,
         \ '',
         \ ]

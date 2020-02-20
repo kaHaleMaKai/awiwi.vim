@@ -18,7 +18,7 @@ CREATE TABLE task_log_state (
 CREATE UNIQUE INDEX task_log_state_name ON task_log_state (name);
 
 CREATE TABLE urgency (
-  `id` integer PRIMARY KEY AUTOINCREMENT,
+  `id` int NOT NULL PRIMARY KEY,
   `name` varchar(255) NOT NULL,
   `value` int unsigned NOT NULL,
   `added` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -108,6 +108,15 @@ CREATE TABLE project_tags (
   `tag_id` int NOT NULL,
   FOREIGN KEY (`project_id`) REFERENCES project(`id`),
   FOREIGN KEY (`tag_id`) REFERENCES tag(`id`)
+);
+
+CREATE TABLE checklist (
+  `id` int NOT NULL PRIMARY KEY,
+  `file` varchar(255) NOT NULL,
+  `title` varchar(255) NOT NULL,
+  `created` timestamp NOT NULL,
+  `checked` boolean NOT NULL DEFAULT '0',
+  `updated` timestamp DEFAULT NULL
 );
 
 -- insert values

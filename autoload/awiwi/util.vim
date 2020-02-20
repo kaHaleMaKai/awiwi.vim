@@ -100,3 +100,45 @@ endfun "}}}
 fun! awiwi#util#get_epoch_seconds() abort "{{{
   return str2nr(strftime('%s'))
 endfun "}}}
+
+
+fun! s:has_element(list, el) abort "{{{
+  for el in a:list
+    if el.id == a:el.id
+      return v:true
+    endif
+  endfor
+  return v:false
+endfun "}}}
+
+
+fun! awiwi#util#unique(list, ...) abort "{{{
+  let set = {}
+  let li = []
+  for el in a:list
+    if !has_key(set, el.id)
+      call add(li, el)
+    endif
+  endfor
+  for list in a:000
+    for el in list
+      if !has_key(set, el.id)
+        call add(li, el)
+      endif
+    endfor
+  endfor
+  return li
+endfun "}}}
+
+
+fun! awiwi#util#is_null(obj) abort "{{{
+  return type(a:obj) == type(v:null)
+endfun "}}}
+
+
+fun! awiwi#util#id_or_null(el) abort "{{{
+  if awiwi#util#is_null(a:el)
+    return v:null
+  endif
+  return a:el.id
+endfun "}}}
