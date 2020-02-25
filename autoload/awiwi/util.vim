@@ -24,6 +24,11 @@ fun! awiwi#util#get_search_engine() abort "{{{
 endfun "}}}
 
 
+fun! awiwi#util#get_argument_number(expr) abort "{{{
+  return len(split(a:expr, '[[:space:]]\+', v:true)) - 1
+endfun "}}}
+
+
 fun! awiwi#util#match_subcommands(subcommands, ArgLead) abort "{{{
   if a:ArgLead == ''
     return copy(a:subcommands)
@@ -141,4 +146,24 @@ fun! awiwi#util#id_or_null(el) abort "{{{
     return v:null
   endif
   return a:el.id
+endfun "}}}
+
+
+fun! awiwi#util#input(prompt, ...) abort "{{{
+  let opts = get(a:000, 0, {})
+  let opts.prompt = a:prompt
+  if has_key(opts, 'completion')
+    if !str#startswith(opts.completion, 'customlist')
+      let opts.completion = printf('customlist,%s', opts.completion)
+    endif
+  endif
+  call inputsave()
+  try
+    let text = input(opts)
+  catch /Interrupted/
+  finally
+    redr
+    call inputrestore()
+  endtry
+  return text
 endfun "}}}
