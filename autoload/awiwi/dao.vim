@@ -1,7 +1,7 @@
-" if exists('g:autoloaded_awiwi_entity')
+" if exists('g:autoloaded_awiwi_dao')
 "   finish
 " endif
-" let g:autoloaded_awiwi_entity = v:true
+" let g:autoloaded_awiwi_dao = v:true
 
 let s:db = path#join(g:awiwi_home, 'task.db')
 
@@ -154,7 +154,7 @@ endfun "}}}
 
 fun! s:Entity.__delete__() abort dict "{{{
   if awiwi#util#is_null(self.id)
-    throw 'trying to delete entity that has not been created yet'
+    throw 'trying to delete dao that has not been created yet'
   endif
   let res = awiwi#sql#ddl(
         \ s:db, 'DELETE FROM ? WHERE id = ?',
@@ -221,18 +221,18 @@ fun! s:TitleBasedEntity.set_title(title) abort dict "{{{
 endfun "}}}
 
 
-let g:awiwi#entity#TaskState = s:Entity.subclass('task_state')
-let g:awiwi#entity#TaskLogState = s:Entity.subclass('task_log_state')
-let g:awiwi#entity#Tag = s:Entity.subclass('tag')
-let g:awiwi#entity#Urgency = s:Entity.subclass('urgency')
-let g:awiwi#entity#ChecklistEntry = s:TitleBasedEntity.subclass('checklist', 'ChecklistEntry')
-let g:awiwi#entity#Project = s:Entity.subclass('project')
-let g:awiwi#entity#Task = s:TitleBasedEntity.subclass('task')
-call g:awiwi#entity#Task.add_class_field(
+let g:awiwi#dao#TaskState = s:Entity.subclass('task_state')
+let g:awiwi#dao#TaskLogState = s:Entity.subclass('task_log_state')
+let g:awiwi#dao#Tag = s:Entity.subclass('tag')
+let g:awiwi#dao#Urgency = s:Entity.subclass('urgency')
+let g:awiwi#dao#ChecklistEntry = s:TitleBasedEntity.subclass('checklist', 'ChecklistEntry')
+let g:awiwi#dao#Project = s:Entity.subclass('project')
+let g:awiwi#dao#Task = s:TitleBasedEntity.subclass('task')
+call g:awiwi#dao#Task.add_class_field(
       \ 'get_active_task', 'has_active_task', '__active_task__')
-let g:awiwi#entity#Task.__active_task__ = v:null
+let g:awiwi#dao#Task.__active_task__ = v:null
 
-fun! g:awiwi#entity#Tag.new(name) abort dict "{{{
+fun! g:awiwi#dao#Tag.new(name) abort dict "{{{
   let t = self.__new__()
   let t.name = a:name
   call t.__register__()
@@ -240,7 +240,7 @@ fun! g:awiwi#entity#Tag.new(name) abort dict "{{{
 endfun "}}}
 
 
-fun! g:awiwi#entity#Tag.persist() abort dict "{{{
+fun! g:awiwi#dao#Tag.persist() abort dict "{{{
   let query = awiwi#util#get_resource('db', 'create-tag.sql')
   let res = awiwi#sql#ddl(s:db, query, self.id, self.name)
   if !res
@@ -249,7 +249,7 @@ fun! g:awiwi#entity#Tag.persist() abort dict "{{{
   return self
 endfun "}}}
 
-fun! g:awiwi#entity#Tag.delete() abort dict "{{{
+fun! g:awiwi#dao#Tag.delete() abort dict "{{{
   let rows = awiwi#sql#select(s:db,
         \ 'SELECT task_id AS id@n FROM task_tags WHERE tag_id = ?', self.id)
   let t = awiwi#sql#start_transaction(s:db)
@@ -260,7 +260,7 @@ fun! g:awiwi#entity#Tag.delete() abort dict "{{{
     throw s:AwiwiEntityError('could not delete tag %s', self.name)
   endif
   for row in rows
-    let tags = g:awiwi#entity#Task.__ids__[row.id].tags
+    let tags = g:awiwi#dao#Task.__ids__[row.id].tags
     for i in range(len(tags))
       if tags[i].id == self.id
         unlet tags[i]
@@ -272,7 +272,7 @@ fun! g:awiwi#entity#Tag.delete() abort dict "{{{
 endfun "}}}
 
 
-fun! g:awiwi#entity#Urgency.new(name, value) abort dict "{{{
+fun! g:awiwi#dao#Urgency.new(name, value) abort dict "{{{
   let t = self.__new__()
   let t.name = a:name
   for v in values(self.__class__.__ids__)
@@ -285,7 +285,7 @@ fun! g:awiwi#entity#Urgency.new(name, value) abort dict "{{{
   return t
 endfun "}}}
 
-fun! g:awiwi#entity#Urgency.persist() abort dict "{{{
+fun! g:awiwi#dao#Urgency.persist() abort dict "{{{
   let query = awiwi#util#get_resource('db', 'create-urgency.sql')
   let res = awiwi#sql#ddl(s:db, query, self.id, self.name, self.value)
   if !res
@@ -295,7 +295,7 @@ fun! g:awiwi#entity#Urgency.persist() abort dict "{{{
 endfun "}}}
 
 
-fun! g:awiwi#entity#Project.new(name, url, tags) abort dict "{{{
+fun! g:awiwi#dao#Project.new(name, url, tags) abort dict "{{{
   let t = self.__new__()
   let t.name = a:name
   let t.url = s:check_url(a:url)
@@ -305,7 +305,7 @@ fun! g:awiwi#entity#Project.new(name, url, tags) abort dict "{{{
 endfun "}}}
 
 
-fun! g:awiwi#entity#Project.persist() abort dict "{{{
+fun! g:awiwi#dao#Project.persist() abort dict "{{{
   let query = awiwi#util#get_resource('db', 'create-project.sql')
   let t = awiwi#sql#start_transaction(s:db)
   call t.exec(query, self.id, self.name, self.url)
@@ -322,7 +322,7 @@ fun! g:awiwi#entity#Project.persist() abort dict "{{{
 endfun "}}}
 
 
-fun! g:awiwi#entity#Project.delete() abort dict "{{{
+fun! g:awiwi#dao#Project.delete() abort dict "{{{
   let rows = awiwi#sql#select(s:db,
         \ 'SELECT id@n FROM task WHERE project_id = ?', self.id)
   let t = awiwi#sql#start_transaction(s:db)
@@ -333,13 +333,13 @@ fun! g:awiwi#entity#Project.delete() abort dict "{{{
     throw s:AwiwiEntityError('could not delete project %s', self.name)
   endif
   for row in rows
-    let g:awiwi#entity#Task.__ids__[row.id].project = v:null
+    let g:awiwi#dao#Task.__ids__[row.id].project = v:null
   endfor
   return self.__delete__()
 endfun "}}}
 
 
-fun! g:awiwi#entity#Project.add_tag(tag) abort dict "{{{
+fun! g:awiwi#dao#Project.add_tag(tag) abort dict "{{{
   let has_el = awiwi#util#has_element(self.tags, a:tag)
   if has_el
     return v:false
@@ -355,7 +355,7 @@ fun! g:awiwi#entity#Project.add_tag(tag) abort dict "{{{
 endfun "}}}
 
 
-fun! g:awiwi#entity#Project.set_url(url) abort dict "{{{
+fun! g:awiwi#dao#Project.set_url(url) abort dict "{{{
   let url = s:check_url(a:url)
   if self.url == url
     return v:false
@@ -390,37 +390,37 @@ fun! s:create_db(path) abort "{{{
 endfun "}}}
 
 
-fun! awiwi#entity#init() abort "{{{
+fun! awiwi#dao#init() abort "{{{
   call s:create_db(s:db)
-  call g:awiwi#entity#TaskState.slurp_from_db('SELECT id@n, name@s FROM task_state')
-  call g:awiwi#entity#Tag.slurp_from_db('SELECT id@n, name@s FROM tag')
-  call g:awiwi#entity#Urgency.slurp_from_db('SELECT id@n, name@s, value@n FROM urgency')
-  call g:awiwi#entity#TaskLogState.slurp_from_db('SELECT id@n, name@s FROM task_log_state')
-  call g:awiwi#entity#ChecklistEntry.slurp_from_db('SELECT id@n, file@s, title@s, checked@b, created@s FROM checklist')
+  call g:awiwi#dao#TaskState.slurp_from_db('SELECT id@n, name@s FROM task_state')
+  call g:awiwi#dao#Tag.slurp_from_db('SELECT id@n, name@s FROM tag')
+  call g:awiwi#dao#Urgency.slurp_from_db('SELECT id@n, name@s, value@n FROM urgency')
+  call g:awiwi#dao#TaskLogState.slurp_from_db('SELECT id@n, name@s FROM task_log_state')
+  call g:awiwi#dao#ChecklistEntry.slurp_from_db('SELECT id@n, file@s, title@s, checked@b, created@s FROM checklist')
 endfun "}}}
 
 
-fun! awiwi#entity#init_test_data(file) abort "{{{
+fun! awiwi#dao#init_test_data(file) abort "{{{
   call awiwi#util#empty_resources_cache()
   let s:db = a:file
   if filewritable(s:db) == 1
     call delete(s:db)
   endif
-  call awiwi#entity#init()
+  call awiwi#dao#init()
 endfun "}}}
 
 
-fun! g:awiwi#entity#Task.get_active_task() abort dict "{{{
+fun! g:awiwi#dao#Task.get_active_task() abort dict "{{{
   return self.__active_task__
 endfun "}}}
 
 
-fun! g:awiwi#entity#Task.has_active_task() abort dict "{{{
+fun! g:awiwi#dao#Task.has_active_task() abort dict "{{{
   return !awiwi#util#is_null(self.get_active_task())
 endfun "}}}
 
 
-fun! g:awiwi#entity#Task.set_active_task(task) abort dict "{{{
+fun! g:awiwi#dao#Task.set_active_task(task) abort dict "{{{
   if self.has_active_task()
     throw s:AwiwiEntityError('cannot activate task %s. %s already started',
           \ a:task.name, self.get_active_task().name)
@@ -429,12 +429,12 @@ fun! g:awiwi#entity#Task.set_active_task(task) abort dict "{{{
 endfun "}}}
 
 
-fun! g:awiwi#entity#Task.deactive_active_task() abort dict "{{{
+fun! g:awiwi#dao#Task.deactive_active_task() abort dict "{{{
   let self.__active_task__ = v:null
 endfun "}}}
 
 
-fun! g:awiwi#entity#Task.new(
+fun! g:awiwi#dao#Task.new(
       \ title, date, backlink, project, issue,
       \ urgency, tags) abort dict "{{{
   if self.has_active_task()
@@ -462,7 +462,7 @@ fun! g:awiwi#entity#Task.new(
 endfun "}}}
 
 
-fun! g:awiwi#entity#Task.persist() abort dict "{{{
+fun! g:awiwi#dao#Task.persist() abort dict "{{{
   let query = awiwi#util#get_resource('db', 'create-task.sql')
   let t = awiwi#sql#start_transaction(s:db)
   call t.exec(query,
@@ -488,7 +488,7 @@ fun! g:awiwi#entity#Task.persist() abort dict "{{{
 endfun "}}}
 
 
-fun! g:awiwi#entity#Task.delete() abort dict "{{{
+fun! g:awiwi#dao#Task.delete() abort dict "{{{
   let t = awiwi#sql#start_transaction(s:db)
   call t.exec('DELETE FROM task_tags WHERE task_id = ?', self.id)
   call t.exec('DELETE FROM task_log WHERE task_id = ?', self.id)
@@ -507,7 +507,7 @@ fun! g:awiwi#entity#Task.delete() abort dict "{{{
 endfun "}}}
 
 
-fun! g:awiwi#entity#Task.set_state(state) abort dict "{{{
+fun! g:awiwi#dao#Task.set_state(state) abort dict "{{{
   if self.state.id == a:state.id
     return v:false
   endif
@@ -532,17 +532,17 @@ fun! g:awiwi#entity#Task.set_state(state) abort dict "{{{
 endfun "}}}
 
 
-fun! g:awiwi#entity#Task.pause(...) abort dict "{{{
+fun! g:awiwi#dao#Task.pause(...) abort dict "{{{
   return self.set_state(s:TaskState.get_by_name('paused'))
 endfun "}}}
 
 
-fun! g:awiwi#entity#Task.done() abort dict "{{{
+fun! g:awiwi#dao#Task.done() abort dict "{{{
   return self.set_state(s:TaskState.get_by_name('done'))
 endfun "}}}
 
 
-fun! g:awiwi#entity#Task.restart(...) abort dict "{{{
+fun! g:awiwi#dao#Task.restart(...) abort dict "{{{
   if get(a:000, 0, v:false) &&
         \ self.__class__.has_active_task() &&
         \ self.__class__.get_active_task().id != self.id
@@ -552,7 +552,7 @@ fun! g:awiwi#entity#Task.restart(...) abort dict "{{{
 endfun "}}}
 
 
-fun! g:awiwi#entity#Task.set_urgency(urgency) abort dict "{{{
+fun! g:awiwi#dao#Task.set_urgency(urgency) abort dict "{{{
   if self.urgency.id == a:urgency.id
     return v:false
   endif
@@ -571,7 +571,7 @@ fun! g:awiwi#entity#Task.set_urgency(urgency) abort dict "{{{
 endfun "}}}
 
 
-fun! g:awiwi#entity#ChecklistEntry.new(file, title) abort dict "{{{
+fun! g:awiwi#dao#ChecklistEntry.new(file, title) abort dict "{{{
   let t = self.__new__()
   let t.file = a:file
   let t.title = a:title
@@ -583,7 +583,7 @@ fun! g:awiwi#entity#ChecklistEntry.new(file, title) abort dict "{{{
 endfun "}}}
 
 
-fun! g:awiwi#entity#ChecklistEntry.persist() abort dict "{{{
+fun! g:awiwi#dao#ChecklistEntry.persist() abort dict "{{{
   let query = awiwi#util#get_resource('db', 'create-checklist.sql')
   let res = awiwi#sql#ddl(s:db, query, self.id, self.file, self.title, self.created)
   if !res
@@ -594,7 +594,7 @@ fun! g:awiwi#entity#ChecklistEntry.persist() abort dict "{{{
 endfun "}}}
 
 
-fun! g:awiwi#entity#ChecklistEntry.set_checked(val) abort dict "{{{
+fun! g:awiwi#dao#ChecklistEntry.set_checked(val) abort dict "{{{
   if self.checked == a:val
     let state = self.checked ? 'checked' : 'unchecked'
     throw s:AwiwiEntityError('checklist entry "%s" already %s', self.title, state)
@@ -604,11 +604,11 @@ fun! g:awiwi#entity#ChecklistEntry.set_checked(val) abort dict "{{{
 endfun "}}}
 
 
-fun! g:awiwi#entity#ChecklistEntry.check() abort dict "{{{
+fun! g:awiwi#dao#ChecklistEntry.check() abort dict "{{{
   call self.set_checked(v:true)
 endfun "}}}
 
 
-fun! g:awiwi#entity#ChecklistEntry.uncheck() abort dict "{{{
+fun! g:awiwi#dao#ChecklistEntry.uncheck() abort dict "{{{
   call self.set_checked(v:false)
 endfun "}}}
