@@ -694,11 +694,6 @@ fun! awiwi#insert_and_open_continuation() abort "{{{
 endfun "}}}
 
 
-fun! s:get_argument_number(expr) abort "{{{
-  return len(split(a:expr, '[[:space:]]\+', v:true)) - 1
-endfun "}}}
-
-
 fun! s:get_all_journal_files() abort "{{{
     return sort(map(
           \ split(glob(path#join(g:awiwi_home, 'journal', '**', '*.md'))),
@@ -764,7 +759,7 @@ endfun "}}}
 
 
 fun! awiwi#_get_completion(ArgLead, CmdLine, CursorPos) abort "{{{
-  let current_arg_pos = s:get_argument_number(a:CmdLine[:a:CursorPos])
+  let current_arg_pos = awiwi#util#get_argument_number(a:CmdLine[:a:CursorPos])
   if current_arg_pos < 2
     return awiwi#util#match_subcommands(s:subcommands, a:ArgLead)
   endif

@@ -5,7 +5,7 @@
 
 let s:db = path#join(g:awiwi_home, 'task.db')
 
-fun! s:AwiwiEntityError(msg, ...) abort "{{{
+fun! s:AwiwiDaoError(msg, ...) abort "{{{
   if a:0
     let args = [a:msg]
     call extend(args, a:000)
@@ -13,27 +13,32 @@ fun! s:AwiwiEntityError(msg, ...) abort "{{{
   else
     let msg = a:msg
   endif
-  return 'AwiwiEntityError: ' . msg
+  return 'AwiwiDaoError: ' . msg
 endfun "}}}
 
 
-fun! s:check_url(url) abort "{{{
+fun! awiwi#dao#check_url(url, ...) abort "{{{
   if awiwi#util#is_null(a:url) || a:url == ''
     return v:null
-  elseif type(a:url) == v:t_number || match(a:url, '^#\?[1-9][0-9]\{4,}$') > -1
+  elseif (type(a:url) == v:t_number && a:url > 10000) || match(a:url, '^#\?[1-9][0-9]\{4,}$') > -1
     let url = type(a:url) == v:t_number ?
           \ string(a:url) : matchstr(a:url, '[0-9]\+')
     return printf('https://redmine.pmd5.org/issues/%s', url)
-  elseif match(a:url, '^https://\(gitlab.pmd5.org\|github.com\)') > -1
+  elseif match(a:url, '^https://\(gitlab.pmd5.org\|github.com\|redmine.pmd5.org\)') > -1
     return a:url
   else
-    echoerr s:AwiwiEntityError('got unknown project url: %s', a:url)
+    if a:0 && a:1 == v:true
+      return v:null
+    endif
+    echoerr s:AwiwiDaoError('got unknown project url: %s', a:url)
     return a:url
   endif
 endfun "}}}
 
 
-let s:Entity = {}
+let s:Entity = {
+      \ 'name_pattern': ''
+      \ }
 
 fun! s:Entity.get_next_id() abort dict "{{{
   let ids = self.get_all_ids()
@@ -70,7 +75,7 @@ fun! s:Entity.subclass(table, ...) abort dict "{{{
         \ 'slurp_from_db', 'get_all_names',
         \ 'get_all_ids', 'get_next_id',
         \ 'add_class_field', 'id_exists',
-        \ 'name_exists'
+        \ 'name_exists', 'validate_identifier'
         \ ]
   return e
 endfun "}}}
@@ -96,8 +101,9 @@ endfun "}}}
 
 
 fun! s:Entity.__register__() abort dict "{{{
+  call self.__class__.validate_identifier(self.name)
   if self.__class__.name_exists(self.name)
-    throw s:AwiwiEntityError('%s of name "%s" already exists',
+    throw s:AwiwiDaoError('%s of name "%s" already exists',
           \ self.get_type(), self.name)
   endif
   if awiwi#util#is_null(self.id)
@@ -106,7 +112,7 @@ fun! s:Entity.__register__() abort dict "{{{
   if self.__class__.id_exists(self.id)
     let self.__old_id__ = self.id
     let self.id = v:null
-    throw s:AwiwiEntityError('%s of id %d (name "%s") already exists',
+    throw s:AwiwiDaoError('%s of id %d (name "%s") already exists',
           \ self.get_type(), self.id, self.name)
   endif
   let self.__class__.__ids__[self.id] = self
@@ -160,7 +166,7 @@ fun! s:Entity.__delete__() abort dict "{{{
         \ s:db, 'DELETE FROM ? WHERE id = ?',
         \ {'type': 'table', 'value': self.__table__}, self.id)
   if !res
-    throw s:AwiwiEntityError('could not delete %s %s', self.get_type(), self.name)
+    throw s:AwiwiDaoError('could not delete %s %s', self.get_type(), self.name)
   endif
   unlet self.__class__.__ids__[self.id]
   unlet self.__class__.__names__[self.name]
@@ -193,7 +199,7 @@ fun! s:Entity.update_attribute(attr, value, ...) abort dict "{{{
 
   let res = call('awiwi#sql#ddl', args)
   if !res
-    throw s:AwiwiEntityError('could not update %s.%s to value "%s" for id=%d',
+    throw s:AwiwiDaoError('could not update %s.%s to value "%s" for id=%d',
           \ self.__table__, a:attr, a:value, self.id)
   endif
 endfun "}}}
@@ -208,14 +214,27 @@ fun! s:Entity.id_exists(id) abort dict "{{{
   return has_key(self.__ids__, a:id)
 endfun "}}}
 
+fun! s:Entity.validate_identifier(name) abort "{{{
+  if trim(a:name) == ''
+    throw s:AwiwiDaoError('got empty identifier')
+  endif
+  if self.name_pattern != '' && match(a:name, self.name_pattern) == -1
+    throw s:AwiwiDaoError('name "%s" includes characters out of range %s', a:name, self.name_pattern)
+  endif
+endfun "}}}
+
 
 let s:TitleBasedEntity = s:Entity.subclass(v:null, 'TitleBasedEntity')
+let s:TitleBasedEntity.date_pattern = '[0-9]\{4}-[0-9]\{2}-[0-9]\{2}'
+let s:TitleBasedEntity.title_pattern = '[a-zA-Z].\+'
+let s:TitleBasedEntity.title_pattern = printf('^%s:%s', s:TitleBasedEntity.date_pattern, s:TitleBasedEntity.title_pattern)
 
 fun! s:TitleBasedEntity.set_title(title) abort dict "{{{
   let name = printf('%s:%s', t.date, t.title)
   if self.__class__.name_exists(name)
-    throw s:AwiwiEntityError('cannot rename %s "%s:%s". name "%s" already in use', self.__table__, self.name, name)
+    throw s:AwiwiDaoError('cannot rename %s "%s:%s". name "%s" already in use', self.__table__, self.name, name)
   endif
+  call self.__class__.validate_identifier(a:name)
   call self.update_attribute('title', a:title)
   let self.title = a:title
 endfun "}}}
@@ -225,12 +244,16 @@ let g:awiwi#dao#TaskState = s:Entity.subclass('task_state')
 let g:awiwi#dao#TaskLogState = s:Entity.subclass('task_log_state')
 let g:awiwi#dao#Tag = s:Entity.subclass('tag')
 let g:awiwi#dao#Urgency = s:Entity.subclass('urgency')
+call g:awiwi#dao#Urgency.add_class_field('value_exists')
 let g:awiwi#dao#ChecklistEntry = s:TitleBasedEntity.subclass('checklist', 'ChecklistEntry')
 let g:awiwi#dao#Project = s:Entity.subclass('project')
 let g:awiwi#dao#Task = s:TitleBasedEntity.subclass('task')
 call g:awiwi#dao#Task.add_class_field(
       \ 'get_active_task', 'has_active_task', '__active_task__')
 let g:awiwi#dao#Task.__active_task__ = v:null
+
+let g:awiwi#dao#Tag.name_pattern = '^[-a-zA-Z0-9_]\+$'
+let g:awiwi#dao#Urgency.name_pattern = '^[a-z]\+$'
 
 fun! g:awiwi#dao#Tag.new(name) abort dict "{{{
   let t = self.__new__()
@@ -244,7 +267,7 @@ fun! g:awiwi#dao#Tag.persist() abort dict "{{{
   let query = awiwi#util#get_resource('db', 'create-tag.sql')
   let res = awiwi#sql#ddl(s:db, query, self.id, self.name)
   if !res
-    throw s:AwiwiEntityError('could not create tag %s', self.name)
+    throw s:AwiwiDaoError('could not create tag %s', self.name)
   endif
   return self
 endfun "}}}
@@ -257,7 +280,7 @@ fun! g:awiwi#dao#Tag.delete() abort dict "{{{
   call t.exec('DELETE FROM task_tags WHERE tag_id = ?', self.id)
   let res = t.commit()
   if !res
-    throw s:AwiwiEntityError('could not delete tag %s', self.name)
+    throw s:AwiwiDaoError('could not delete tag %s', self.name)
   endif
   for row in rows
     let tags = g:awiwi#dao#Task.__ids__[row.id].tags
@@ -275,9 +298,12 @@ endfun "}}}
 fun! g:awiwi#dao#Urgency.new(name, value) abort dict "{{{
   let t = self.__new__()
   let t.name = a:name
+  if a:value < -1 || a:value > 10
+      throw s:AwiwiDaoError('urgency value %d out of range [0, 10]', a:value)
+  endif
   for v in values(self.__class__.__ids__)
     if v.value == a:value
-      throw s:AwiwiEntityError('urgency value %d already used in %s', a:value, v.name)
+      throw s:AwiwiDaoError('urgency value %d already used in %s', a:value, v.name)
     endif
   endfor
   let t.value = a:value
@@ -294,11 +320,24 @@ fun! g:awiwi#dao#Urgency.persist() abort dict "{{{
   return self
 endfun "}}}
 
+fun! g:awiwi#dao#Urgency.value_exists(value) abort dict "{{{
+  let values = map(copy(self.get_all()), {_, v -> v.value })
+  for val in values
+    if val == a:value
+      return v:true
+    endif
+  endfor
+  return v:false
+endfun "}}}
+
 
 fun! g:awiwi#dao#Project.new(name, url, tags) abort dict "{{{
   let t = self.__new__()
+  if len(trim(a:name)) == 0
+    throw s:AwiwiDaoError('project name is empty')
+  endif
   let t.name = a:name
-  let t.url = s:check_url(a:url)
+  let t.url = awiwi#dao#check_url(a:url)
   let t.tags = a:tags
   call t.__register__()
   return t
@@ -316,7 +355,7 @@ fun! g:awiwi#dao#Project.persist() abort dict "{{{
   let res = t.commit()
   if !res
     call self.delete()
-    throw s:AwiwiEntityError('could not create project %s', self.name)
+    throw s:AwiwiDaoError('could not create project %s', self.name)
   endif
   return self
 endfun "}}}
@@ -330,7 +369,7 @@ fun! g:awiwi#dao#Project.delete() abort dict "{{{
   call self.update_attribute(project_id, v:null, t)
   let res = t.commit()
   if !res
-    throw s:AwiwiEntityError('could not delete project %s', self.name)
+    throw s:AwiwiDaoError('could not delete project %s', self.name)
   endif
   for row in rows
     let g:awiwi#dao#Task.__ids__[row.id].project = v:null
@@ -348,7 +387,7 @@ fun! g:awiwi#dao#Project.add_tag(tag) abort dict "{{{
         \ 'INSERT INTO project_tags (project_id, tag_id) VALUES (?, ?)',
         \ self.id, a:tag.id)
   if !res
-    throw s:AwiwiEntityError('could not add tag %s to project %s', a:tag.name, self.name)
+    throw s:AwiwiDaoError('could not add tag %s to project %s', a:tag.name, self.name)
   endif
   call add(self.tags, a:tag)
   return v:true
@@ -356,14 +395,14 @@ endfun "}}}
 
 
 fun! g:awiwi#dao#Project.set_url(url) abort dict "{{{
-  let url = s:check_url(a:url)
+  let url = awiwi#dao#check_url(a:url)
   if self.url == url
     return v:false
   endif
   try
     call self.update_attribute('url', url)
-  catch /AwiwiEntityError/
-    throw s:AwiwiEntityError('could not set url to "%s" for project %s', url, self.name)
+  catch /AwiwiDaoError/
+    throw s:AwiwiDaoError('could not set url to "%s" for project %s', url, self.name)
   endtry
   return v:true
 endfun "}}}
@@ -422,7 +461,7 @@ endfun "}}}
 
 fun! g:awiwi#dao#Task.set_active_task(task) abort dict "{{{
   if self.has_active_task()
-    throw s:AwiwiEntityError('cannot activate task %s. %s already started',
+    throw s:AwiwiDaoError('cannot activate task %s. %s already started',
           \ a:task.name, self.get_active_task().name)
   endif
   let self.__active_task__ = a:task
@@ -438,7 +477,7 @@ fun! g:awiwi#dao#Task.new(
       \ title, date, backlink, project, issue,
       \ urgency, tags) abort dict "{{{
   if self.has_active_task()
-    throw s:AwiwiEntityError('cannot create task. "%s" is already started',
+    throw s:AwiwiDaoError('cannot create task. "%s" is already started',
           \ self.get_active_task().name)
   endif
   let t = self.__new__()
@@ -451,7 +490,7 @@ fun! g:awiwi#dao#Task.new(
   let t.backlink = a:backlink
   let t.forwardlink = v:null
   let t.project = a:project
-  let t.issue_link = s:check_url(a:issue)
+  let t.issue_link = awiwi#dao#check_url(a:issue)
   let t.urgency = a:urgency
   let t.duration = 0
   let backlink_tags = awiwi#util#is_null(a:backlink) ? [] : a:backlink.tags
@@ -484,7 +523,7 @@ fun! g:awiwi#dao#Task.persist() abort dict "{{{
     return self
   endif
   call self.delete()
-  throw s:AwiwiEntityError('could not create task "%s"', self.title)
+  throw s:AwiwiDaoError('could not create task "%s"', self.title)
 endfun "}}}
 
 
@@ -498,7 +537,7 @@ fun! g:awiwi#dao#Task.delete() abort dict "{{{
   endif
   let res = t.commit()
   if !res
-    throw s:AwiwiEntityError('could not delete task %s', self.title)
+    throw s:AwiwiDaoError('could not delete task %s', self.title)
   endif
   if !awiwi#util#is_null(self.backlink)
     let self.__class__.__ids__[self.backlink.id].forwardlink = v:null
@@ -524,7 +563,7 @@ fun! g:awiwi#dao#Task.set_state(state) abort dict "{{{
         \ 'INSERT INTO task_log (task_id, state_id) VALUES (?, ?)', self.id, log_state.id)
   let res = t.commit()
   if !res
-    throw s:AwiwiEntityError('could not change state for task %s to %s',
+    throw s:AwiwiDaoError('could not change state for task %s to %s',
           \ self.title, a:state.name)
   endif
   let self.state = a:state
@@ -563,7 +602,7 @@ fun! g:awiwi#dao#Task.set_urgency(urgency) abort dict "{{{
         \ 'INSERT INTO task_log (task_id, state_id) VALUES (?, ?)', self.id, log_state.id)
   let res = t.commit()
   if !res
-    throw s:AwiwiEntityError('could not change urgency for task %s to %s',
+    throw s:AwiwiDaoError('could not change urgency for task %s to %s',
           \ self.title, a:urgency.name)
   endif
   let self.urgency = a:urgency
@@ -588,7 +627,7 @@ fun! g:awiwi#dao#ChecklistEntry.persist() abort dict "{{{
   let res = awiwi#sql#ddl(s:db, query, self.id, self.file, self.title, self.created)
   if !res
     call self.delete()
-    throw s:AwiwiEntityError('could not create checklist entry %s', self.title)
+    throw s:AwiwiDaoError('could not create checklist entry %s', self.title)
   endif
   return self
 endfun "}}}
@@ -597,7 +636,7 @@ endfun "}}}
 fun! g:awiwi#dao#ChecklistEntry.set_checked(val) abort dict "{{{
   if self.checked == a:val
     let state = self.checked ? 'checked' : 'unchecked'
-    throw s:AwiwiEntityError('checklist entry "%s" already %s', self.title, state)
+    throw s:AwiwiDaoError('checklist entry "%s" already %s', self.title, state)
   endif
   call self.update_attribute('checked', a:val)
   let self.checked = a:val
