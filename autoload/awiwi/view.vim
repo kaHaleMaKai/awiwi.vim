@@ -3,6 +3,8 @@
 "endif
 "let g:autoloaded_awiwi_view = v:true
 
+let s:new_task_opts = {}
+
 if !exists('g:autoloaded_awiwi_view')
   call awiwi#dao#init_test_data('/tmp/awiwi-test.db')
   for tag in ['nifi', 'gcp', 'ansible']
@@ -118,6 +120,12 @@ fun! awiwi#view#_highlight_bad_project_url(cmdLine) abort "{{{
 endfun "}}}
 
 
+fun! awiwi#view#_highlight_bad_task_name(cmdLine) abort "{{{
+  let date = s:new_task_opts.date
+  return s:highlight_bad_input(a:cmdLine, { t -> g:awiwi#dao#Task.date_and_name_exist(date, t) })
+endfun "}}}
+
+
 fun! s:is_bad_urgency_value(val) abort "{{{
   if match(a:val, '^\([0-9]\|10\)$') == -1
     return v:false
@@ -225,6 +233,30 @@ fun! awiwi#view#create_project(...) abort "{{{
 endfun "}}}
 
 
+fun! awiwi#view#new_task(...) abort "{{{
+  let error_msg = []
+  if a:0
+    if type(a:1) == v:t_string
+      let title = a:1
+      let date = awiwi#util#get_own_date()
+    else
+      if has_key(a:1, 'name')
+        let title = a:1['name']
+      endif
+      let date = a:1['date']
+    endif
+  endif
+  let s:new_task_opts.date = date
+  if !exists('title')
+    let title = trim(awiwi#util#input('task name: ', {'highlight': 'awiwi#view#_highlight_bad_task_name'}))
+  endif
+  let task = g:awiwi#dao#Task.new(title, date, v:null, v:null, v:null, g:awiwi#dao#Urgency.get_by_name('normal'), []).persist()
+  " FIXME
+  call task.pause()
+  return task
+endfun "}}}
+
+
 fun! s:call_and_log_traceback(error_msg, Fn, args, msg) abort "{{{
   try
     return call(a:Fn, a:args)
@@ -250,3 +282,5 @@ fun! s:has_error(error_msg) abort "{{{
   endif
   return v:true
 endfun "}}}
+
+echo awiwi#view#new_task({'date': '2020-02-02'}).name

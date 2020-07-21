@@ -239,6 +239,19 @@ fun! s:TitleBasedEntity.set_title(title) abort dict "{{{
   let self.title = a:title
 endfun "}}}
 
+fun! s:TitleBasedEntity.join_date_and_name(date, name) abort dict "{{{
+  return printf('%s:%s', a:date, a:name)
+endfun "}}}
+
+fun! s:TitleBasedEntity.date_and_name_exist(date, name) abort "{{{
+  return self.name_exists(self.join_date_and_name(a:date, a:name))
+endfun "}}}
+
+call s:TitleBasedEntity.add_class_field(
+      \ 'join_date_and_name',
+      \ 'date_and_name_exist'
+      \ )
+
 
 let g:awiwi#dao#TaskState = s:Entity.subclass('task_state')
 let g:awiwi#dao#TaskLogState = s:Entity.subclass('task_log_state')
@@ -482,10 +495,10 @@ fun! g:awiwi#dao#Task.new(
   endif
   let t = self.__new__()
   let t.title = a:title
-  let t.state = s:TaskState.get_by_name('started')
+  let t.state = g:awiwi#dao#TaskState.get_by_name('started')
   let t.date = a:date
   " use this for lookups
-  let t.name = printf('%s:%s', t.date, t.title)
+  let t.name = self.join_date_and_name(t.date, t.title)
   let t.start = awiwi#util#get_iso_timestamp()
   let t.backlink = a:backlink
   let t.forwardlink = v:null
@@ -494,7 +507,8 @@ fun! g:awiwi#dao#Task.new(
   let t.urgency = a:urgency
   let t.duration = 0
   let backlink_tags = awiwi#util#is_null(a:backlink) ? [] : a:backlink.tags
-  let t.tags = awiwi#util#unique(t.project.tags, backlink_tags, a:tags)
+  let project_tags = awiwi#util#is_null(a:project) ? [] : a:project.tags
+  let t.tags = awiwi#util#unique(project_tags, backlink_tags, a:tags)
   call t.__register__()
   call self.set_active_task(t)
   return t
@@ -552,10 +566,10 @@ fun! g:awiwi#dao#Task.set_state(state) abort dict "{{{
   endif
   if a:state.name == 'started'
     call self.__class__.set_active_task(self)
-    let log_state = s:TaskLogState.get_by_name('restarted')
+    let log_state = g:awiwi#dao#:TaskLogState.get_by_name('restarted')
   else
     call self.__class__.deactive_active_task()
-    let log_state = s:TaskLogState.get_by_name(a:state.name)
+    let log_state = g:awiwi#dao#:TaskLogState.get_by_name(a:state.name)
   endif
   let t = awiwi#sql#start_transaction(s:db)
   call self.update_attribute('task_state_id', a:state.id, t)
@@ -572,12 +586,12 @@ endfun "}}}
 
 
 fun! g:awiwi#dao#Task.pause(...) abort dict "{{{
-  return self.set_state(s:TaskState.get_by_name('paused'))
+  return self.set_state(g:awiwi#dao#:TaskState.get_by_name('paused'))
 endfun "}}}
 
 
 fun! g:awiwi#dao#Task.done() abort dict "{{{
-  return self.set_state(s:TaskState.get_by_name('done'))
+  return self.set_state(g:awiwi#dao#:TaskState.get_by_name('done'))
 endfun "}}}
 
 
@@ -585,9 +599,9 @@ fun! g:awiwi#dao#Task.restart(...) abort dict "{{{
   if get(a:000, 0, v:false) &&
         \ self.__class__.has_active_task() &&
         \ self.__class__.get_active_task().id != self.id
-    call self.__class__.get_active_task().set_state(s:TaskState.get_by_name('paused'))
+    call self.__class__.get_active_task().set_state(g:awiwi#dao#:TaskState.get_by_name('paused'))
   endif
-  return self.set_state(s:TaskState.get_by_name('started'))
+  return self.set_state(g:awiwi#dao#:TaskState.get_by_name('started'))
 endfun "}}}
 
 
@@ -595,7 +609,7 @@ fun! g:awiwi#dao#Task.set_urgency(urgency) abort dict "{{{
   if self.urgency.id == a:urgency.id
     return v:false
   endif
-  let log_state = s:TaskLogState.get_by_name('urgency_changed')
+  let log_state = g:awiwi#dao#:TaskLogState.get_by_name('urgency_changed')
   let t = awiwi#sql#start_transaction(s:db)
   call self.update_attribute('urgency_id', a:urgency.id, t)
   call t.exec(
@@ -616,7 +630,7 @@ fun! g:awiwi#dao#ChecklistEntry.new(file, title) abort dict "{{{
   let t.title = a:title
   let t.checked = v:false
   let t.created = awiwi#util#get_iso_timestamp()
-  let t.name = printf('%s:%s', t.file, t.title)
+  let t.name = self.join_date_and_name(t.file, t.title)
   call t.__register__()
   return t
 endfun "}}}

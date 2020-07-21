@@ -5,7 +5,6 @@ let g:autoloaded_awiwi = v:true
 
 " {{{1 variables
 
-let s:date_pattern = '^[0-9]\{4}-[0-9]\{2}-[0-9]\{2}$'
 let s:activate_cmd = 'activate'
 let s:deactivate_cmd = 'deactivate'
 let s:journal_cmd = 'journal'
@@ -328,23 +327,34 @@ fun! s:format_search_result(start, ...) abort "{{{
     let line = prinft('%s...%s', start.content, end[-(max_len/2-1):])
 endfun "}}}
 
-
-fun! s:ints_to_date(year, month, day) abort "{{{
-  return printf('%04d-%02d-%02d', a:year, a:month, a:day)
+fun! s:parse_date(date) abort "{{{
+  if a:date == 'today'
+    return strftime('%F')
+  elseif a:date == 'yesterday'
+    let date = s:get_yesterday(strftime('%F'))
+  elseif a:date == 'previous'
+    let date = s:get_previous_date(strftime('%F'))
+  elseif a:date == 'next'
+    let date = s:get_next_date(strftime('%F'))
+  else
+    let date = a:date
+  endif
+  return date
 endfun "}}}
+
 
 
 fun! s:get_yesterday(date) abort "{{{
   let [year, month, day] = map(split(a:date, '-'), {_, v -> str2nr(v)})
   " not 1st of month
   if str2nr(day) > 1
-    return s:ints_to_date(year, month, day - 1)
+    return awiwi#util#ints_to_date(year, month, day - 1)
   endif
   " date is 1st of month
   let num_days = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
   " no switch to Feb. of Dec.
   if month == 2 || month >= 3
-    return s:ints_to_date(year, month - 1, num_days[month - 1])
+    return awiwi#util#ints_to_date(year, month - 1, num_days[month - 1])
   " switch to Feb.
   elseif month == 3
     " check for leap year
@@ -353,16 +363,11 @@ fun! s:get_yesterday(date) abort "{{{
     else
       let day = 28
     endif
-    return s:ints_to_date(year, 2, day)
+    return awiwi#util#ints_to_date(year, 2, day)
   " switch from Jan. back to Dec.
   else
-    return s:ints_to_date(year - 1, 12, 31)
+    return awiwi#util#ints_to_date(year - 1, 12, 31)
   endif
-endfun "}}}
-
-
-fun! s:is_date(expr) abort "{{{
-  return match(a:expr, s:date_pattern) > -1
 endfun "}}}
 
 
@@ -377,22 +382,6 @@ fun! s:get_offset_date(date, offset) abort "{{{
     throw printf('AwiwiError: no date found after %s', a:date)
   endif
   return files[idx + a:offset]
-endfun "}}}
-
-
-fun! s:parse_date(date) abort "{{{
-  if a:date == 'today'
-    return strftime('%F')
-  elseif a:date == 'yesterday'
-    let date = s:get_yesterday(strftime('%F'))
-  elseif a:date == 'previous'
-    let date = s:get_previous_date(strftime('%F'))
-  elseif a:date == 'next'
-    let date = s:get_next_date(strftime('%F'))
-  else
-    let date = a:date
-  endif
-  return date
 endfun "}}}
 
 
@@ -443,15 +432,6 @@ fun! s:open_asset_by_name(date, name, ...) abort "{{{
   call s:open_file(path, options)
   write
 endfun "}}}
-
-fun! s:get_own_date() abort "{{{
-  let name = expand('%:t:r')
-  if match(name, s:date_pattern) == -1
-    throw 'AwiwiError: not on journal page'
-  endif
-  return name
-endfun "}}}
-
 
 fun! s:escape_rg_pattern(pattern) abort "{{{
   return escape(a:pattern, ".*?\\\[\]")
@@ -507,7 +487,7 @@ fun! awiwi#add_asset_link() abort "{{{
     throw AwiwiError "no asset under cursor"
   endif
 
-  let date = s:get_own_date()
+  let date = awiwi#util#get_own_date()
   let asset_file = s:get_asset_path(date, name)
   let rel_path = s:relativize(asset_file, expand('%:p'))
 
@@ -532,12 +512,12 @@ fun! awiwi#open_asset(...) abort "{{{
   else
     let name = awiwi#add_asset_link()
   endif
-  let date = s:get_own_date()
+  let date = awiwi#util#get_own_date()
   call s:open_asset_by_name(date, name)
 endfun "}}}
 
 
-fun! s:is_date(expr) abort "{{{
+fun! awiwi#util#is_date(expr) abort "{{{
   return match(a:expr, '^[0-9]\{4}-[0-9]\{2}-[0-9]\{2}$') == 0
 endfun "}}}
 
@@ -549,7 +529,7 @@ fun! awiwi#open_journal_or_asset(...) abort "{{{
   let [name, rem] = s:get_asset_under_cursor(v:true)
   if name == ''
     normal! gf
-  elseif s:is_date(name)
+  elseif awiwi#util#is_date(name)
     call awiwi#edit_journal(name)
   else
     call awiwi#open_asset()
@@ -598,13 +578,13 @@ fun! awiwi#edit_journal(date, ...) abort "{{{
   let options.last_line = v:true
   if a:date == 'previous'
     try
-      let date = s:get_offset_date(s:get_own_date(), -1)
+      let date = s:get_offset_date(awiwi#util#get_own_date(), -1)
     catch /AwiwiError/
       let date = s:get_offset_date(s:get_today(), -1)
     endtry
   elseif a:date == 'next'
     try
-      let date = s:get_offset_date(s:get_own_date(), +1)
+      let date = s:get_offset_date(awiwi#util#get_own_date(), +1)
     catch /AwiwiError/
       let date = s:get_offset_date(s:get_today(), +1)
     endtry
@@ -612,7 +592,7 @@ fun! awiwi#edit_journal(date, ...) abort "{{{
     let date = s:parse_date(a:date)
   endif
   try
-    let own_date = s:get_own_date()
+    let own_date = awiwi#util#get_own_date()
   catch /AwiwiError/
     let own_date = 'todos'
   endtry
@@ -662,7 +642,7 @@ endfun "}}}
 
 
 fun! awiwi#insert_and_open_continuation() abort "{{{
-  let own_date = s:get_own_date()
+  let own_date = awiwi#util#get_own_date()
   let today = s:parse_date('today')
   if own_date == today
     throw "AwiwiError: already on today's journal"
@@ -957,7 +937,7 @@ fun! awiwi#run(...) abort "{{{
     if str#contains(date_file_expr, ':')
       let [date, file] = split(date_file_expr, ':')
     else
-      let date = s:get_own_date()
+      let date = awiwi#util#get_own_date()
       let file = date_file_expr
     endif
     call s:open_asset_by_name(date, file, options)

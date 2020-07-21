@@ -6,6 +6,7 @@
 let s:search_engine_plain = 'plain'
 let s:search_engine_regex = 'regex'
 let s:search_engine_fuzzy = 'fuzzy'
+let s:date_pattern = '^[0-9]\{4}-[0-9]\{2}-[0-9]\{2}$'
 
 let s:resources = {}
 let s:script = expand('<sfile>:p')
@@ -166,4 +167,23 @@ fun! awiwi#util#input(prompt, ...) abort "{{{
     call inputrestore()
   endtry
   return text
+endfun "}}}
+
+
+fun! awiwi#util#is_date(expr) abort "{{{
+  return match(a:expr, s:date_pattern) > -1
+endfun "}}}
+
+
+fun! awiwi#util#get_own_date() abort "{{{
+  let name = expand('%:t:r')
+  if !awiwi#util#is_date(name)
+    throw s:AwiwiUtilError('AwiwiError: not on journal page')
+  endif
+  return name
+endfun "}}}
+
+
+fun! awiwi#util#ints_to_date(year, month, day) abort "{{{
+  return printf('%04d-%02d-%02d', a:year, a:month, a:day)
 endfun "}}}
