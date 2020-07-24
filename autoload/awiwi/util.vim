@@ -187,3 +187,7 @@ endfun "}}}
 fun! awiwi#util#ints_to_date(year, month, day) abort "{{{
   return printf('%04d-%02d-%02d', a:year, a:month, a:day)
 endfun "}}}
+
+fun! awiwi#util#window_split_below() abort "{{{
+  return winwidth('%') / (1.0 * winheight('%')) < 3 ? v:true : v:false
+endfun "}}}

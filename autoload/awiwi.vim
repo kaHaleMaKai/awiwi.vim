@@ -86,7 +86,20 @@ let s:tasks_question_cmd = 'question'
 let s:tasks_todo_cmd = 'todo'
 
 let s:journal_new_window_cmd = '+new'
+let s:journal_hnew_window_cmd = '+hnew'
+let s:journal_vnew_window_cmd = '+vnew'
+let s:journal_all_window_cmds = [
+      \ s:journal_new_window_cmd,
+      \ s:journal_hnew_window_cmd,
+      \ s:journal_vnew_window_cmd
+      \ ]
+
 let s:journal_height_window_cmd = '+height='
+let s:journal_width_window_cmd = '+width='
+let s:journal_all_dim_window_cmds = [
+      \ s:journal_height_window_cmd,
+      \ s:journal_width_window_cmd
+      \ ]
 
 let s:tasks_subcommands = [
       \ s:tasks_all_cmd,
@@ -110,7 +123,7 @@ let s:urgent_markers = [
       \ 'URGENT',
       \ 'IMPORTANT'
       \ ]
-let s:delegate_markers = ['@todo']
+let s:delegate_markers = ['@todo', '@@']
 let s:question_markers = ['QUESTION']
 let s:due_markers = ['DUE', 'DUE TO', 'UNTIL', '@until', '@due']
 
@@ -247,6 +260,7 @@ fun! awiwi#show_tasks(...) abort "{{{
   if s:contains(args, s:tasks_delegate_cmd, s:tasks_all_cmd)
     let delegates = awiwi#get_markers('delegate')
     call add(markers, printf('\(?(%s):?( \S+){0,2}\)?', delegates))
+    "call add(markers, '@@[-a-zA-Z.,+_0-9@]+[a-zA-Z0-9]')
   endif
   if s:contains(args, s:tasks_due_cmd, s:tasks_all_cmd)
     let due = awiwi#get_markers('due')
@@ -517,11 +531,6 @@ fun! awiwi#open_asset(...) abort "{{{
 endfun "}}}
 
 
-fun! awiwi#util#is_date(expr) abort "{{{
-  return match(a:expr, '^[0-9]\{4}-[0-9]\{2}-[0-9]\{2}$') == 0
-endfun "}}}
-
-
 fun! awiwi#open_journal_or_asset(...) abort "{{{
   if a:0
     call awiwi#open_asset()
@@ -544,7 +553,7 @@ endfun "}}}
 
 fun! s:open_file(file, options) abort "{{{
   if get(a:options, 'new_window', v:false)
-    let height = str2nr(get(a:options, 'height', 0))
+    let height = str2nr(get(a:options, 'height', get(a:options, 'width', 0)))
     let position = get(a:options, 'position', 'bottom')
     if position == 'left'
       let win_cmd == 'left vnew'
@@ -714,13 +723,15 @@ endfun "}}}
 
 
 fun! s:has_new_win_cmd(args) abort "{{{
-  return len(filter(copy(a:args), {_, v -> v == s:journal_new_window_cmd})) > 0
+  return len(filter(copy(a:args), {_, v -> index(s:journal_all_window_cmds, v) > -1})) > 0
         \ ? v:true : v:false
 endfun "}}}
 
 
 fun! s:has_win_height_cmd(args) abort "{{{
-  return len(filter(copy(a:args), {_, v -> str#startswith(v, s:journal_height_window_cmd)})) > 0
+  return len(filter(copy(a:args), {_, v ->
+        \                          str#startswith(v, s:journal_height_window_cmd)
+        \                          || str#startswith(v, s:journal_width_window_cmd) })) > 0
         \ ? v:true : v:false
 endfun "}}}
 
@@ -729,10 +740,10 @@ fun! s:insert_win_cmds(li, current_arg_pos, args) abort "{{{
   if a:current_arg_pos == 2
     return a:li
   elseif !s:has_new_win_cmd(a:args)
-    call insert(a:li, s:journal_new_window_cmd)
+    call extend(a:li, s:journal_all_window_cmds)
     return
   elseif !s:has_win_height_cmd(a:args)
-    call insert(a:li, s:journal_height_window_cmd)
+    call insert(a:li, s:journal_all_dim_window_cmds)
   endif
   return a:li
 endfun "}}}
@@ -787,6 +798,10 @@ fun! awiwi#_get_completion(ArgLead, CmdLine, CursorPos) abort "{{{
     endif
     call s:insert_win_cmds(submatches, current_arg_pos, args[2:])
     return awiwi#util#match_subcommands(submatches, a:ArgLead)
+  elseif args[1] == s:todo_cmd
+    let submatches = []
+    call s:insert_win_cmds(submatches, current_arg_pos+1, args[2:])
+    return awiwi#util#match_subcommands(submatches, a:ArgLead)
   endif
 
   return []
@@ -797,17 +812,26 @@ fun! s:parse_file_and_options(args) abort "{{{
     if len(a:args) == 0 || len(a:args) > 3
       echoerr printf('Awiwi journal: 1 to 3 arguments expected. got %d', len(a:args)-1)
     endif
-    let options = {}
+    let options = {'position': 'bottom', 'new_window': v:true}
     let file = ''
     for arg in a:args
-      if arg == s:journal_new_window_cmd
-        let options.new_window = v:true
-      elseif str#startswith(arg, s:journal_height_window_cmd)
+      if index(s:journal_all_window_cmds, arg) > -1
+        if arg == s:journal_hnew_window_cmd
+          let options.position = "bottom"
+        elseif arg == s:journal_vnew_window_cmd
+          let options.position = "right"
+        elseif arg == s:journal_new_window_cmd
+          let options.position = awiwi#util#window_split_below() ? 'bottom' : 'right'
+        endif
+      elseif str#startswith(arg, s:journal_height_window_cmd) || str#startswith(arg, s:journal_width_window_cmd)
         let options.height = str2nr(split(arg, '=')[-1])
       else
         let file = arg
       endif
     endfor
+    if get(options, 'height') == 0 && awiwi#util#window_split_below()
+      let options.height = 10
+    endif
     if file == ''
       echoerr 'Awiwi journal: missing file to open'
     endif
@@ -971,7 +995,11 @@ fun! awiwi#run(...) abort "{{{
 
     call fzf#run(fzf#wrap({'source': entries}))
   elseif a:1 == s:todo_cmd
-    call awiwi#edit_journal('todo', {'new_window': v:true, 'height': 10})
+    let [_, options] = s:parse_file_and_options(a:000)
+    if empty(options)
+      let options = {'new_window': v:true, 'height': 10}
+    endif
+    call awiwi#edit_journal('todo', options)
   endif
 endfun "}}}
 

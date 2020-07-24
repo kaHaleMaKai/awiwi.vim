@@ -17,6 +17,7 @@ exe printf('syn match awiwiUrgentStart /^.*\ze\<\(%s\)\>/', awiwi#get_markers('u
 exe printf('syn match awiwiUrgent /\<\(%s\)\>/', awiwi#get_markers('urgent', marker_opts))
 
 exe printf('syn match awiwiDelegate /(\?\(%s\)\([[:space:]]\+[^[:space:])]\+\)\{0,2})\?/', awiwi#get_markers('delegate', marker_opts))
+syn match awiwiDelegate /@@[-a-zA-Z.,+_0-9@]\+[a-zA-Z0-9]/
 
 let s:due_markers = awiwi#get_markers('due', marker_opts)
 exe printf('syn match awiwiDue /\(\~\~\)\@<!\(%s\)\([[:space:]]\+[[:digit:]-.:]\+\)\{0,2}\|(\(%s\)\([[:space:]]\+[^[:space:])]\+\)*)/', s:due_markers, s:due_markers)
