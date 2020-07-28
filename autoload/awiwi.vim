@@ -212,7 +212,7 @@ fun! awiwi#get_markers(type, ...) abort "{{{
     let result = uniq(map(markers, {_, v -> awiwi#util#escape_pattern(v)}))
   endif
   if a:type == 'todo' && options.escape_mode == 'rg'
-    let task_list = '^[-*][[:space:]]+\[[[:space:]]+\]'
+    let task_list = '\(^[[:space:]]*\)\zs[-*][[:space:]]+\[[[:space:]]+\]'
     call add(result, task_list)
   endif
   if options.join
@@ -389,6 +389,9 @@ fun! s:get_offset_date(date, offset) abort "{{{
   let files = s:get_all_journal_files()
   let idx = index(files, a:date)
   if idx == -1
+    if s:parse_date('today') == a:date
+      return a:date
+    endif
     throw printf('AwiwiError: date %s not found', a:date)
   elseif a:offset <= 0 && idx + a:offset <= 0
     throw printf('AwiwiError: no date found before %s', a:date)

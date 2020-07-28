@@ -36,21 +36,36 @@ nnoremap <silent> <buffer> <F12> :Awiwi tasks<CR>
 nnoremap <silent> <buffer> gn :Awiwi journal next<CR>
 nnoremap <silent> <buffer> gp :Awiwi journal previous<CR>
 
+
 fun! s:handle_enter_on_insert() abort "{{{
   let line = getline('.')
-  let m = matchlist(line, '^\([-*]\)\([[:space:]]\+\)\(\[[ x]\+\]\)\?')
+  let m = matchlist(line, '^\([[:space:]]*\)\([-*]\)\([[:space:]]\+\)\(\[[ x]\+\]\)\?')
+  if empty(m)
+    normal! o
+    starti
+    return
+  endif
+  let find_spaces = matchlist(line, '^\([[:space:]]*\)\([-*]\)\([[:space:]]\+\)\(\[[ x]\+\][[:space:]]*\)\?$')
+  if !empty(find_spaces)
+    let spaces = find_spaces[1]
+    call setline('.', spaces)
+    starti
+    return
+  endif
+
+  " FIXME use m from above
   let append = v:true
   if empty(m)
     let text = ''
     let pos = 0
-  elseif empty(m[3])
+  elseif empty(m[4])
     if match(line, '[[:space:]][^[:space:]]') == -1
       call setline('.', '')
       normal! o
       starti
       return
     endif
-    let text = m[1].m[2]
+    let text = m[1].m[2].m[3]
     let pos = strlen(text)
   else
     if match(line, '\][[:space:]]*[^[:space:]]') == -1
@@ -60,7 +75,7 @@ fun! s:handle_enter_on_insert() abort "{{{
       starti
       return
     endif
-    let marker = m[1].' [ ] '
+    let marker = m[1] . m[2] . ' [ ] '
     let pos = strlen(marker) + 1
     if str#endswith(&ft, '.todo')
       let text = marker.printf(' (from %s)', strftime('%F'))
@@ -87,9 +102,9 @@ fun! s:handle_enter() abort "{{{
     stopi
   endif
   let line = getline('.')
-  let pos = matchend(line, '^[-*][[:space:]]\+\[[ x]\(\]\)\@=')
+  let pos = matchend(line, '^[[:space:]]*[-*][[:space:]]\+\[[ x]\(\]\)\@=')
   if pos == -1
-    let m = matchstr(line, '^[-*][[:space:]]\+')
+    let m = matchstr(line, '^[[:space:]]*[-*][[:space:]]\+')
     if empty(m)
       normal! <CR>
       return

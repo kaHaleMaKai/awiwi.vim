@@ -29,18 +29,26 @@ hi awiwiUrgentEnd ctermbg=237
 hi awiwiDelegate cterm=italic ctermfg=4
 hi awiwiDue cterm=bold ctermfg=190
 
-syn match awiwiTaskListOpen /^[-*] \[ \]$\@!/
+syn clear markdownListMarker
+syn match awiwiList /\(^[[:space:]]*\)\@<=[-*] /
+hi awiwiList cterm=bold ctermfg=3
+
+syn match awiwiListBadSpaces /\(^[[:space:]]*[-*] \(\[[ x]\] \)\?\)\@<= \+/
+syn match awiwiListBadSpacesAfterCheckbox /\(^[[:space:]]*[-*][[:space:]]\+\[[ x]\] \)\@<= \+/
+hi awiwiListBadSpaces cterm=bold ctermbg=241
+hi awiwiListBadSpacesAfterCheckbox cterm=bold ctermbg=241
+
+syn match awiwiTaskListOpen /\(^[[:space:]]*\)\@<=[-*] \[ \]/
 hi awiwiTaskListOpen cterm=bold ctermfg=3
 
 if str#endswith(&ft, '.todo')
-  syn match awiwiTaskListDone /^[-*] \[x\].*$/
-  hi awiwiTaskListDone ctermfg=241
+  syn match awiwiTaskListDone /\(^[[:space:]]*\)\@<=[-*] \[x\].*$/
 else
-  syn match awiwiTaskListDone /^[-*] \[x\]$\@!/
-  hi awiwiTaskListDone ctermfg=241
+  syn match awiwiTaskListDone /\(^[[:space:]]*\)\@<=[-*] \[x\]/
 end
+hi awiwiTaskListDone ctermfg=241
 
-syn match awiwiTaskDate /\(^[-*] \[ \] .\+\)\@<=(from:\? [-0-9]\+)/
+syn match awiwiTaskDate /\(^[[:space:]]*\)\@<=\([-*] \[ \] .\+\)\@<=(from:\? [-0-9]\+)/
 hi awiwiTaskDate cterm=italic ctermfg=247
 
 if get(g:, 'awiwi_highlight_links', v:true)
