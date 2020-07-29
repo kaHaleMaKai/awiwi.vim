@@ -10,7 +10,7 @@ for type in s:types
   call extend(markers, awiwi#get_markers(type, {'join': v:false, 'escape_mode': 'vim'}))
 endfor
 syn case match
-exe printf('syn match AwiwiTodo /\<\(%s\)\([[:space:]]\|$\)\@=/', join(markers, '\|'))
+exe printf('syn match awiwiTodo /\<\(%s\)\([[:space:]]\|$\)\@=/', join(markers, '\|'))
 
 exe printf('syn match awiwiUrgentEnd /\(\<%s\>\)\@<=.\+$/', awiwi#get_markers('urgent', marker_opts))
 exe printf('syn match awiwiUrgentStart /^.*\ze\<\(%s\)\>/', awiwi#get_markers('urgent', marker_opts))
@@ -30,16 +30,20 @@ hi awiwiDelegate cterm=italic ctermfg=4
 hi awiwiDue cterm=bold ctermfg=190
 
 syn clear markdownListMarker
-syn match awiwiList /\(^[[:space:]]*\)\@<=[-*] /
-hi awiwiList cterm=bold ctermfg=3
+syn match awiwiList1 /^\@<=[-*] /
+syn match awiwiList2 /\(^[[:space:]]\{2}\)\@<=[-*] /
+hi awiwiList1 cterm=bold ctermfg=3
+hi awiwiList2 cterm=bold ctermfg=31
 
 syn match awiwiListBadSpaces /\(^[[:space:]]*[-*] \(\[[ x]\] \)\?\)\@<= \+/
 syn match awiwiListBadSpacesAfterCheckbox /\(^[[:space:]]*[-*][[:space:]]\+\[[ x]\] \)\@<= \+/
 hi awiwiListBadSpaces cterm=bold ctermbg=241
 hi awiwiListBadSpacesAfterCheckbox cterm=bold ctermbg=241
 
-syn match awiwiTaskListOpen /\(^[[:space:]]*\)\@<=[-*] \[ \]/
-hi awiwiTaskListOpen cterm=bold ctermfg=3
+syn match awiwiTaskListOpen1 /^\@<=[-*] \[ \]/
+syn match awiwiTaskListOpen2 /\(^[[:space:]]\{2}\)\@<=[-*] \[ \]/
+hi awiwiTaskListOpen1 cterm=bold ctermfg=3
+hi awiwiTaskListOpen2 cterm=bold ctermfg=31
 
 if str#endswith(&ft, '.todo')
   syn match awiwiTaskListDone /\(^[[:space:]]*\)\@<=[-*] \[x\].*$/
