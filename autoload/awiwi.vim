@@ -10,7 +10,6 @@ let s:deactivate_cmd = 'deactivate'
 let s:journal_cmd = 'journal'
 let s:continuation_cmd = 'continue'
 let s:entry_cmd = 'entries'
-let s:link_cmd = 'link'
 let s:asset_cmd = 'asset'
 let s:recipe_cmd = 'recipe'
 let s:search_cmd = 'search'
@@ -67,7 +66,6 @@ let s:subcommands = [
       \ s:deactivate_cmd,
       \ s:journal_cmd,
       \ s:entry_cmd,
-      \ s:link_cmd,
       \ s:asset_cmd,
       \ s:recipe_cmd,
       \ s:search_cmd,
@@ -497,40 +495,11 @@ fun! s:get_asset_under_cursor(accept_date) abort "{{{
 endfun "}}}
 
 
-fun! awiwi#add_asset_link() abort "{{{
-  let [name, rem] = s:get_asset_under_cursor(v:false)
-  let name_pattern = awiwi#util#escape_pattern(printf('[%s]', name))
-  if name == ''
-    throw AwiwiError "no asset under cursor"
-  endif
-
+fun! awiwi#open_asset(name, ...) abort "{{{
   let date = awiwi#util#get_own_date()
-  let asset_file = s:get_asset_path(date, name)
-  let rel_path = s:relativize(asset_file, expand('%:p'))
-
-  if len(rem) == 0 || rem[0] != '('
-    let line_nr = line('.')
-    let line = getline(line_nr)
-    let end = matchend(line, name_pattern)
-    let line_start = line[:end]
-    let line_rem = line[end+1:]
-    let new_text = printf('%s(%s)%s', line_start, rel_path, line_rem)
-    call setline(line_nr, new_text)
-  endif
-
-  return name
-
-endfun "}}}
-
-
-fun! awiwi#open_asset(...) abort "{{{
-  if a:0
-    let name = a:1
-  else
-    let name = awiwi#add_asset_link()
-  endif
-  let date = awiwi#util#get_own_date()
-  call s:open_asset_by_name(date, name)
+  let args = [date, a:name]
+  call extend(args, a:000)
+  call call(function('s:open_asset_by_name'), args)
 endfun "}}}
 
 
@@ -557,7 +526,10 @@ endfun "}}}
 fun! s:open_file(file, options) abort "{{{
   if get(a:options, 'new_window', v:false)
     let height = str2nr(get(a:options, 'height', get(a:options, 'width', 0)))
-    let position = get(a:options, 'position', 'bottom')
+    let position = get(a:options, 'position', 'auto')
+    if position == 'auto'
+      let position = awiwi#util#window_split_below() ? 'bottom' : 'right'
+    endif
     if position == 'left'
       let win_cmd == 'left vnew'
     elseif position == 'right'
@@ -790,9 +762,6 @@ fun! awiwi#_get_completion(ArgLead, CmdLine, CursorPos) abort "{{{
       call extend(submatches, files)
     endif
     call s:insert_win_cmds(submatches, current_arg_pos, args[2:])
-    if current_arg_pos == 2
-      call insert(submatches, s:new_asset_cmd)
-    endif
     return awiwi#util#match_subcommands(submatches, a:ArgLead)
   elseif args[1] == s:recipe_cmd
     let submatches = []
@@ -811,6 +780,71 @@ fun! awiwi#_get_completion(ArgLead, CmdLine, CursorPos) abort "{{{
 endfun "}}}
 
 
+fun! awiwi#create_asset_here_if_not_exists(...) abort "{{{
+  let [name, filename, link] = call('awiwi#create_asset_link', a:000)
+  let [col, line_nr] = [col('.') - 1, line('.')]
+  let line = getline(line_nr)
+  let new_line = [line[:col - 1], link]
+  if ! empty(line[col]) && match(line[col], '[[:space:]]') == -1
+    call add(new_line, ' ')
+  endif
+  call add(new_line, line[col:])
+  call setline(line_nr, join(new_line, ''))
+  let path = s:get_asset_path(awiwi#util#get_own_date(), filename)
+  if !filereadable(path)
+    let dir = fnamemodify(path, ':h')
+    if !filewritable(dir)
+      call mkdir(dir, 'p')
+    endif
+    call writefile([], path)
+    echo printf('asset %s created', filename)
+  endif
+  return filename
+endfun "}}}
+
+
+fun! awiwi#create_asset_link(...) abort "{{{
+  let name = get(a:000, 0, '')
+  if name == ''
+    let name = awiwi#util#input('asset name: ')
+  endif
+  if name == ''
+    echo '[INFO] no asset created'
+    return ['', '', '']
+  endif
+
+  let default_filename =
+        \ substitute(
+        \   substitute(
+        \     substitute(name, '[A-Z]\+', '\L&', 'g'),
+        \     '[[:space:]]\+',
+        \     '-',
+        \     'g'),
+        \   '[^-a-z0-9.:+]\+',
+        \   '', 'g'
+        \ )
+
+  let filename = get(a:000, 1, '')
+  if filename == ''
+    let filename = awiwi#util#input('asset file: ', {'default': default_filename})
+  endif
+  if filename == ''
+    echo '[INFO] no asset created'
+    return ['', '', '']
+  endif
+
+  let date = awiwi#util#get_own_date()
+  let asset_file = s:get_asset_path(date, filename)
+  let rel_path = s:relativize(asset_file, expand('%:p'))
+
+  let link_text = printf('[%s](%s)',
+        \ substitute(name, '[\[\]]', '\\&', 'g'),
+        \ rel_path)
+
+  return [name, filename, link_text]
+endfun "}}}
+
+
 fun! s:parse_file_and_options(args) abort "{{{
     if len(a:args) == 0 || len(a:args) > 3
       echoerr printf('Awiwi journal: 1 to 3 arguments expected. got %d', len(a:args)-1)
@@ -824,7 +858,7 @@ fun! s:parse_file_and_options(args) abort "{{{
         elseif arg == s:journal_vnew_window_cmd
           let options.position = "right"
         elseif arg == s:journal_new_window_cmd
-          let options.position = awiwi#util#window_split_below() ? 'bottom' : 'right'
+          let options.position = 'auto'
         endif
       elseif str#startswith(arg, s:journal_height_window_cmd) || str#startswith(arg, s:journal_width_window_cmd)
         let options.height = str2nr(split(arg, '=')[-1])
@@ -950,15 +984,14 @@ fun! awiwi#run(...) abort "{{{
     call awiwi#activate_current_task()
   elseif a:1 == s:deactivate_cmd
     call awiwi#deactivate_active_task()
-  elseif a:1 == s:link_cmd
-    call awiwi#add_asset_link()
   elseif a:1 == s:asset_cmd
     if a:0 == 1
       "let files = map(s:get_all_asset_files(), {_, v -> printf('%s:%s', v.date, v.name)})
       "return fzf#run(fzf#wrap({'source': files, 'sink': funcref('s:open_asset_sink')}))
       return fzf#vim#files(s:asset_subpath)
     elseif a:0 == 2 && a:2 == s:new_asset_cmd
-      return awiwi#open_journal_or_asset()
+      let filename = awiwi#create_asset_here_if_not_exists()
+      call awiwi#open_asset(filename, {'new_window': v:true})
     endif
     let [date_file_expr, options] = s:parse_file_and_options(a:000[1:])
     if str#contains(date_file_expr, ':')
@@ -1040,3 +1073,17 @@ if exists('g:airline_section_x')
   let g:airline_section_x = '%#awiwiAirlineTask#%{awiwi#add_active_task_to_airline()}'
   let g:airline_section_y = ''
 endif
+
+fun! awiwi#open_link(...) abort "{{{
+  let link = awiwi#util#get_link_type(get(a:000, 0, awiwi#util#get_link_under_cursor()))
+  if empty(link.type)
+    echoerr printf('cannot open link: "%s"', link.target)
+  endif
+  if link.type == 'browser' || link.type == 'external'
+    let cmd = ['xdg-open', link.target]
+    call system(cmd)
+  elseif link.type == 'asset' || link.type == 'journal'
+    let dest = path#canonicalize(path#join(expand('%:p:h'), link.target))
+    call s:open_file(dest, {'new_window': v:true})
+  endif
+endfun "}}}

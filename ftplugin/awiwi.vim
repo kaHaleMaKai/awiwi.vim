@@ -28,7 +28,7 @@ command!
 " +                maps                  +
 " ++++++++++++++++++++++++++++++++++++++++
 
-nnoremap <silent> <buffer> gf :Awiwi asset create<CR>
+nnoremap <silent> <buffer> gf :call awiwi#open_link()<CR>
 nnoremap <silent> <buffer> gC :Awiwi continue<CR>
 nnoremap <silent> <buffer> gT :Awiwi todo<CR>
 nnoremap <silent> <buffer> ge :Awiwi journal today<CR>

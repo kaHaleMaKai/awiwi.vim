@@ -188,6 +188,46 @@ fun! awiwi#util#ints_to_date(year, month, day) abort "{{{
   return printf('%04d-%02d-%02d', a:year, a:month, a:day)
 endfun "}}}
 
+
 fun! awiwi#util#window_split_below() abort "{{{
   return winwidth('%') / (1.0 * winheight('%')) < 3 ? v:true : v:false
+endfun "}}}
+
+
+fun! awiwi#util#get_link_under_cursor() abort "{{{
+  let line = getline('.')
+  let col = col('.') - 1
+  let open_bracket = strridx(line[:col], '[')
+  if open_bracket == -1
+    return ''
+  endif
+  let closing_parens = stridx(line, ')', col)
+  if closing_parens == -1
+    return ''
+  endif
+  let closing_bracket = stridx(line[:closing_parens], ']', open_bracket)
+  if closing_bracket == -1
+    return ''
+  endif
+  if open_bracket > closing_bracket
+        \ || line[closing_bracket+1] != '('
+        \ || closing_parens < closing_bracket
+    return ''
+  endif
+  return line[closing_bracket+2:closing_parens-1]
+endfun "}}}
+
+
+fun! awiwi#util#get_link_type(link) abort "{{{
+  let ret = {'target': a:link, 'type': ''}
+  if match(a:link, '^https\?://') > -1
+    let ret.type = 'browser'
+  elseif match(a:link, '^[a-z]\+://') > -1
+    let ret.type = 'external'
+  elseif match(a:link, '\..*/assets/.*') > -1
+    let ret.type = 'asset'
+  elseif match(a:link, '/\(journal/\)\?\([0-9]\{4}/\)\?\([0-9]\{2}/\)\?\d\{4}-\d\{2}-\d\{2}.md$')
+    let ret.type = 'journal'
+  endif
+  return ret
 endfun "}}}
