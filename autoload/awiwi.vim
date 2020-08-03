@@ -1102,6 +1102,13 @@ fun! awiwi#serve() abort "{{{
   let $FLASK_ENV = 'development'
   let dir = g:awiwi_home[-1] == '/' ? g:awiwi_home[:-1] : g:awiwi_home
   let current_file = expand('%:p')[len(dir)+1:]
-  call system(printf('(sleep 1; xdg-open http://localhost:5000/%s) &', current_file))
+  if str#endswith(current_file, 'journal/todos.md')
+    let target = '/todo'
+  elseif str#startswith(current_file, 'journal')
+    let target = 'journal/' . fnamemodify(current_file, ':t')[:-4]
+  else
+    let target = current_file
+  endif
+  call system(printf('(sleep 1; xdg-open http://localhost:5000/%s) &', target))
   return system(flask . ' run')
 endfun "}}}
