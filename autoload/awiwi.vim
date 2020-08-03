@@ -13,6 +13,7 @@ let s:entry_cmd = 'entries'
 let s:asset_cmd = 'asset'
 let s:recipe_cmd = 'recipe'
 let s:search_cmd = 'search'
+let s:serve_cmd = 'serve'
 let s:show_cmd = 'show'
 let s:tasks_cmd = 'tasks'
 let s:todo_cmd = 'todo'
@@ -22,6 +23,7 @@ let s:new_asset_cmd = 'create'
 let s:journal_subpath = path#join(g:awiwi_home, 'journal')
 let s:asset_subpath = path#join(g:awiwi_home, 'assets')
 let s:recipe_subpath = path#join(g:awiwi_home, 'recipes')
+let s:code_root_dir = expand('<sfile>:p:h:h')
 
 if exists('g:awiwi_data_dir')
   let s:awiwi_data_dir = g:awiwi_data_dir
@@ -69,6 +71,7 @@ let s:subcommands = [
       \ s:asset_cmd,
       \ s:recipe_cmd,
       \ s:search_cmd,
+      \ s:serve_cmd,
       \ s:show_cmd,
       \ s:tasks_cmd,
       \ s:todo_cmd,
@@ -1015,6 +1018,8 @@ fun! awiwi#run(...) abort "{{{
     echoerr 'Awiwi show: should render markdown in browser, but has not been implemented that'
   elseif a:1 == s:search_cmd
     call call(funcref('awiwi#fuzzy_search'), a:000[1:])
+  elseif a:1 == s:serve_cmd
+    call awiwi#serve()
   elseif a:1 == s:entry_cmd
     let pattern = '^#{2,}[[:space:]]+.*$'
     let rg_cmd = [
@@ -1086,4 +1091,17 @@ fun! awiwi#open_link(...) abort "{{{
     let dest = path#canonicalize(path#join(expand('%:p:h'), link.target))
     call s:open_file(dest, {'new_window': v:true})
   endif
+endfun "}}}
+
+
+fun! awiwi#serve() abort "{{{
+  let flask = path#join(s:code_root_dir, 'server', '.venv', 'bin', 'flask')
+  let app = path#join(s:code_root_dir, 'server', 'app.py')
+  let $FLASK_APP = app
+  let $FLASK_ROOT = g:awiwi_home
+  let $FLASK_ENV = 'development'
+  let dir = g:awiwi_home[-1] == '/' ? g:awiwi_home[:-1] : g:awiwi_home
+  let current_file = expand('%:p')[len(dir)+1:]
+  call system(printf('(sleep 1; xdg-open http://localhost:5000/%s) &', current_file))
+  return system(flask . ' run')
 endfun "}}}
