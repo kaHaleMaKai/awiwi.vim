@@ -14,6 +14,7 @@ let s:asset_cmd = 'asset'
 let s:recipe_cmd = 'recipe'
 let s:search_cmd = 'search'
 let s:serve_cmd = 'serve'
+let s:redact_cmd = 'redact'
 let s:show_cmd = 'show'
 let s:tasks_cmd = 'tasks'
 let s:todo_cmd = 'todo'
@@ -70,6 +71,7 @@ let s:subcommands = [
       \ s:entry_cmd,
       \ s:asset_cmd,
       \ s:recipe_cmd,
+      \ s:redact_cmd,
       \ s:search_cmd,
       \ s:serve_cmd,
       \ s:show_cmd,
@@ -777,6 +779,9 @@ fun! awiwi#_get_completion(ArgLead, CmdLine, CursorPos) abort "{{{
     let submatches = []
     call s:insert_win_cmds(submatches, current_arg_pos+1, args[2:])
     return awiwi#util#match_subcommands(submatches, a:ArgLead)
+  elseif args[1] == s:serve_cmd && current_arg_pos == 2
+    let submatches = ['localhost', '*']
+    return awiwi#util#match_subcommands(submatches, a:ArgLead)
   endif
 
   return []
@@ -1019,7 +1024,13 @@ fun! awiwi#run(...) abort "{{{
   elseif a:1 == s:search_cmd
     call call(funcref('awiwi#fuzzy_search'), a:000[1:])
   elseif a:1 == s:serve_cmd
-    call awiwi#serve()
+    if a:0 >= 2
+      call awiwi#serve(a:2)
+    else
+      call awiwi#serve()
+    endif
+  elseif a:1 == s:redact_cmd
+    call awiwi#redact()
   elseif a:1 == s:entry_cmd
     let pattern = '^#{2,}[[:space:]]+.*$'
     let rg_cmd = [
@@ -1094,12 +1105,17 @@ fun! awiwi#open_link(...) abort "{{{
 endfun "}}}
 
 
-fun! awiwi#serve() abort "{{{
+fun! awiwi#serve(...) abort "{{{
+  let host = get(a:000, 0, '')
   let flask = path#join(s:code_root_dir, 'server', '.venv', 'bin', 'flask')
   let app = path#join(s:code_root_dir, 'server', 'app.py')
   let $FLASK_APP = app
   let $FLASK_ROOT = g:awiwi_home
   let $FLASK_ENV = 'development'
+  if host == '*' || host == 'all'
+    let host = '0.0.0.0'
+  endif
+  let host_arg = empty(host) ? '' : printf('--host=%s', shellescape(host))
   let dir = g:awiwi_home[-1] == '/' ? g:awiwi_home[:-1] : g:awiwi_home
   let current_file = expand('%:p')[len(dir)+1:]
   if str#endswith(current_file, 'journal/todos.md')
@@ -1110,5 +1126,20 @@ fun! awiwi#serve() abort "{{{
     let target = current_file
   endif
   call system(printf('(sleep 1; xdg-open http://localhost:5000/%s) &', target))
-  return system(flask . ' run')
+  echo printf('serving on %s:5000', empty(host) ? 'localhost' : host)
+  return system(printf('%s run %s', flask, host_arg))
+endfun "}}}
+
+
+fun! awiwi#redact() abort "{{{
+  let line = getline('.')
+  if match(line, '<!---redacted-->') == -1
+    let space = empty(line) || str#endswith(line, ' ')
+          \ ? '' : ' '
+    let tag = space . '<!---redacted-->'
+    let new_line = line . tag
+  else
+    let new_line = substitute(line, ' *<!---redacted-->', '', 'g')
+  endif
+  call setline(line('.'), new_line)
 endfun "}}}

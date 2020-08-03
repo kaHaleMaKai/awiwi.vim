@@ -4,7 +4,7 @@ import sys
 import datetime
 from typing import Callable
 from pathlib import Path
-from flask import Flask, url_for, Response
+from flask import Flask, Response, render_template
 from functools import lru_cache, wraps
 import itertools
 import markdown
@@ -37,17 +37,20 @@ md = markdown.Markdown(output_format="html5",
             ]
 )
 
-os.environ["FLASK_ENV"] = "development"
 server_root = Path(os.path.abspath(os.path.dirname(__file__)))
 content_root = Path(os.environ.get('FLASK_ROOT', '.'))
-app = Flask(__name__, root_path=str(content_root), static_url_path=str(server_root/"static"))
+listen_address = os.environ.get("FLASK_HOST")
+app = Flask(__name__,
+        root_path=str(content_root),
+        static_url_path=str(server_root/"static"),
+        template_folder=str(server_root/"html"))
 
 
 @lru_cache
 def get_css_links():
     css_files = [
             "/static/css/default.css",
-            "/static/css/hilite.css",
+            # "/static/css/hilite.css",
             "/static/css/pygments.css",
             ]
     return "\n".join(f'<link rel="stylesheet" href="{f}">' for f in css_files) + "\n"
@@ -61,6 +64,22 @@ def add_css(route: Callable):
         return get_css_links() + "\n" + content
 
     return f
+
+
+def remove_secrets(lines: list):
+    hide = False
+    for line in lines:
+        if hide:
+            if line.startswith("## "):
+                hide = False
+                yield line
+            else:
+                continue
+        elif "<!---redacted-->" in line:
+            hide = True
+            continue
+        else:
+            yield line
 
 
 def format_markdown(file, crumbs=None, toc=True, title=None):
@@ -81,10 +100,11 @@ def format_markdown(file, crumbs=None, toc=True, title=None):
         start = 1
     else:
         start = 0
+    body = remove_secrets(lines[start:])
     if toc:
-        md_text = "\n[TOC]\n" + "\n".join(lines[start:])
+        md_text = "\n[TOC]\n" + "\n".join(body)
     else:
-        md_text = "\n".join(lines[start:])
+        md_text = "\n".join(body)
     html = md.convert(md_text)
     if crumbs:
         parts.append(crumbs)
@@ -128,9 +148,11 @@ def get_prev_and_next_journal(path: Path):
     return prev, next
 
 
-@app.route("/static/css/<path>")
-def css(path: Path):
-    with open(server_root/"static"/"css"/path) as f:
+@app.route("/static/<path:path>")
+def css(path: str):
+    type = path.split("/", 1)[0]
+    mode = "rb" if type == "img" else "r"
+    with open(server_root/"static"/path,mode) as f:
         return f.read()
 
 
@@ -263,5 +285,10 @@ def dir_root_dir():
     return dir_index()
 
 
+@app.errorhandler(FileNotFoundError)
+def page_not_found(error):
+    return render_template("404.html"), 404
+
+
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(host=listen_address, debug=True)

@@ -4,6 +4,24 @@ let s:types = [
       \ 'question'
       \ ]
 
+syn region awiwiHeadingRedacted
+      \ start=/^## .*<!---\(redacted-->\)\@=/
+      \ end=/\(<!---redacted\)\@<=-->/
+      \ contains=awiwiHeadingRedactedStart,awiwiHeadingRedactedEnd,awiwiHeadingRedactedTag oneline
+syn match awiwiHeadingRedactedStart /\(^## .*\)\@<=<!---\(redacted-->\)\@=/    containedin=awiwiHeadingRedacted conceal
+syn match awiwiHeadingRedactedEnd   /\(<!---redacted\)\@<=-->/ containedin=awiwiHeadingRedacted conceal
+syn match awiwiHeadingRedactedTag /\(<!---\)\@<=redacted\(-->\)\@=/ containedin=awiwiHeadingRedacted
+hi awiwiHeadingRedactedTag ctermfg=190 ctermbg=3
+
+syn region awiwiRedacted
+      \ start=/<!---\(redacted-->\)\@=/
+      \ end=/\(<!---redacted\)\@<=-->/
+      \ contains=awiwiRedactedStart,awiwiRedactedEnd,awiwiRedactedTag oneline
+syn match awiwiRedactedStart /<!---\(redacted-->\)\@=/    contained conceal
+syn match awiwiRedactedEnd   /\(<!---redacted\)\@<=-->/ contained conceal
+syn match awiwiRedactedTag /\(<!---\)\@<=redacted\(-->\)\@=/ contained
+hi awiwiRedactedTag ctermfg=190 ctermbg=3
+
 let markers = []
 let marker_opts = {'escape_mode': 'vim'}
 for type in s:types
