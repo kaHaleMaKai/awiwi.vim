@@ -2,9 +2,11 @@ import os
 import re
 import sys
 import datetime
-from typing import Callable
+import threading
+import atexit
+from typing import Callable, Optional
 from pathlib import Path
-from flask import Flask, Response, render_template
+from flask import Flask, Response, render_template, redirect
 from functools import lru_cache, wraps
 import itertools
 import markdown
@@ -19,8 +21,9 @@ import markdown.extensions.nl2br
 import markdown.extensions.sane_lists
 import markdown.extensions.toc
 from pygments import highlight
-from pygments.lexers import get_lexer_for_filename
+from pygments.lexers import get_lexer_for_filename, get_lexer_by_name
 from pygments.formatters import HtmlFormatter
+
 
 md = markdown.Markdown(output_format="html5",
         extensions=[
@@ -34,7 +37,13 @@ md = markdown.Markdown(output_format="html5",
             "nl2br",
             "sane_lists",
             "toc",
-            ]
+            ],
+        extension_configs={
+            "codehilite": {
+                "css_class": "highlight",
+                "guess_lang": False,
+                }
+            }
 )
 
 server_root = Path(os.path.abspath(os.path.dirname(__file__)))
@@ -46,11 +55,14 @@ app = Flask(__name__,
         template_folder=str(server_root/"html"))
 
 
+# inotify_thread = threading.Thread(name="inotify-thread")
+
+
 @lru_cache
 def get_css_links():
     css_files = [
             "/static/css/default.css",
-            # "/static/css/hilite.css",
+            # "/static/css/lovelace.css",
             "/static/css/pygments.css",
             ]
     return "\n".join(f'<link rel="stylesheet" href="{f}">' for f in css_files) + "\n"
@@ -66,7 +78,7 @@ def add_css(route: Callable):
     return f
 
 
-def remove_secrets(lines: list):
+def filter_body(lines: list):
     hide = False
     for line in lines:
         if hide:
@@ -82,12 +94,23 @@ def remove_secrets(lines: list):
             yield line
 
 
-def format_markdown(file, crumbs=None, toc=True, title=None):
+def tag(text: str, element: str, cssclass: Optional[str] = None):
+    if cssclass:
+        return f'<{element} class="{cssclass}">{text}</{element}>'
+    else:
+        return f'<{element}>{text}</{element}>'
+
+
+def make_header(title: str):
+    return tag(tag(title, "h1"), "header")
+
+
+def format_markdown(file, crumbs=None, toc=True, title=None, links=None):
     with open(file) as f:
         lines = f.readlines()
     parts = []
     if title:
-        parts.append(f"<h1>{title}</h1>\n")
+        parts.append(make_header(title))
         start = 0
     elif lines[0].startswith("# "):
         title = heading = re.sub(r"^[#\s]+", "", lines[0]).strip()
@@ -96,19 +119,42 @@ def format_markdown(file, crumbs=None, toc=True, title=None):
             title = beautify_date(date, only_day=False)
         except ValueError:
             pass
-        parts.append(f"<h1>{title}</h1>\n")
+        parts.append(make_header(title))
         start = 1
     else:
         start = 0
-    body = remove_secrets(lines[start:])
+    parts.append('<div class="container">')
+    body = filter_body(lines[start:])
     if toc:
         md_text = "\n[TOC]\n" + "\n".join(body)
     else:
         md_text = "\n".join(body)
     html = md.convert(md_text)
-    if crumbs:
+    insert_article_div = False
+    if toc:
+        for line in html.splitlines():
+            if '<div class="toc"' in line:
+                insert_article_div = True
+                parts.append('<div class="aside">')
+                parts.append(crumbs)
+                if title:
+                    parts.append(tag(tag(title, "span"), "div", "title-aside"))
+                parts.append(line)
+            elif "</div>" in line and insert_article_div:
+                parts.append(line)
+                parts.append('</div>')
+                parts.append('<div class="article">')
+                insert_article_div = False
+            else:
+                parts.append(line)
+        if links:
+            parts.append(links)
+        parts.append("</div>")
+    else:
         parts.append(crumbs)
-    parts.append(html)
+        parts.append(html)
+        parts.append(links)
+
     return "".join(parts)
 
 
@@ -167,14 +213,23 @@ def render_non_journal(file: Path):
     with open(file, "r") as f:
         text = f.read()
 
-    lexer = get_lexer_for_filename(file)
-    return highlight(text, lexer, HtmlFormatter(style="solarized-light", cssclass="highlight"))
+    m = re.search(r"(?:vim: ft=)(\S+)", text)
+    if m:
+        lexer_name = m.group(1)
+        lexer = get_lexer_by_name(lexer_name)
+    else:
+        lexer = get_lexer_for_filename(file)
+    return make_breadcrumbs(file) + highlight(text, lexer, HtmlFormatter(style="solarized-light", cssclass="highlight"))
 
 
-@app.route("/assets/<year>/<month>/<day>/<file>")
-def asset(year: str, month: str, day: str, file: str):
-    file = content_root/f"assets/{year}/{month}/{day}/{file}"
-    return render_non_journal(file)
+@app.route("/assets/<date>/<file>")
+def asset(date: str, file: str):
+    try:
+        datetime.date.fromisoformat(date)
+    except ValueError:
+        raise FileNotFoundError(f"not a valid date: '{date}'")
+    path = content_root/f"assets/{date.replace('-', '/')}/{file}"
+    return render_non_journal(path)
 
 
 @app.route("/recipes/<path:path>")
@@ -218,7 +273,7 @@ def journal(date: str):
         links.append(f"""<a class="next-journal" href="/journal/{n}">next »</a>""")
     links.append('</div>')
 
-    return format_markdown(file, crumbs=make_breadcrumbs(file)) + "\n".join(links)
+    return format_markdown(file, links="\n".join(links), crumbs=make_breadcrumbs(file))
 
 
 def beautify_date(date: datetime.date, only_day=True):
@@ -233,6 +288,10 @@ def beautify_date(date: datetime.date, only_day=True):
         suffix = "th"
     month_year = "" if only_day else " %B %Y"
     return date.strftime(f"%a, %-d<sup>{suffix}</sup>{month_year}")
+
+
+def sidebar(path: Path, include_cur_dir: bool = False):
+    crumbs = make_breadcrumbs(path, include_cur_dir)
 
 
 @add_css
@@ -260,7 +319,9 @@ def dir_index(dirs: str = ''):
             name = beautify_date(datetime.date.fromisoformat(basename))
             dest = f"/journal/{basename}"
         elif type == "assets":
-            _, year, month, day, name = dirs.split("/")
+            name = p
+            _, year, month, day = dirs.split("/")
+            dest = f"/assets/{year}-{month}-{day}/{name}"
         elif type == "recipes":
             parts = list(dirs.split("/", 1)[1:])
             parts.append(p)
@@ -278,6 +339,11 @@ def dir_index(dirs: str = ''):
 @app.route("/dir/<path:dirs>")
 def dir_subdir(dirs: str = ''):
     return dir_index(dirs)
+
+
+@app.route("/")
+def index():
+    return redirect("/awiwi")
 
 
 @app.route("/awiwi")

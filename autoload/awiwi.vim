@@ -1115,7 +1115,7 @@ fun! awiwi#serve(...) abort "{{{
   if host == '*' || host == 'all'
     let host = '0.0.0.0'
   endif
-  let host_arg = empty(host) ? '' : printf('--host=%s', shellescape(host))
+  let host_arg = empty(host) ? '' : shellescape(printf('--host=%s', host))
   let dir = g:awiwi_home[-1] == '/' ? g:awiwi_home[:-1] : g:awiwi_home
   let current_file = expand('%:p')[len(dir)+1:]
   if str#endswith(current_file, 'journal/todos.md')

@@ -16,8 +16,8 @@ body {
   line-height: 1.4;
   padding: 1em;
   margin: auto;
-  background: #fefefe;
-  max-width: 60%;
+  background: #f0f0f0;
+  max-width: 80%;
 }
 
 a {
@@ -62,7 +62,7 @@ img {
 h1, h2, h3, h4, h5, h6 {
   color: #222;
   line-height: 125%;
-  margin-top: 2em;
+  margin-top: 1.4em;
   font-weight: normal;
   letter-spacing: 0.05em;
 }
@@ -72,8 +72,11 @@ h4, h5, h6 {
 }
 
 h1 {
-  font-size: 2.5em;
-  letter-spacing: 0.08em;
+  font-size: 3em;
+  letter-spacing: 0.3em;
+  position: relative;
+  margin-left: 20%;
+  margin-bottom: 1em;
 }
 
 h2 {
@@ -96,11 +99,16 @@ h6 {
   font-size: 0.9em;
 }
 
+div.title-aside {
+  margin-top: 2em;
+  font-size: 1.2em;
+}
+
 blockquote {
   color: #666666;
   margin: 0;
-  padding-left: 3em;
-  border-left: 0.5em #EEE solid;
+  padding-left: 2em;
+  border-left: 0.5em #d0d0d0 solid;
 }
 
 hr {
@@ -114,7 +122,6 @@ hr {
 }
 
 pre, code, kbd, samp {
-  color: #242424;
   font-family: Hack;
   font-size: 0.92em;
 }
@@ -124,6 +131,24 @@ pre {
   white-space: pre;
   white-space: pre-wrap;
   word-wrap: break-word;
+  border: 1px #aaa solid;
+}
+
+:not(pre) > code {
+  padding: 1px 4px 1px 4px;
+  margin: 0 2px 0 2px;
+  border: 1px #aaa solid;
+  /*border: 0;*/
+  /*background: #f2f2f2;*/
+  color: #505050;
+  background: #ececec;
+}
+
+h2 > code, h3 > code, h4 > code, h5 > code, h6 > code {
+  border: 0;
+  color: #808080;
+  padding: 0;
+  background: none
 }
 
 b, strong {
@@ -172,7 +197,23 @@ li p:last-child {
 }
 
 ul ul, ol ol {
-  margin: .3em 0;
+  margin: .2em 0;
+}
+
+div.toc * {
+  font-size: 0.94em;
+}
+
+div.toc > ul {
+  margin: 0.3em 0;
+  padding-left: 0.0em;
+  list-style-type: none;
+}
+
+div.toc > ul ul {
+  padding: 0 0 0 1em;
+  margin: 0;
+  list-style-type: none;
 }
 
 dl {
@@ -330,9 +371,28 @@ table td {
 }
 
 .breadcrumbs {
-  font-size: 12px;
+  font-size: 0.9em;
 }
 
-.breadcrumbs-links [
-  font-size: 12px;
-]
+.breadcrumbs-links {
+  font-size: 0.9em;
+}
+
+div.container {
+  max-width: 100%;
+}
+
+div.aside {
+  float: left;
+  width: 20%;
+}
+
+div.article {
+  float: right;
+  max-width: 75%;
+}
+
+div.article > h2:first-child {
+  margin: 0;
+  margin-top: 0;
+}
