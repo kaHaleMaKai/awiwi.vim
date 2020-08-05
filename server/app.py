@@ -6,7 +6,7 @@ import threading
 import atexit
 from typing import Callable, Optional
 from pathlib import Path
-from flask import Flask, Response, render_template, redirect
+from flask import Flask, make_response, request, render_template, redirect
 from functools import lru_cache, wraps
 import itertools
 import markdown
@@ -23,6 +23,7 @@ import markdown.extensions.toc
 from pygments import highlight
 from pygments.lexers import get_lexer_for_filename, get_lexer_by_name
 from pygments.formatters import HtmlFormatter
+from urllib.parse import urlparse
 
 
 md = markdown.Markdown(output_format="html5",
@@ -46,9 +47,12 @@ md = markdown.Markdown(output_format="html5",
             }
 )
 
+theme_mode_key = "theme-mode"
+default_theme_mode = "light"
 server_root = Path(os.path.abspath(os.path.dirname(__file__)))
 content_root = Path(os.environ.get('FLASK_ROOT', '.'))
 listen_address = os.environ.get("FLASK_HOST")
+
 app = Flask(__name__,
         root_path=str(content_root),
         static_url_path=str(server_root/"static"),
@@ -58,12 +62,14 @@ app = Flask(__name__,
 # inotify_thread = threading.Thread(name="inotify-thread")
 
 
-@lru_cache
-def get_css_links():
+def get_css_links(style: str):
+    if style == "light":
+        css = "solarized-light"
+    elif style == "dark":
+        css = "solarized-dark"
     css_files = [
-            "/static/css/default.css",
-            # "/static/css/lovelace.css",
-            "/static/css/pygments.css",
+            f"/static/css/default-{style}.css",
+            f"/static/css/{css}.css",
             ]
     return "\n".join(f'<link rel="stylesheet" href="{f}">' for f in css_files) + "\n"
 
@@ -72,8 +78,9 @@ def add_css(route: Callable):
 
     @wraps(route)
     def f(*args, **kwargs):
+        style = request.cookies.get(theme_mode_key, default_theme_mode)
         content = route(*args, **kwargs)
-        return get_css_links() + "\n" + content
+        return get_css_links(style) + "\n" + content
 
     return f
 
@@ -354,6 +361,22 @@ def dir_root_dir():
 @app.errorhandler(FileNotFoundError)
 def page_not_found(error):
     return render_template("404.html"), 404
+
+
+@app.route("/change-mode")
+def change_mode():
+    mode = request.cookies.get(theme_mode_key)
+    if not mode or mode == "light":
+        new_mode = "dark"
+    elif mode == "dark":
+        new_mode = "light"
+    if request.referrer:
+        target = urlparse(request.referrer)
+    else:
+        target = "/"
+    resp = make_response(redirect(target))
+    resp.set_cookie(key=theme_mode_key, value=new_mode, max_age=9999999999)
+    return resp
 
 
 if __name__ == "__main__":
