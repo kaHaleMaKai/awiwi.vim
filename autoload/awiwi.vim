@@ -1127,7 +1127,11 @@ fun! awiwi#serve(...) abort "{{{
   endif
   call system(printf('(sleep 1; xdg-open http://localhost:5000/%s) &', target))
   echo printf('serving on %s:5000', empty(host) ? 'localhost' : host)
-  return system(printf('%s run %s', flask, host_arg))
+  1new
+  call termopen(printf('%s run %s', flask, host_arg))
+  normal! <C-\><C-N>
+  wincmd p
+  stopi
 endfun "}}}
 
 
