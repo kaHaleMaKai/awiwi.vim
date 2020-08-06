@@ -6,7 +6,7 @@ import threading
 import atexit
 from typing import Callable, Optional
 from pathlib import Path
-from flask import Flask, make_response, request, render_template, redirect, session, abort
+from flask import Flask, make_response, request, render_template, redirect, session, abort, Response
 from functools import lru_cache, wraps
 import itertools
 import markdown
@@ -273,12 +273,16 @@ def get_prev_and_next_journal(path: Path):
     return prev, next
 
 
-@secured_route("/static/<path:path>")
-def css(path: str):
-    type = path.split("/", 1)[0]
+@secured_route("/static/<type>/<path:path>")
+def statics(type: str, path: str):
     mode = "rb" if type == "img" else "r"
-    with open(server_root/"static"/path,mode) as f:
-        return f.read()
+    with open(server_root/"static"/type/path, mode) as f:
+        content = f.read()
+    if type == "css":
+        mime = "text/css"
+    else:
+        mime = "text"
+    return Response(content, mimetype=mime)
 
 
 @add_css
@@ -332,7 +336,7 @@ def make_breadcrumbs(path: Path, include_cur_dir=False):
     while p != Path('.'):
         links.append(f'<a class="breadcrumbs-link" href="/dir/{p}">{p.stem}</a>')
         p = p.parent
-    links.append('<a class="breadcrumbs-link" href="/awiwi">awīwī</a>')
+    links.append('<a class="breadcrumbs-link" href="/">ʻāwīwī</a>')
 
     crumbs = '<div class="breadcrumbs">' + " > ".join(links[::-1]) + '</div>'
     return crumbs
@@ -422,11 +426,6 @@ def dir_subdir(dirs: str = ''):
 
 @secured_route("/")
 def index():
-    return redirect("/awiwi")
-
-
-@secured_route("/awiwi")
-def dir_root_dir():
     return dir_index()
 
 

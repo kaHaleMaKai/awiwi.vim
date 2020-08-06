@@ -388,8 +388,9 @@ div.aside {
 }
 
 div.article {
-  float: right;
-  max-width: 75%;
+  float: left;
+  margin-left: 7%;
+  width: 73%;
 }
 
 div.article > h2:first-child {
