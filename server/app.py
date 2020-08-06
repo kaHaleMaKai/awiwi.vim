@@ -6,7 +6,7 @@ import threading
 import atexit
 from typing import Callable, Optional
 from pathlib import Path
-from flask import Flask, make_response, request, render_template, redirect
+from flask import Flask, make_response, request, render_template, redirect, session, abort
 from functools import lru_cache, wraps
 import itertools
 import markdown
@@ -24,6 +24,8 @@ from pygments import highlight
 from pygments.lexers import get_lexer_for_filename, get_lexer_by_name
 from pygments.formatters import HtmlFormatter
 from urllib.parse import urlparse
+from passlib.hash import sha512_crypt
+from threading import Lock
 
 
 md = markdown.Markdown(output_format="html5",
@@ -52,14 +54,64 @@ default_theme_mode = "light"
 server_root = Path(os.path.abspath(os.path.dirname(__file__)))
 content_root = Path(os.environ.get('FLASK_ROOT', '.'))
 listen_address = os.environ.get("FLASK_HOST")
+auth_cache_file = content_root/"auth"
+flask_secret_file = content_root/"flask-secret"
+
 
 app = Flask(__name__,
         root_path=str(content_root),
         static_url_path=str(server_root/"static"),
         template_folder=str(server_root/"html"))
-
+app.secret_key = os.urandom(12)
 
 # inotify_thread = threading.Thread(name="inotify-thread")
+
+
+class AuthBackend:
+
+    def authenticate(user: str, password: str):
+        pass
+
+
+class FileBasedAuthBackend(AuthBackend):
+
+    def __init__(self, file: Path, sep: str = ":"):
+        self.file = file
+        self.mtime = 0  # gets overwritten by self.fill_cache()
+        self.cache = {}
+        self.sep = sep
+        self.fill_cache()
+
+    def get_mtime(self):
+        return os.path.getmtime(self.file)
+
+    def fill_cache(self):
+        mtime = self.get_mtime()
+        if mtime == self.mtime:
+            return
+        with Lock():
+            mtime = self.get_mtime()
+            if mtime == self.mtime:
+                return
+            cache = {}
+            with open(self.file, "r") as f:
+                for line in f:
+                    if not line:
+                        continue
+                    user, hash = line.split(self.sep)
+                    cache[user] = hash.strip()
+            self.mtime = mtime
+            self.cache = cache
+
+
+    def authenticate(self, user: str, password: str):
+        self.fill_cache()
+        if not user in self.cache:
+            return False
+        return sha512_crypt.verify(password, self.cache[user])
+
+
+file_auth = FileBasedAuthBackend(auth_cache_file)
 
 
 def get_css_links(style: str):
@@ -83,6 +135,25 @@ def add_css(route: Callable):
         return get_css_links(style) + "\n" + content
 
     return f
+
+
+def secured_route(path: str):
+
+    def inner(route: Callable):
+
+        @app.route(path)
+        @wraps(route)
+        def f(*args, **kwargs):
+            host = request.host.rsplit(":", 1)[0]
+            if host in ('localhost', '127.0.0.1', '::1') or session.get("logged_in", False):
+                return route(*args, **kwargs)
+            else:
+                return redirect("/login")
+
+        return f
+
+    return inner
+
 
 
 def filter_body(lines: list):
@@ -160,7 +231,8 @@ def format_markdown(file, crumbs=None, toc=True, title=None, links=None):
     else:
         parts.append(crumbs)
         parts.append(html)
-        parts.append(links)
+        if links:
+            parts.append(links)
 
     return "".join(parts)
 
@@ -201,7 +273,7 @@ def get_prev_and_next_journal(path: Path):
     return prev, next
 
 
-@app.route("/static/<path:path>")
+@secured_route("/static/<path:path>")
 def css(path: str):
     type = path.split("/", 1)[0]
     mode = "rb" if type == "img" else "r"
@@ -229,7 +301,7 @@ def render_non_journal(file: Path):
     return make_breadcrumbs(file) + highlight(text, lexer, HtmlFormatter(style="solarized-light", cssclass="highlight"))
 
 
-@app.route("/assets/<date>/<file>")
+@secured_route("/assets/<date>/<file>")
 def asset(date: str, file: str):
     try:
         datetime.date.fromisoformat(date)
@@ -239,13 +311,13 @@ def asset(date: str, file: str):
     return render_non_journal(path)
 
 
-@app.route("/recipes/<path:path>")
+@secured_route("/recipes/<path:path>")
 def recipes(path: str):
     file = content_root/f"recipes/{path}"
     return render_non_journal(file)
 
 
-@app.route("/todo")
+@secured_route("/todo")
 @add_css
 def todo():
     file = content_root/f"journal/todos.md"
@@ -266,7 +338,7 @@ def make_breadcrumbs(path: Path, include_cur_dir=False):
     return crumbs
 
 
-@app.route("/journal/<date>")
+@secured_route("/journal/<date>")
 @add_css
 def journal(date: str):
     year, month, _ = date.split("-")
@@ -343,17 +415,17 @@ def dir_index(dirs: str = ''):
     return "\n".join(itertools.chain(header, links, ['</dir>']))
 
 
-@app.route("/dir/<path:dirs>")
+@secured_route("/dir/<path:dirs>")
 def dir_subdir(dirs: str = ''):
     return dir_index(dirs)
 
 
-@app.route("/")
+@secured_route("/")
 def index():
     return redirect("/awiwi")
 
 
-@app.route("/awiwi")
+@secured_route("/awiwi")
 def dir_root_dir():
     return dir_index()
 
@@ -363,7 +435,7 @@ def page_not_found(error):
     return render_template("404.html"), 404
 
 
-@app.route("/change-mode")
+@secured_route("/change-mode")
 def change_mode():
     mode = request.cookies.get(theme_mode_key)
     if not mode or mode == "light":
@@ -377,6 +449,27 @@ def change_mode():
     resp = make_response(redirect(target))
     resp.set_cookie(key=theme_mode_key, value=new_mode, max_age=9999999999)
     return resp
+
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if request.method == "GET":
+        return render_template("login.html.j2")
+    user = request.form.get("user")
+    password = request.form.get("password")
+    if not user or not password:
+        abort(401)
+    if file_auth.authenticate(user.strip(), password.strip()):
+        session["logged_in"] = True
+        return redirect("/")
+    else:
+        abort(403)
+
+
+@app.route("/logout")
+def logout():
+    session["logged_in"] = False
+    return "", 200
 
 
 if __name__ == "__main__":
