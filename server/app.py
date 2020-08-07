@@ -115,13 +115,9 @@ file_auth = FileBasedAuthBackend(auth_cache_file)
 
 
 def get_css_links(style: str):
-    if style == "light":
-        css = "solarized-light"
-    elif style == "dark":
-        css = "solarized-dark"
     css_files = {
             f"/static/css/common.css": "common-css",
-            f"/static/css/{css}.css": "theme",
+            f"/static/css/solarized.css": "theme",
             }
     return "\n".join(f'<link id="{id}" rel="stylesheet" href="{f}">' for f, id in css_files.items()) + "\n"
 
@@ -134,31 +130,14 @@ def add_css(route: Callable):
         content = route(*args, **kwargs)
         checked = ' checked="true"' if style == "dark" else ''
         mode_switcher = f"""
-            <input class="switch-input" type="checkbox" {checked} onclick="themeChanger()"/>
+            <input id="mode-switcher-input" class="switch-input" type="checkbox" {checked} onclick="themeChanger()"/>
             <span class="switch-label" data-on="dark" data-off="light"></span>
             <span class="switch-handle"></span>
         """
 
-        js = """<script>
-        let themeChanger = () => {
-            let html = document.getElementsByTagName('html')[0];
-            html.classList.add('color-theme-in-transition')
-
-            window.setTimeout(function() {
-              document.documentElement.classList.remove('color-theme-in-transition')
-            }, 1000)
-            let theme = html.getAttribute('data-theme');
-            if (theme === 'dark') {
-                html.removeAttribute('data-theme');
-                document.cookie = 'theme-mode=light'
-            }
-            else {
-                html.setAttribute('data-theme', 'dark');
-                document.cookie = 'theme-mode=dark';
-            }
-        }</script>
-        """
+        js = '<script src="/static/js/common.js"></script>'
         page = get_css_links(style) + js + mode_switcher + content
+
         if style == "dark":
             return f'<html data-theme="dark">{page}</html>'
         return page
@@ -309,6 +288,8 @@ def statics(type: str, path: str):
         content = f.read()
     if type == "css":
         mime = "text/css"
+    elif type == "js":
+        mime = "text/javascript"
     else:
         mime = "text"
     return Response(content, mimetype=mime)

@@ -28,6 +28,19 @@ html {
   --mark-bg: #ff0;
   --table: #ddd;
   --print: #999;
+
+  --highlight-background: #fdf6e3
+  --highlight-color-1: #268bd2
+  --highlight-color-2: #2aa198
+  --highlight-color-3: #93a1a1
+  --highlight-color-4: #657b83
+  --highlight-color-5: #859900
+  --highlight-color-6: #dc322f
+  --highlight-cp-color: #d33682
+  --highlight-hll-background: #eee8d5
+  --highlight-kn-color: #cb4b16
+  --highlight-kt-color: #b58900
+
 }
 
 html[data-theme='dark'] {
@@ -51,6 +64,18 @@ html[data-theme='dark'] {
   --mark-bg: #ff0;
   --table: #212121;
   --print: #616161;
+
+  --highlight-background: #002b36
+  --highlight-color-1: #268bd2
+  --highlight-color-2: #2aa198
+  --highlight-color-3: #586e75
+  --highlight-color-4: #839496
+  --highlight-color-5: #859900
+  --highlight-color-6: #dc322f
+  --highlight-cp-color: #d33682
+  --highlight-hll-background: #073642
+  --highlight-kn-color: #cb4b16
+  --highlight-kt-color: #b58900
 }
 
 html.color-theme-in-transition,
