@@ -119,11 +119,11 @@ def get_css_links(style: str):
         css = "solarized-light"
     elif style == "dark":
         css = "solarized-dark"
-    css_files = [
-            f"/static/css/default-{style}.css",
-            f"/static/css/{css}.css",
-            ]
-    return "\n".join(f'<link rel="stylesheet" href="{f}">' for f in css_files) + "\n"
+    css_files = {
+            f"/static/css/common.css": "common-css",
+            f"/static/css/{css}.css": "theme",
+            }
+    return "\n".join(f'<link id="{id}" rel="stylesheet" href="{f}">' for f, id in css_files.items()) + "\n"
 
 
 def add_css(route: Callable):
@@ -132,7 +132,36 @@ def add_css(route: Callable):
     def f(*args, **kwargs):
         style = request.cookies.get(theme_mode_key, default_theme_mode)
         content = route(*args, **kwargs)
-        return get_css_links(style) + "\n" + content
+        checked = ' checked="true"' if style == "dark" else ''
+        mode_switcher = f"""
+            <input class="switch-input" type="checkbox" {checked} onclick="themeChanger()"/>
+            <span class="switch-label" data-on="dark" data-off="light"></span>
+            <span class="switch-handle"></span>
+        """
+
+        js = """<script>
+        let themeChanger = () => {
+            let html = document.getElementsByTagName('html')[0];
+            html.classList.add('color-theme-in-transition')
+
+            window.setTimeout(function() {
+              document.documentElement.classList.remove('color-theme-in-transition')
+            }, 1000)
+            let theme = html.getAttribute('data-theme');
+            if (theme === 'dark') {
+                html.removeAttribute('data-theme');
+                document.cookie = 'theme-mode=light'
+            }
+            else {
+                html.setAttribute('data-theme', 'dark');
+                document.cookie = 'theme-mode=dark';
+            }
+        }</script>
+        """
+        page = get_css_links(style) + js + mode_switcher + content
+        if style == "dark":
+            return f'<html data-theme="dark">{page}</html>'
+        return page
 
     return f
 

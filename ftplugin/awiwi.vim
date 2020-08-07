@@ -14,6 +14,17 @@ elseif !exists('*str#startswith')
   throw 'AwiwiError: str.vim plugin is required'
 endif
 
+"if $XDG_CACHE_DIR != '' "{{{ create cache dir
+  "let s:cache_dir = $XDG_CACHE_DIR
+"else
+  "let s:cache_dir = printf('%s/.cache', $HOME)
+"endif
+"let s:cache_dir = printf("%s/%s", s:cache_dir, "awiwi")
+"let s:session_file = printf("%s/%s", s:cache_dir, "session.vim")
+"if !filereadable(s:session_file)
+  "call mkdir(fnamemodify(s:session_file, ':p:h'), 'p')
+"endif "}}}
+
 " ++++++++++++++++++++++++++++++++++++++++
 " +              commands                +
 " ++++++++++++++++++++++++++++++++++++++++

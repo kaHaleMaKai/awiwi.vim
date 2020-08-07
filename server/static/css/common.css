@@ -7,34 +7,86 @@ html {
   overflow-y: scroll;
   -webkit-text-size-adjust: 100%;
   -ms-text-size-adjust: 100%;
+
+  --body-bg: #f0f0f0;
+  --body-color: #444;
+  --link: #0645ad;
+  --link-visited: #0b0080;
+  --link-hover: #06e;
+  --link-active: #faa700;
+  --selection-bg: rgba(100, 100, 0, 0.3);
+  --max-color: #000;
+  --header: #222;
+  --blockquote: #666666;
+  --blockquote-border: #d0d0d0;
+  --hr: #e0e0e0;
+  --pre-border: #aaa;
+  --code-color: #505050;
+  --code-bg: #ececec;
+  --code-header: #808080;
+  --ins-bg: #ff9;
+  --mark-bg: #ff0;
+  --table: #ddd;
+  --print: #999;
+}
+
+html[data-theme='dark'] {
+  --body-bg: #0f0f0f;
+  --body-color: #bfbfbf;
+  --link: #ca8500;
+  --link-visited: #915f00;
+  --link-hover: #3382ec;
+  --link-active: #faa700;
+  --selection-bg: rgba(230, 230, 255, 0.3);
+  --max-color: #ffffff;
+  --header: #dddddd;
+  --blockquote: #999999;
+  --blockquote-border: #212121;
+  --hr: #111111;
+  --pre-border: #515151;
+  --code-color: #9f9f9f;
+  --code-bg: #131313;
+  --code-header: #808080;
+  --ins-bg: #ff9;
+  --mark-bg: #ff0;
+  --table: #212121;
+  --print: #616161;
+}
+
+html.color-theme-in-transition,
+html.color-theme-in-transition *,
+html.color-theme-in-transition *:before,
+html.color-theme-in-transition *:after {
+  transition: all 500ms !important;
+  transition-delay: 0 !important;
 }
 
 body {
-  color: #ccc;
   font-family: Georgia, Palatino, 'Palatino Linotype', Times, 'Times New Roman', sans-serif;
   font-size: 12px;
   line-height: 1.4;
   padding: 1em;
   margin: auto;
-  background: #0f0f0f;
   max-width: 80%;
+  color: var(--body-color);
+  background: var(--body-bg);
 }
 
 a {
-  color: #0645ad;
   text-decoration: none;
+  color: var(--link);
 }
 
 a:visited {
-  color: #0b0080;
+  color: var(--link-visited);
 }
 
 a:hover {
-  color: #06e;
+  color: var(--link-hover);
 }
 
 a:active {
-  color: #faa700;
+  color: var(--link-active);
 }
 
 a:focus {
@@ -42,13 +94,12 @@ a:focus {
 }
 
 *::selection, *::-moz-selection {
-  background: rgba(100, 100, 0, 0.3);
-  color: #000;
+  background: var(--selection-bg);
+  color: var(--max-color);
 }
 
 a::selection, a::-moz-selection {
-  background: rgba(100, 100, 0, 0.3);
-  color: #0645ad;
+  color: var(--link);
 }
 
 p {
@@ -60,11 +111,11 @@ img {
 }
 
 h1, h2, h3, h4, h5, h6 {
-  color: #222;
   line-height: 125%;
   margin-top: 1.4em;
   font-weight: normal;
   letter-spacing: 0.05em;
+  color: var(--color);
 }
 
 h4, h5, h6 {
@@ -105,20 +156,20 @@ div.title-aside {
 }
 
 blockquote {
-  color: #666666;
   margin: 0;
   padding-left: 2em;
-  border-left: 0.5em #d0d0d0 solid;
+  color: var(--blockquote);
+  border: 0 0 0 0.5em solid;
+  border-color: var(--blockquote-border);
 }
 
 hr {
   display: block;
   height: 2px;
-  border: 0;
-  border-top: 1px solid #e0e0e0;
-  /*border-bottom: 1px solid #eee;*/
   margin: 1em 0;
   padding: 0;
+  border: 1px 0 0 0 solid;
+  border-color: var(--hr);
 }
 
 pre, code, kbd, samp {
@@ -131,24 +182,24 @@ pre {
   white-space: pre;
   white-space: pre-wrap;
   word-wrap: break-word;
-  border: 1px #aaa solid;
+  border: 1px solid;
+  border-color: var(--pre-color);
 }
 
 :not(pre) > code {
   padding: 1px 4px 1px 4px;
   margin: 0 2px 0 2px;
-  border: 1px #aaa solid;
-  /*border: 0;*/
-  /*background: #f2f2f2;*/
-  color: #505050;
-  background: #ececec;
+  border: 1px solid;
+  border-color: var(--pre-color);
+  color: var(--code-color);
+  background: var(--code-bg);
 }
 
 h2 > code, h3 > code, h4 > code, h5 > code, h6 > code {
   border: 0;
-  color: #808080;
   padding: 0;
   background: none
+  color: var(--code-header);
 }
 
 b, strong {
@@ -160,16 +211,16 @@ dfn {
 }
 
 ins {
-  background: #ff9;
-  color: #000;
   text-decoration: none;
+  background: var(--ins-bg);
+  color: var(--max-color);
 }
 
 mark {
-  background: #ff0;
-  color: #000;
   font-style: italic;
   font-weight: bold;
+  color: var(--max-color);
+  background: var(--mark-bg);
 }
 
 sub, sup {
@@ -258,24 +309,24 @@ figcaption {
 
 table {
   margin-bottom: 2em;
-  border-bottom: 1px solid #ddd;
-  border-right: 1px solid #ddd;
   border-spacing: 0;
   border-collapse: collapse;
+  border: 0 1px 1px 0 solid;
+  border-color: var(--table);
 }
 
 table th {
   padding: .2em 1em;
   background-color: #eee;
-  border-top: 1px solid #ddd;
-  border-left: 1px solid #ddd;
+  border: 1px 0 0 1px solid;
+  border-color: var(--table);
 }
 
 table td {
   padding: .2em 1em;
-  border-top: 1px solid #ddd;
-  border-left: 1px solid #ddd;
   vertical-align: top;
+  border: 1px 0 0 1px solid;
+  border-color: var(--table);
 }
 
 .author {
@@ -339,9 +390,10 @@ table td {
   }
 
   pre, blockquote {
-    border: 1px solid #999;
     padding-right: 1em;
     page-break-inside: avoid;
+    border: 1px solid;
+    border-color: var(--print);
   }
 
   tr, img {
@@ -352,13 +404,14 @@ table td {
     max-width: 100% !important;
   }
 
+
   @page :left {
     margin: 15mm 20mm 15mm 10mm;
-}
+  }
 
   @page :right {
     margin: 15mm 10mm 15mm 20mm;
-}
+  }
 
   p, h2, h3 {
     orphans: 3;
@@ -388,11 +441,51 @@ div.aside {
 }
 
 div.article {
-  float: right;
+  float: left;
   max-width: 75%;
 }
 
 div.article > h2:first-child {
   margin: 0;
   margin-top: 0;
+}
+
+/* from: https://www.htmllion.com/css3-toggle-switch-button.html */
+.switch-left-right .switch-label {
+  overflow: hidden;
+}
+.switch-left-right .switch-label:before, .switch-left-right .switch-label:after {
+  width: 20px;
+  height: 20px;
+  top: 4px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 11px 0 0 0;
+  text-indent: -12px;
+  border-radius: 20px;
+  box-shadow: inset 0 1px 4px rgba(0, 0, 0, 0.2), inset 0 0 3px rgba(0, 0, 0, 0.1);
+}
+.switch-left-right .switch-label:before {
+  background: #eceeef;
+  text-align: left;
+  padding-left: 80px;
+}
+.switch-left-right .switch-label:after {
+  text-align: left;
+  text-indent: 9px;
+  background: #FF7F50;
+  left: -100px;
+  opacity: 1;
+  width: 100%;
+}
+.switch-left-right .switch-input:checked ~ .switch-label:before {
+  opacity: 1;
+  left: 100px;
+}
+.switch-left-right .switch-input:checked ~ .switch-label:after {
+  left: 0;
+}
+.switch-left-right .switch-input:checked ~ .switch-label {
+  background: inherit;
 }
