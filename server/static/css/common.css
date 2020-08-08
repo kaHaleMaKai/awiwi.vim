@@ -10,6 +10,7 @@ html {
 
   --body-bg: #f0f0f0;
   --body-color: #444;
+  --body-color: #444;
   --link: #0645ad;
   --link-visited: #0b0080;
   --link-hover: #06e;
@@ -21,6 +22,7 @@ html {
   --blockquote-border: #d0d0d0;
   --hr: #e0e0e0;
   --pre-border: #aaa;
+  --pre-color: #bbb;
   --code-color: #505050;
   --code-bg: #ececec;
   --code-header: #808080;
@@ -29,23 +31,23 @@ html {
   --table: #ddd;
   --print: #999;
 
-  --highlight-background: #fdf6e3
-  --highlight-color-1: #268bd2
-  --highlight-color-2: #2aa198
-  --highlight-color-3: #93a1a1
-  --highlight-color-4: #657b83
-  --highlight-color-5: #859900
-  --highlight-color-6: #dc322f
-  --highlight-cp-color: #d33682
-  --highlight-hll-background: #eee8d5
-  --highlight-kn-color: #cb4b16
-  --highlight-kt-color: #b58900
+  --highlight-background: #fdf6e3;
+  --highlight-color-1: #268bd2;
+  --highlight-color-2: #2aa198;
+  --highlight-color-3: #93a1a1;
+  --highlight-color-4: #657b83;
+  --highlight-color-5: #859900;
+  --highlight-color-6: #dc322f;
+  --highlight-cp-color: #d33682;
+  --highlight-hll-background: #eee8d5;
+  --highlight-kn-color: #cb4b16;
+  --highlight-kt-color: #b58900;
 
 }
 
 html[data-theme='dark'] {
   --body-bg: #0f0f0f;
-  --body-color: #bfbfbf;
+  --body-color: #a0a0a0; /* #bfbfbf */
   --link: #ca8500;
   --link-visited: #915f00;
   --link-hover: #3382ec;
@@ -55,8 +57,9 @@ html[data-theme='dark'] {
   --header: #dddddd;
   --blockquote: #999999;
   --blockquote-border: #212121;
-  --hr: #111111;
-  --pre-border: #515151;
+  --hr: #2f2f2f; /* make brighter, or not to be seen */
+  --pre-border: #808080;
+  --pre-color: #606060;
   --code-color: #9f9f9f;
   --code-bg: #131313;
   --code-header: #808080;
@@ -65,17 +68,17 @@ html[data-theme='dark'] {
   --table: #212121;
   --print: #616161;
 
-  --highlight-background: #002b36
-  --highlight-color-1: #268bd2
-  --highlight-color-2: #2aa198
-  --highlight-color-3: #586e75
-  --highlight-color-4: #839496
-  --highlight-color-5: #859900
-  --highlight-color-6: #dc322f
-  --highlight-cp-color: #d33682
-  --highlight-hll-background: #073642
-  --highlight-kn-color: #cb4b16
-  --highlight-kt-color: #b58900
+  --highlight-background: #002b36;
+  --highlight-color-1: #268bd2;
+  --highlight-color-2: #2aa198;
+  --highlight-color-3: #586e75;
+  --highlight-color-4: #839496;
+  --highlight-color-5: #859900;
+  --highlight-color-6: #dc322f;
+  --highlight-cp-color: #d33682;
+  --highlight-hll-background: #073642;
+  --highlight-kn-color: #cb4b16;
+  --highlight-kt-color: #b58900;
 }
 
 html.color-theme-in-transition,
@@ -476,41 +479,62 @@ div.article > h2:first-child {
 }
 
 /* from: https://www.htmllion.com/css3-toggle-switch-button.html */
-.switch-left-right .switch-label {
-  overflow: hidden;
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 90px;
+  height: 34px;
 }
-.switch-left-right .switch-label:before, .switch-left-right .switch-label:after {
-  width: 20px;
-  height: 20px;
-  top: 4px;
+
+.switch input {
+  display: none;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  padding: 11px 0 0 0;
-  text-indent: -12px;
-  border-radius: 20px;
-  box-shadow: inset 0 1px 4px rgba(0, 0, 0, 0.2), inset 0 0 3px rgba(0, 0, 0, 0.1);
+  color: var(--body-bg);
+  background-color: var(--body-color);
+  -webkit-transition: .4s;
+  transition: .4s;
+  border-radius: 34px;
 }
-.switch-left-right .switch-label:before {
-  background: #eceeef;
-  text-align: left;
-  padding-left: 80px;
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 26px;
+  width: 26px;
+  left: 4px;
+  bottom: 4px;
+  background-color: var(--body-bg);
+  -webkit-transition: .4s;
+  transition: .4s;
+  border-radius: 50%;
 }
-.switch-left-right .switch-label:after {
-  text-align: left;
-  text-indent: 9px;
-  background: #FF7F50;
-  left: -100px;
-  opacity: 1;
-  width: 100%;
+
+input:checked + .slider:before {
+  -webkit-transform: translateX(26px);
+  -ms-transform: translateX(26px);
+  transform: translateX(55px);
 }
-.switch-left-right .switch-input:checked ~ .switch-label:before {
-  opacity: 1;
-  left: 100px;
+
+/*------ ADDED CSS ---------*/
+.slider:after {
+ content: 'dark';
+ display: block;
+ position: absolute;
+ transform: translate(-50%, -50%);
+ top: 50%;
+ left: 60%;
+ font-size: 12px;
 }
-.switch-left-right .switch-input:checked ~ .switch-label:after {
-  left: 0;
-}
-.switch-left-right .switch-input:checked ~ .switch-label {
-  background: inherit;
+
+input:checked + .slider:after {
+  content: 'light';
+  left: 40%;
 }

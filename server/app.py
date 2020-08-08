@@ -130,10 +130,16 @@ def add_css(route: Callable):
         content = route(*args, **kwargs)
         checked = ' checked="true"' if style == "dark" else ''
         mode_switcher = f"""
-            <input id="mode-switcher-input" class="switch-input" type="checkbox" {checked} onclick="themeChanger()"/>
-            <span class="switch-label" data-on="dark" data-off="light"></span>
-            <span class="switch-handle"></span>
+        <label class="switch">
+          <input type="checkbox" id="mode-switcher-input" {checked} onclick="themeChanger()" />
+          <div class="slider round"></div>
+        </label>
         """
+        # mode_switcher = f"""
+            # <input id="mode-switcher-input" class="switch-input" type="checkbox" {checked} onclick="themeChanger()"/>
+            # <span class="switch-label" data-on="dark" data-off="light"></span>
+            # <span class="switch-handle"></span>
+        # """
 
         js = '<script src="/static/js/common.js"></script>'
         page = get_css_links(style) + js + mode_switcher + content
