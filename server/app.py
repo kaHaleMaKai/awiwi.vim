@@ -156,7 +156,7 @@ def tag(text: str, element: str, cssclass: Optional[str] = None):
         return f'<{element}>{text}</{element}>'
 
 
-def format_markdown(file, add_toc=True, title=None, **kwargs):
+def format_markdown(file, template, add_toc=True, title=None, **kwargs):
     with open(file) as f:
         lines = f.readlines()
     parts = []
@@ -194,7 +194,7 @@ def format_markdown(file, add_toc=True, title=None, **kwargs):
         parts.append(html)
 
     return render_template(
-            "main.html.j2",
+            f"{template}.html.j2",
             toc="\n".join(toc),
             content="\n".join(parts),
             title=title,
@@ -258,7 +258,7 @@ def render_non_journal(file: Path):
         with open(file, "r") as f:
             return f.read()
     elif ext == ".md":
-        return format_markdown(file, breadcrumbs=make_breadcrumbs(file))
+        return format_markdown(file, template="non-journal", breadcrumbs=make_breadcrumbs(file))
     with open(file, "r") as f:
         text = f.read()
 
@@ -268,7 +268,11 @@ def render_non_journal(file: Path):
         lexer = get_lexer_by_name(lexer_name)
     else:
         lexer = get_lexer_for_filename(file)
-    return make_breadcrumbs(file) + highlight(text, lexer, HtmlFormatter(style="solarized-light", cssclass="highlight"))
+    content = highlight(text, lexer, HtmlFormatter(style="solarized-light", cssclass="highlight"))
+    return render_template(
+            "non-journal.html.j2",
+            breadcrumbs=make_breadcrumbs(file),
+            content=content)
 
 
 @secured_route("/assets/<date>/<file>")
@@ -290,7 +294,7 @@ def recipes(path: str):
 @secured_route("/todo")
 def todo():
     file = content_root/f"journal/todos.md"
-    return format_markdown(file, breadcrumbs=make_breadcrumbs(file), toc=False, title="TODO")
+    return format_markdown(file, template="todo", breadcrumbs=make_breadcrumbs(file), add_toc=False, title="TODO")
 
 
 def make_breadcrumbs(path: Path, include_cur_dir=False):
@@ -313,7 +317,7 @@ def journal(date: str):
     breadcrumbs = make_breadcrumbs(file)
     title = beautify_date(datetime.date.fromisoformat(date))
 
-    return format_markdown(file, breadcrumbs=breadcrumbs, prev=prev, next=next)
+    return format_markdown(file, template="journal", breadcrumbs=breadcrumbs, prev=prev, next=next)
 
 
 def beautify_date(date: datetime.date, only_day=True):

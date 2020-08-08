@@ -1,0 +1,27 @@
+{% extends "base.html.j2" %}
+
+{% block aside %}
+
+  <div class="title-aside">
+    <span>{{ title }}</span>
+  </div>
+  {{ toc }}
+
+{% endblock %}
+
+
+{% block footer %}
+
+  <hr>
+  {% if prev|default(false) %}
+    <a class="prev-journal" href="/journal/{{ prev }}">« previous</a>
+  {% endif %}
+  {% if next|default(false) %}
+    <a class="next-journal" href="/journal/{{ next }}">next »</a>
+  {% endif %}
+
+{% endblock %}
+
+<!---
+vim: ft=html.j2
+-->
