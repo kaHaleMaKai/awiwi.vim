@@ -12,6 +12,12 @@
       <div class="slider round"></div>
     </label>
 
+    <header>
+      <h1>
+        {{ title }}
+      </h1>
+    </header>
+
     <div class="container">
 
       <div class="aside">
@@ -38,15 +44,7 @@
 
       <div class="article">
 
-        <header>
-          <h1>
-            {{ title }}
-          </h1>
-        </header>
-
-        <div class="content">
-          {{ content }}
-        </div>
+        {{ content }}
 
         {% if prev|default(false) or next|default(false) %}
         <hr>
