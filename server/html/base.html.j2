@@ -22,15 +22,12 @@
 
       <div class="aside">
 
-        {% if breadcrumbs|default(false) %}
         <div class="breadcrumbs">
-          <a class="breadcrumbs-link" href="/">ʻāwīwī</a> &gt;
+          <a class="breadcrumbs-link" href="/">ʻāwīwī</a>
           {% for crumb in breadcrumbs %}
-            <a class="breadcrumbs-link" href="{{ crumb.target }}">{{ crumb.name }}</a>
-            {% if not loop.last %} &gt; {% endif %}
+            &gt; <a class="breadcrumbs-link" href="{{ crumb.target }}">{{ crumb.name }}</a>
           {% endfor %}
         </div>
-        {% endif %}
 
         {% block aside %}{% endblock %}
 

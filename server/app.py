@@ -160,9 +160,8 @@ def format_markdown(file, template, add_toc=True, title=None, **kwargs):
     with open(file) as f:
         lines = f.readlines()
     parts = []
-    if title:
-        start = 0
-    elif lines[0].startswith("# "):
+    start = 0
+    if not title and lines[0].startswith("# "):
         title = heading = re.sub(r"^[#\s]+", "", lines[0]).strip()
         try:
             date = datetime.date.fromisoformat(title)
@@ -258,7 +257,12 @@ def render_non_journal(file: Path):
         with open(file, "r") as f:
             return f.read()
     elif ext == ".md":
-        return format_markdown(file, template="non-journal", breadcrumbs=make_breadcrumbs(file))
+        return format_markdown(
+                file,
+                title=file.stem,
+                template="non-journal",
+                breadcrumbs=make_breadcrumbs(file),
+                )
     with open(file, "r") as f:
         text = f.read()
 
@@ -346,37 +350,39 @@ def dir_index(dirs: str = ''):
         path = path.joinpath(*splits[1:])
     paths = sorted(os.listdir(path))
     breadcrumbs = make_breadcrumbs(content_root/dirs, include_cur_dir=True)
-    header = ['<div class="dir-listing">', breadcrumbs]
-    links = []
+    entries = []
     for p in paths:
         if p.startswith("."):
             continue
         if content_root.joinpath(dirs, p).is_dir():
-            dest = f"/dir/{dirs}/{p}"
+            target = f"/dir/{dirs}/{p}"
             name = p
         elif p == "todos.md":
             name = "todo"
-            dest = "/todo"
+            target = "/todo"
         elif type == "journal":
             basename = p.replace(".md", "")
             name = beautify_date(datetime.date.fromisoformat(basename))
-            dest = f"/journal/{basename}"
+            target = f"/journal/{basename}"
         elif type == "assets":
             name = p
             _, year, month, day = dirs.split("/")
-            dest = f"/assets/{year}-{month}-{day}/{name}"
+            target = f"/assets/{year}-{month}-{day}/{name}"
         elif type == "recipes":
             parts = list(dirs.split("/", 1)[1:])
             parts.append(p)
             recipe_path = "/".join(parts)
-            dest = f"/recipes/{recipe_path}"
+            target = f"/recipes/{recipe_path}"
             name = p
         else:
             continue
-        link = f'<ul><a href="{dest}">{name}</a></ul>'
-        links.append(link)
+        entries.append({"target": target, "name": name})
 
-    return "\n".join(itertools.chain(header, links, ['</dir>']))
+    return render_template(
+        "dir.html.j2",
+        breadcrumbs=breadcrumbs,
+        entries=entries,
+        )
 
 
 @secured_route("/dir/<path:dirs>")

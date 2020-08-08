@@ -1,0 +1,18 @@
+{% extends "base.html.j2" %}
+{% block aside %}
+
+<div class="dir-listing">
+  <ul>
+  {% for entry in entries %}
+    <li>
+      <a href="{{ entry.target }}">{{ entry.name }}</a>
+    </li>
+  {% endfor %}
+  <ul>
+</div>
+
+{% endblock %}
+
+<!---
+vim: ft=html.j2
+-->
