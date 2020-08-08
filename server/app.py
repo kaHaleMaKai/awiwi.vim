@@ -114,43 +114,6 @@ class FileBasedAuthBackend(AuthBackend):
 file_auth = FileBasedAuthBackend(auth_cache_file)
 
 
-def get_css_links(style: str):
-    css_files = {
-            f"/static/css/common.css": "common-css",
-            f"/static/css/solarized.css": "theme",
-            }
-    return "\n".join(f'<link id="{id}" rel="stylesheet" href="{f}">' for f, id in css_files.items()) + "\n"
-
-
-def add_css(route: Callable):
-
-    @wraps(route)
-    def f(*args, **kwargs):
-        style = request.cookies.get(theme_mode_key, default_theme_mode)
-        content = route(*args, **kwargs)
-        checked = ' checked="true"' if style == "dark" else ''
-        mode_switcher = f"""
-        <label class="switch">
-          <input type="checkbox" id="mode-switcher-input" {checked} onclick="themeChanger()" />
-          <div class="slider round"></div>
-        </label>
-        """
-        # mode_switcher = f"""
-            # <input id="mode-switcher-input" class="switch-input" type="checkbox" {checked} onclick="themeChanger()"/>
-            # <span class="switch-label" data-on="dark" data-off="light"></span>
-            # <span class="switch-handle"></span>
-        # """
-
-        js = '<script src="/static/js/common.js"></script>'
-        page = get_css_links(style) + js + mode_switcher + content
-
-        if style == "dark":
-            return f'<html data-theme="dark">{page}</html>'
-        return page
-
-    return f
-
-
 def secured_route(path: str):
 
     def inner(route: Callable):
@@ -193,16 +156,11 @@ def tag(text: str, element: str, cssclass: Optional[str] = None):
         return f'<{element}>{text}</{element}>'
 
 
-def make_header(title: str):
-    return tag(tag(title, "h1"), "header")
-
-
-def format_markdown(file, crumbs=None, toc=True, title=None, links=None):
+def format_markdown(file, add_toc=True, title=None, **kwargs):
     with open(file) as f:
         lines = f.readlines()
     parts = []
     if title:
-        parts.append(make_header(title))
         start = 0
     elif lines[0].startswith("# "):
         title = heading = re.sub(r"^[#\s]+", "", lines[0]).strip()
@@ -211,44 +169,37 @@ def format_markdown(file, crumbs=None, toc=True, title=None, links=None):
             title = beautify_date(date, only_day=False)
         except ValueError:
             pass
-        parts.append(make_header(title))
         start = 1
-    else:
-        start = 0
-    parts.append('<div class="container">')
     body = filter_body(lines[start:])
-    if toc:
+    if add_toc:
         md_text = "\n[TOC]\n" + "\n".join(body)
     else:
         md_text = "\n".join(body)
     html = md.convert(md_text)
-    insert_article_div = False
-    if toc:
+    toc = []
+    extracing_toc = False
+
+    if add_toc:
         for line in html.splitlines():
             if '<div class="toc"' in line:
-                insert_article_div = True
-                parts.append('<div class="aside">')
-                parts.append(crumbs)
-                if title:
-                    parts.append(tag(tag(title, "span"), "div", "title-aside"))
-                parts.append(line)
-            elif "</div>" in line and insert_article_div:
-                parts.append(line)
-                parts.append('</div>')
-                parts.append('<div class="article">')
-                insert_article_div = False
+                extracing_toc = True
+                toc.append(line)
+            elif extracing_toc:
+                toc.append(line)
+                if "</div" in line:
+                    extracing_toc = False
             else:
                 parts.append(line)
-        if links:
-            parts.append(links)
-        parts.append("</div>")
     else:
-        parts.append(crumbs)
         parts.append(html)
-        if links:
-            parts.append(links)
 
-    return "".join(parts)
+    return render_template(
+            "main.html.j2",
+            toc="\n".join(toc),
+            content="\n".join(parts),
+            title=title,
+            **kwargs
+            )
 
 
 def find_min_max_paths(path: Path, max_depth: int):
@@ -301,14 +252,13 @@ def statics(type: str, path: str):
     return Response(content, mimetype=mime)
 
 
-@add_css
 def render_non_journal(file: Path):
     name, ext = os.path.splitext(file)
     if not ext:
         with open(file, "r") as f:
             return f.read()
     elif ext == ".md":
-        return format_markdown(file, crumbs=make_breadcrumbs(file))
+        return format_markdown(file, breadcrumbs=make_breadcrumbs(file))
     with open(file, "r") as f:
         text = f.read()
 
@@ -338,41 +288,32 @@ def recipes(path: str):
 
 
 @secured_route("/todo")
-@add_css
 def todo():
     file = content_root/f"journal/todos.md"
-    return format_markdown(file, crumbs=make_breadcrumbs(file), toc=False, title="TODO")
+    return format_markdown(file, breadcrumbs=make_breadcrumbs(file), toc=False, title="TODO")
 
 
 def make_breadcrumbs(path: Path, include_cur_dir=False):
-    links = []
     p = path.relative_to(content_root)
     if not include_cur_dir:
         p = p.parent
+    breadcrumbs = []
     while p != Path('.'):
-        links.append(f'<a class="breadcrumbs-link" href="/dir/{p}">{p.stem}</a>')
+        breadcrumbs.append({"name": p.stem, "target": f"/dir/{p}"})
         p = p.parent
-    links.append('<a class="breadcrumbs-link" href="/">ʻāwīwī</a>')
-
-    crumbs = '<div class="breadcrumbs">' + " > ".join(links[::-1]) + '</div>'
-    return crumbs
+    return breadcrumbs[::-1]
 
 
 @secured_route("/journal/<date>")
-@add_css
 def journal(date: str):
     year, month, _ = date.split("-")
     file = Path(f"{content_root}/journal/{year}/{month}/{date}.md")
 
-    p, n = get_prev_and_next_journal(file)
-    links = ['', '<hr>', '<div class="prevnext-journal">']
-    if p:
-        links.append(f"""<a class="prev-journal" href="/journal/{p}">« previous</a>""")
-    if n:
-        links.append(f"""<a class="next-journal" href="/journal/{n}">next »</a>""")
-    links.append('</div>')
+    prev, next = get_prev_and_next_journal(file)
+    breadcrumbs = make_breadcrumbs(file)
+    title = beautify_date(datetime.date.fromisoformat(date))
 
-    return format_markdown(file, links="\n".join(links), crumbs=make_breadcrumbs(file))
+    return format_markdown(file, breadcrumbs=breadcrumbs, prev=prev, next=next)
 
 
 def beautify_date(date: datetime.date, only_day=True):
@@ -390,10 +331,9 @@ def beautify_date(date: datetime.date, only_day=True):
 
 
 def sidebar(path: Path, include_cur_dir: bool = False):
-    crumbs = make_breadcrumbs(path, include_cur_dir)
+    breadcrumbs = make_breadcrumbs(path, include_cur_dir)
 
 
-@add_css
 def dir_index(dirs: str = ''):
     splits = dirs.split("/")
     type = splits[0]
@@ -401,8 +341,8 @@ def dir_index(dirs: str = ''):
     if len(splits) > 1:
         path = path.joinpath(*splits[1:])
     paths = sorted(os.listdir(path))
-    crumbs = make_breadcrumbs(content_root/dirs, include_cur_dir=True)
-    header = ['<div class="dir-listing">', crumbs]
+    breadcrumbs = make_breadcrumbs(content_root/dirs, include_cur_dir=True)
+    header = ['<div class="dir-listing">', breadcrumbs]
     links = []
     for p in paths:
         if p.startswith("."):

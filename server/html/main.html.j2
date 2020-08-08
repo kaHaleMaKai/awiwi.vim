@@ -1,0 +1,69 @@
+<!doctype html>
+<html data-theme="{{ 'dark' if dark_mode else 'light' }}">
+  <title>ʻāwīwī – {{ title }}</title>
+  <head>
+    <script src="/static/js/common.js"></script>
+    <link rel="stylesheet" href="/static/css/common.css" />
+    <link id="{id}" rel="stylesheet" href="/static/css/solarized.css" />
+  </head>
+  <body>
+    <label class="switch">
+      <input type="checkbox" id="mode-switcher-input" {{ 'checked="true"' if dark_mode else '' }} onclick="themeChanger()" />
+      <div class="slider round"></div>
+    </label>
+
+    <div class="container">
+
+      <div class="aside">
+
+        {% if breadcrumbs|default(false) %}
+        <div class="breadcrumbs">
+          <a class="breadcrumbs-link" href="/">ʻāwīwī</a> &gt;
+          {% for crumb in breadcrumbs %}
+            <a class="breadcrumbs-link" href="{{ crumb.target }}">{{ crumb.name }}</a>
+            {% if not loop.last %} &gt; {% endif %}
+          {% endfor %}
+        </div>
+        {% endif %}
+
+        <div class="title-aside">
+          <span>{{ title }}</span>
+        </div>
+
+        {% if toc|default(false) %}
+        {{ toc }}
+        {% endif %}
+
+      </div>
+
+      <div class="article">
+
+        <header>
+          <h1>
+            {{ title }}
+          </h1>
+        </header>
+
+        <div class="content">
+          {{ content }}
+        </div>
+
+        {% if prev|default(false) or next|default(false) %}
+        <hr>
+        {% if prev|default(false) %}
+          <a class="prev-journal" href="/journal/{{ prev }}">« previous</a>
+        {% endif %}
+        {% if next|default(false) %}
+          <a class="next-journal" href="/journal/{{ next }}">next »</a>
+        {% endif %}
+        {% endif %}
+      </div>
+    </div>
+
+  </body>
+
+</html>
+
+<!---
+vim: ft=html.j2
+-->
