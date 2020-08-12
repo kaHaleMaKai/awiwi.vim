@@ -1,10 +1,12 @@
 import os
 import re
 import sys
+import calendar
 import datetime
 import threading
 import atexit
-from typing import Callable, Optional
+import mimetypes
+from typing import Callable, Optional, Union
 from pathlib import Path
 from flask import Flask, make_response, request, render_template, redirect, session, abort, Response
 from functools import lru_cache, wraps
@@ -114,6 +116,15 @@ class FileBasedAuthBackend(AuthBackend):
 file_auth = FileBasedAuthBackend(auth_cache_file)
 
 
+def is_localhost():
+    host = request.host.rsplit(":", 1)[0]
+    return host in ('localhost', '127.0.0.1', '::1')
+
+
+def is_logged_in():
+    return session.get("logged_in", False)
+
+
 def secured_route(path: str):
 
     def inner(route: Callable):
@@ -121,8 +132,7 @@ def secured_route(path: str):
         @app.route(path)
         @wraps(route)
         def f(*args, **kwargs):
-            host = request.host.rsplit(":", 1)[0]
-            if host in ('localhost', '127.0.0.1', '::1') or session.get("logged_in", False):
+            if is_localhost() or is_logged_in():
                 return route(*args, **kwargs)
             else:
                 return redirect("/login")
@@ -130,7 +140,6 @@ def secured_route(path: str):
         return f
 
     return inner
-
 
 
 def filter_body(lines: list):
@@ -165,7 +174,7 @@ def format_markdown(file, template, add_toc=True, title=None, **kwargs):
         title = heading = re.sub(r"^[#\s]+", "", lines[0]).strip()
         try:
             date = datetime.date.fromisoformat(title)
-            title = beautify_date(date, only_day=False)
+            title = date
         except ValueError:
             pass
         start = 1
@@ -197,6 +206,7 @@ def format_markdown(file, template, add_toc=True, title=None, **kwargs):
             toc="\n".join(toc),
             content="\n".join(parts),
             title=title,
+            theme_mode=get_theme_from_cookie(),
             **kwargs
             )
 
@@ -252,7 +262,12 @@ def statics(type: str, path: str):
 
 
 def render_non_journal(file: Path):
+    if re.search("^secret-|-secret[-.]|-secret$", file.stem) and not is_localhost():
+        return "this file is sensitive", 403
+
     name, ext = os.path.splitext(file)
+    mime_type = mimetypes.guess_type(file)[0]
+
     if not ext:
         with open(file, "r") as f:
             return f.read()
@@ -263,6 +278,11 @@ def render_non_journal(file: Path):
                 template="non-journal",
                 breadcrumbs=make_breadcrumbs(file),
                 )
+    elif mime_type and mime_type.startswith("image"):
+        with open(file, "rb") as f:
+            img = f.read()
+        resp = Response(img, mimetype=mime_type)
+        return resp
     with open(file, "r") as f:
         text = f.read()
 
@@ -276,7 +296,25 @@ def render_non_journal(file: Path):
     return render_template(
             "non-journal.html.j2",
             breadcrumbs=make_breadcrumbs(file),
-            content=content)
+            content=content,
+            theme_mode=get_theme_from_cookie(),
+            )
+
+
+@secured_route("/./<path:path>")
+def remove_current_dir(path: str):
+    return redirect(f"/{path}")
+
+
+@secured_route("/../<path:path>")
+def redirect_to_parent(path: str):
+    return redirect(f"/{path}")
+
+
+@secured_route("/assets/<year>/<month>/<day>/<file>")
+def asset_redirect(year: str, month: str, day: str, file: str):
+    date = f"{year}-{month}-{day}"
+    return redirect(f"/assets/{date}/{file}")
 
 
 @secured_route("/assets/<date>/<file>")
@@ -312,19 +350,39 @@ def make_breadcrumbs(path: Path, include_cur_dir=False):
     return breadcrumbs[::-1]
 
 
+@secured_route("/journal/<year>/<month>/<file>")
+def journal_redirect(year: str, month: str, file: str):
+    return redirect(f"/journal/{file.replace('.md', '')}")
+
+
 @secured_route("/journal/<date>")
 def journal(date: str):
+    if date.endswith(".md"):
+        return redirect(f"/journal/{date.replace('.md', '')}")
     year, month, _ = date.split("-")
     file = Path(f"{content_root}/journal/{year}/{month}/{date}.md")
 
     prev, next = get_prev_and_next_journal(file)
     breadcrumbs = make_breadcrumbs(file)
-    title = beautify_date(datetime.date.fromisoformat(date))
+    title = beautify_if_date(date)
 
     return format_markdown(file, template="journal", breadcrumbs=breadcrumbs, prev=prev, next=next)
 
 
-def beautify_date(date: datetime.date, only_day=True):
+@app.template_filter("calendar_week")
+def calendar_week(date: Union[datetime.date, str]):
+    if isinstance(date, str):
+        date = datetime.date.fromisoformat(date)
+    return int(date.strftime("%W")) % 5
+
+
+@app.template_filter("beautify_if_date")
+def beautify_if_date(date: Union[datetime.date, str], only_day=True):
+    if isinstance(date, str):
+        try:
+            date = datetime.date.fromisoformat(date)
+        except ValueError:
+            return date
     days = date.strftime("%d")
     if days.endswith("1"):
         suffix = "st"
@@ -343,6 +401,8 @@ def sidebar(path: Path, include_cur_dir: bool = False):
 
 
 def dir_index(dirs: str = ''):
+    if dirs.endswith("/"):
+        dirs = dirs[:-1]
     splits = dirs.split("/")
     type = splits[0]
     path = content_root/type
@@ -351,37 +411,59 @@ def dir_index(dirs: str = ''):
     paths = sorted(os.listdir(path))
     breadcrumbs = make_breadcrumbs(content_root/dirs, include_cur_dir=True)
     entries = []
+    first_week = None
     for p in paths:
         if p.startswith("."):
             continue
+        entry = {}
         if content_root.joinpath(dirs, p).is_dir():
-            target = f"/dir/{dirs}/{p}"
-            name = p
+            entry["target"] = f"/dir/{dirs}/{p}"
+            if type in ("journal", "assets"):
+                if len(splits) <= 1:
+                    entry["name"] = p
+                elif len(splits) == 2:
+                    entry["name"] = calendar.month_name[int(p)]
+                else:
+                    date = datetime.date.isoformat("-".join([*splits[-2:], p]))
+                    entry["name"] = date
+                    week = int(date.strftime("%W"))
+                    if first_week is None:
+                        first_week = week
+                    entry["class"] = f"week{week - first_week}"
+            else:
+                entry["name"] = p
         elif p == "todos.md":
-            name = "todo"
-            target = "/todo"
+            entry["name"] = "todo"
+            entry["target"] = "/todo"
         elif type == "journal":
             basename = p.replace(".md", "")
-            name = beautify_date(datetime.date.fromisoformat(basename))
-            target = f"/journal/{basename}"
+            date = datetime.date.fromisoformat(basename)
+            entry["name"] = date
+            entry["target"] = f"/journal/{basename}"
+            week = int(date.strftime("%W"))
+            if first_week is None:
+                first_week = week
+            entry["class"] = f"week{week - first_week}"
         elif type == "assets":
-            name = p
+            entry["name"] = p
             _, year, month, day = dirs.split("/")
-            target = f"/assets/{year}-{month}-{day}/{name}"
+            entry["target"] = f"/assets/{year}-{month}-{day}/{p}"
         elif type == "recipes":
             parts = list(dirs.split("/", 1)[1:])
             parts.append(p)
             recipe_path = "/".join(parts)
-            target = f"/recipes/{recipe_path}"
-            name = p
+            entry["target"] = f"/recipes/{recipe_path}"
+            entry["name"] = p
         else:
             continue
-        entries.append({"target": target, "name": name})
+        entries.append(entry)
+
 
     return render_template(
         "dir.html.j2",
         breadcrumbs=breadcrumbs,
         entries=entries,
+        theme_mode=get_theme_from_cookie(),
         )
 
 
@@ -397,29 +479,34 @@ def index():
 
 @app.errorhandler(FileNotFoundError)
 def page_not_found(error):
-    return render_template("404.html"), 404
+    mode = get_theme_from_cookie()
+    return render_template("404.html", theme_mode=mode), 404
+
+
+def get_theme_from_cookie():
+    mode = request.cookies.get(theme_mode_key)
+    if not mode or mode == "light":
+        return "light"
+    return "dark"
 
 
 @secured_route("/change-mode")
 def change_mode():
-    mode = request.cookies.get(theme_mode_key)
-    if not mode or mode == "light":
-        new_mode = "dark"
-    elif mode == "dark":
-        new_mode = "light"
+    mode = get_theme_from_cookie()
     if request.referrer:
         target = urlparse(request.referrer)
     else:
         target = "/"
     resp = make_response(redirect(target))
-    resp.set_cookie(key=theme_mode_key, value=new_mode, max_age=9999999999)
+    resp.set_cookie(key=theme_mode_key, value=mode, max_age=9999999999)
     return resp
 
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "GET":
-        return render_template("login.html.j2")
+        mode = get_theme_from_cookie()
+        return render_template("login.html.j2", theme_mode=mode)
     user = request.form.get("user")
     password = request.form.get("password")
     if not user or not password:

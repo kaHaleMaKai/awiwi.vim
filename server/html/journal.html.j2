@@ -1,11 +1,30 @@
 {% extends "base.html.j2" %}
 
+{% block page_title %}
+{{ title | beautify_if_date }}
+{% endblock %}
+
+{% block title %}
+{{ title | beautify_if_date(true) }}
+{% endblock %}
+
 {% block aside %}
 
   <div class="title-aside">
     <span>{{ title }}</span>
   </div>
+
   {{ toc }}
+
+<div class="prevnext small">
+  {% if prev|default(false) %}
+    <a class="prev-journal" href="/journal/{{ prev }}">« previous</a>
+  {% endif %}
+  {% if next|default(false) %}
+    <a class="next-journal" href="/journal/{{ next }}">next »</a>
+  {% endif %}
+
+</div>
 
 {% endblock %}
 
@@ -13,12 +32,14 @@
 {% block footer %}
 
   <hr>
-  {% if prev|default(false) %}
+  <div class="prevnext large">
+    {% if prev|default(false) %}
     <a class="prev-journal" href="/journal/{{ prev }}">« previous</a>
-  {% endif %}
-  {% if next|default(false) %}
+    {% endif %}
+    {% if next|default(false) %}
     <a class="next-journal" href="/journal/{{ next }}">next »</a>
-  {% endif %}
+    {% endif %}
+  </div>
 
 {% endblock %}
 

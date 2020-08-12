@@ -5,10 +5,10 @@ let s:types = [
       \ ]
 
 syn region awiwiHeadingRedacted
-      \ start=/^## .*<!---\(redacted-->\)\@=/
+      \ start=/^##\+ .*<!---\(redacted-->\)\@=/
       \ end=/\(<!---redacted\)\@<=-->/
       \ contains=awiwiHeadingRedactedStart,awiwiHeadingRedactedEnd,awiwiHeadingRedactedTag oneline
-syn match awiwiHeadingRedactedStart /\(^## .*\)\@<=<!---\(redacted-->\)\@=/    containedin=awiwiHeadingRedacted conceal
+syn match awiwiHeadingRedactedStart /\(^##\+ .*\)\@<=<!---\(redacted-->\)\@=/    containedin=awiwiHeadingRedacted conceal
 syn match awiwiHeadingRedactedEnd   /\(<!---redacted\)\@<=-->/ containedin=awiwiHeadingRedacted conceal
 syn match awiwiHeadingRedactedTag /\(<!---\)\@<=redacted\(-->\)\@=/ containedin=awiwiHeadingRedacted
 hi awiwiHeadingRedactedTag ctermfg=190 ctermbg=3

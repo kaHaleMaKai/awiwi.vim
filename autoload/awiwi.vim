@@ -20,6 +20,8 @@ let s:tasks_cmd = 'tasks'
 let s:todo_cmd = 'todo'
 
 let s:new_asset_cmd = 'create'
+let s:url_asset_cmd = 'url'
+let s:paste_asset_cmd = 'paste'
 
 let s:journal_subpath = path#join(g:awiwi_home, 'journal')
 let s:asset_subpath = path#join(g:awiwi_home, 'assets')
@@ -317,7 +319,7 @@ fun! awiwi#fuzzy_search(...) abort "{{{
   endif
   let pattern = join(map(copy(a:000), {_, v -> awiwi#util#escape_pattern(v)}), '.*?')
   let rg_cmd = [
-        \ 'rg', '-U', '--multiline-dotall', '--color=never',
+        \ 'rg', '-i', '-U', '--multiline-dotall', '--color=never',
         \ '--column', '--line-number', '--no-heading',
         \ '-g', '!awiwi*', pattern
         \ ]
@@ -611,12 +613,13 @@ fun! s:get_title_and_tags(title) abort "{{{
 endfun "}}}
 
 
-fun! s:get_current_task() abort "{{{
+fun! s:get_current_task(only_main) abort "{{{
   let result = {'marker': '', 'title': '', 'tags': {}, 'bare_title': ''}
   let title = ''
+  let task_marker = a:only_main ? '2' : '2,4'
   for line_nr in range(line('.'), 1, -1)
     let line = getline(line_nr)
-     let matches = matchlist(line, '^\(#\{2,4}\)[[:space:]]\+\([^[:space:]].*\)')
+     let matches = matchlist(line, printf('^\(#\{%s}\)[[:space:]]\+\([^[:space:]].*\)', task_marker))
      if matches != []
        let [marker, title] = matches[1:2]
        let result = {'marker': marker, 'title': title, 'tags': {}, 'bare_title': ''}
@@ -638,7 +641,7 @@ fun! awiwi#insert_and_open_continuation() abort "{{{
   endif
   let today_file = s:get_journal_file_by_date(today)
   let link = s:add_link(printf('continued on %s', today), today_file)
-  let current_task = s:get_current_task()
+  let current_task = s:get_current_task(v:true)
   " get the task name
   if current_task.title == ''
     throw 'AwiwiError: could not find task title'
@@ -760,7 +763,7 @@ fun! awiwi#_get_completion(ArgLead, CmdLine, CursorPos) abort "{{{
   elseif args[1] == s:asset_cmd
     let submatches = []
     if current_arg_pos > 2 && args[2] == s:new_asset_cmd
-      return []
+      return [s:paste_asset_cmd, s:url_asset_cmd]
     endif
     if s:need_to_insert_files(current_arg_pos, args[2:])
       let files = map(s:get_all_asset_files(), {_, v -> printf('%s:%s', v.date, v.name)})
@@ -788,8 +791,22 @@ fun! awiwi#_get_completion(ArgLead, CmdLine, CursorPos) abort "{{{
 endfun "}}}
 
 
-fun! awiwi#create_asset_here_if_not_exists(...) abort "{{{
+fun! awiwi#create_asset_here_if_not_exists(type, ...) abort "{{{
   let [name, filename, link] = call('awiwi#create_asset_link', a:000)
+  let path = s:get_asset_path(awiwi#util#get_own_date(), filename)
+  if !filereadable(path)
+    let ret = awiwi#create_asset(a:type, path)
+    if ret
+      echo printf('asset %s created', filename)
+    else
+      echoerr printf('[ERROR] could ont create asset "%s"', filename)
+      return
+    endif
+  endif
+  if match(filename, '\.\(jpe\?g\|gif\|png\|bmp\)$') > -1
+    let date = awiwi#util#get_own_date()
+    let link = printf('![%s](/assets/%s/%s)', name, date, filename)
+  endif
   let [col, line_nr] = [col('.') - 1, line('.')]
   let line = getline(line_nr)
   let new_line = [line[:col - 1], link]
@@ -798,16 +815,27 @@ fun! awiwi#create_asset_here_if_not_exists(...) abort "{{{
   endif
   call add(new_line, line[col:])
   call setline(line_nr, join(new_line, ''))
-  let path = s:get_asset_path(awiwi#util#get_own_date(), filename)
-  if !filereadable(path)
-    let dir = fnamemodify(path, ':h')
-    if !filewritable(dir)
-      call mkdir(dir, 'p')
-    endif
-    call writefile([], path)
-    echo printf('asset %s created', filename)
-  endif
   return filename
+endfun "}}}
+
+
+fun! awiwi#create_asset(type, path) abort "{{{
+  let dir = fnamemodify(a:path, ':h')
+  if !filewritable(dir)
+    call mkdir(dir, 'p')
+  endif
+  if a:type == 'empty'
+    call writefile([], a:path)
+  elseif a:type == s:url_asset_cmd
+    let url = awiwi#util#input('url: ')
+    if empty(url)
+      return v:false
+    endif
+    return awiwi#download_file(a:path, url)
+  elseif a:type == s:paste_asset_cmd
+    return awiwi#paste_file(a:path)
+  endif
+  return v:true
 endfun "}}}
 
 
@@ -850,6 +878,46 @@ fun! awiwi#create_asset_link(...) abort "{{{
         \ rel_path)
 
   return [name, filename, link_text]
+endfun "}}}
+
+
+fun! awiwi#download_file(filename, url) abort "{{{
+  let ret = trim(system(['curl', '--no-progress-meter', a:url, '-o', a:filename]))
+  if v:shell_error
+    echoerr printf('[ERROR] could not download "%s" to "%s": %s', a:url, a:filename, ret)
+    return v:false
+  endif
+  return v:true
+endfun "}}}
+
+
+fun!awiwi#guess_selection_mime_type() abort "{{{
+  let cmd = 'xclip -selection clipboard -o -t %s | file --mime-type -'
+  for t in ['text/plain', 'image/jpg', 'image/png', 'image/gif', 'image/bmp']
+    let type = split(systemlist(printf(cmd, t))[-1])[-1]
+    if stridx(type, 'empty') == -1
+      break
+    else
+      let type = ''
+    endif
+  endfor
+  return type
+endfun "}}}
+
+
+fun! awiwi#paste_file(filename) abort "{{{
+  let type = awiwi#guess_selection_mime_type()
+  if empty(type)
+    echoerr '[ERROR] cannot guess mime-type from selection'
+  endif
+  let cmd = ['xclip', '-selection', 'clipboard', '-t', type]
+  call extend(cmd, ['-o', '>', shellescape(a:filename)])
+  let ret = trim(system(join(cmd, ' ')))
+  if v:shell_error
+    echoerr printf('[ERROR] could not paste to "%s": %s', a:filename, ret)
+    return v:false
+  endif
+  return v:true
 endfun "}}}
 
 
@@ -921,7 +989,7 @@ endfun "}}}
 
 
 fun! awiwi#activate_current_task() abort "{{{
-  let current_task = s:get_current_task()
+  let current_task = s:get_current_task(v:true)
   if current_task.bare_title == ''
     echoerr 'not in a task section'
     return
@@ -997,9 +1065,15 @@ fun! awiwi#run(...) abort "{{{
       "let files = map(s:get_all_asset_files(), {_, v -> printf('%s:%s', v.date, v.name)})
       "return fzf#run(fzf#wrap({'source': files, 'sink': funcref('s:open_asset_sink')}))
       return fzf#vim#files(s:asset_subpath)
-    elseif a:0 == 2 && a:2 == s:new_asset_cmd
-      let filename = awiwi#create_asset_here_if_not_exists()
-      call awiwi#open_asset(filename, {'new_window': v:true})
+    elseif a:0 >= 2 && a:2 == s:new_asset_cmd
+      if a:0 == 2
+        let filename = awiwi#create_asset_here_if_not_exists('empty')
+        call awiwi#open_asset(filename, {'new_window': v:true})
+      elseif a:3 == s:url_asset_cmd
+        return awiwi#create_asset_here_if_not_exists(s:url_asset_cmd)
+      elseif a:3 == s:paste_asset_cmd
+        return awiwi#create_asset_here_if_not_exists(s:paste_asset_cmd)
+      endif
     endif
     let [date_file_expr, options] = s:parse_file_and_options(a:000[1:])
     if str#contains(date_file_expr, ':')

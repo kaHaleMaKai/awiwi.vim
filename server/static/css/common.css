@@ -9,17 +9,18 @@ html {
   -ms-text-size-adjust: 100%;
 
   --body-bg: #f0f0f0;
-  --body-color: #444;
-  --body-color: #444;
+  --body-color: #444444;
+  --theme-switch-color: #585858;
   --link: #0645ad;
   --link-visited: #0b0080;
   --link-hover: #06e;
   --link-active: #faa700;
   --selection-bg: rgba(100, 100, 0, 0.3);
   --max-color: #000;
-  --header: #222;
-  --blockquote: #666666;
-  --blockquote-border: #d0d0d0;
+  --header: #222222;
+  --title-aside: #606060;
+  --blockquote: #989898;
+  --blockquote-border: #d8d8d8;
   --hr: #e0e0e0;
   --pre-border: #aaa;
   --pre-color: #bbb;
@@ -47,16 +48,18 @@ html {
 
 html[data-theme='dark'] {
   --body-bg: #0f0f0f;
-  --body-color: #a0a0a0; /* #bfbfbf */
+  --body-color: #a0a0a0;
+  --theme-switch-color: #a06400;
   --link: #ca8500;
-  --link-visited: #915f00;
-  --link-hover: #3382ec;
+  --link-visited: #a06400;
+  --link-hover: #cd8d00;
   --link-active: #faa700;
   --selection-bg: rgba(230, 230, 255, 0.3);
   --max-color: #ffffff;
   --header: #dddddd;
-  --blockquote: #999999;
-  --blockquote-border: #212121;
+  --title-aside: #808080;
+  --blockquote: #707070;
+  --blockquote-border: #333333;
   --hr: #2f2f2f; /* make brighter, or not to be seen */
   --pre-border: #808080;
   --pre-color: #606060;
@@ -90,7 +93,7 @@ html.color-theme-in-transition *:after {
 }
 
 body {
-  font-family: Georgia, Palatino, 'Palatino Linotype', Times, 'Times New Roman', sans-serif;
+  font-family: 'Tex Gyre Adventor';
   font-size: 12px;
   line-height: 1.4;
   padding: 1em;
@@ -155,7 +158,6 @@ h1 {
   letter-spacing: 0.3em;
   position: relative;
   margin-left: 20%;
-  margin-bottom: 1em;
 }
 
 h2 {
@@ -178,17 +180,13 @@ h6 {
   font-size: 0.9em;
 }
 
-div.title-aside {
-  margin-top: 2em;
-  font-size: 1.2em;
-}
-
 blockquote {
-  margin: 0;
+  margin: 1.5em 0 1.5em 0;
   padding-left: 2em;
   color: var(--blockquote);
-  border: 0 0 0 0.5em solid;
+  border-left: 0.2em solid;
   border-color: var(--blockquote-border);
+  font-style: italic;
 }
 
 hr {
@@ -221,6 +219,11 @@ pre {
   border-color: var(--pre-color);
   color: var(--code-color);
   background: var(--code-bg);
+}
+
+header {
+  border-bottom: 1px solid;
+  border-color: var(--hr);
 }
 
 h2 > code, h3 > code, h4 > code, h5 > code, h6 > code {
@@ -279,12 +282,29 @@ ul ul, ol ol {
   margin: .2em 0;
 }
 
+div.title-aside {
+  margin-top: 2em;
+  font-size: 1.2em;
+  color: var(--title-aside);
+}
+
+div.toc {
+  margin-top: 0.6em;
+}
+
 div.toc * {
-  font-size: 0.94em;
+  font-size: 0.9em;
+  word-spacing: 0.1em;
+  line-height: 1.8em;
+  letter-spacing: 0.1em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-algin: justify;
 }
 
 div.toc > ul {
-  margin: 0.3em 0;
+  margin: 0.3em 0 0;
   padding-left: 0.0em;
   list-style-type: none;
 }
@@ -360,11 +380,6 @@ table td {
 .author {
   font-size: 1.2em;
   text-align: center;
-}
-
-.next-journal {
-  display: block;
-  float: right;
 }
 
 @media only screen and (min-width: 480px) {
@@ -453,6 +468,8 @@ table td {
 
 .breadcrumbs {
   font-size: 0.9em;
+  font-family: Palatino;
+  word-spacing: 0.16em;
 }
 
 .breadcrumbs-links {
@@ -460,22 +477,83 @@ table td {
 }
 
 div.container {
+  margin-top: 3%;
   max-width: 100%;
 }
 
 div.aside {
   float: left;
   width: 20%;
+  padding-right: 4%;
+  padding-top: 0.55em;
+  border-color: var(--hr);
 }
 
 div.article {
   float: left;
-  max-width: 75%;
+  max-width: 72%;
+  padding-bottom: 4em;
 }
 
 div.article > h2:first-child {
   margin: 0;
   margin-top: 0;
+}
+
+ul.dir-listing {
+  list-style-type: none;
+  display: block;
+  padding-left: 0.6em;
+}
+
+li.dir-listing {
+  padding: 0.3em;
+  letter-spacing: 0.1em;
+  word-spacing: 0.05em;
+  font-size: 16px;
+  line-height: 1.1em;
+}
+
+li.dir-listing:first-child {
+  padding-top: 1.4em;
+}
+
+li.dir-listing.week0 + li.dir-listing.week1,
+li.dir-listing.week0 + li.dir-listing.week2,
+li.dir-listing.week0 + li.dir-listing.week3,
+li.dir-listing.week0 + li.dir-listing.week4,
+li.dir-listing.week0 + li.dir-listing.week5,
+li.dir-listing.week1 + li.dir-listing.week2,
+li.dir-listing.week1 + li.dir-listing.week3,
+li.dir-listing.week1 + li.dir-listing.week4,
+li.dir-listing.week1 + li.dir-listing.week5,
+li.dir-listing.week2 + li.dir-listing.week3,
+li.dir-listing.week2 + li.dir-listing.week4,
+li.dir-listing.week2 + li.dir-listing.week5,
+li.dir-listing.week3 + li.dir-listing.week4,
+li.dir-listing.week3 + li.dir-listing.week5,
+li.dir-listing.week4 + li.dir-listing.week5 {
+  padding-top: 1.4em;
+}
+
+div.prevnext.small {
+  padding-top: 1.4em;
+  letter-spacing: 0.16em;
+  font-size: 0.8em;
+}
+
+div.prevnext.large {
+  letter-spacing: 0.24em;
+  font-size: 14px;
+}
+
+div.prevnext.small > .next-journal {
+  margin-left: 8em;
+}
+
+div.prevnext.large > .next-journal {
+  display: block;
+  float: right;
 }
 
 /* from: https://www.htmllion.com/css3-toggle-switch-button.html */
@@ -498,7 +576,7 @@ div.article > h2:first-child {
   right: 0;
   bottom: 0;
   color: var(--body-bg);
-  background-color: var(--body-color);
+  background-color: var(--theme-switch-color);
   -webkit-transition: .4s;
   transition: .4s;
   border-radius: 34px;

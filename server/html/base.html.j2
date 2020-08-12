@@ -1,6 +1,6 @@
 <!doctype html>
-<html data-theme="{{ 'dark' if dark_mode else 'light' }}">
-  <title>ʻāwīwī – {{ title }}</title>
+<html data-theme="{{ theme_mode }}">
+  <title>ʻāwīwī – {% block page_title %}{{ title|striptags }}{% endblock %}</title>
   <head>
     <script src="/static/js/common.js"></script>
     <link rel="stylesheet" href="/static/css/common.css" />
@@ -8,13 +8,13 @@
   </head>
   <body>
     <label class="switch">
-      <input type="checkbox" id="mode-switcher-input" {{ 'checked="true"' if dark_mode else '' }} onclick="themeChanger()" />
+      <input type="checkbox" id="mode-switcher-input" {{ 'checked="true"' if theme_mode == "dark" else '' }} onclick="themeChanger()" />
       <div class="slider round"></div>
     </label>
 
     <header>
       <h1>
-        {{ title }}
+        {% block title %}{{ title }}{% endblock %}
       </h1>
     </header>
 

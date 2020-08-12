@@ -2,10 +2,14 @@
 {% block aside %}
 
 <div class="dir-listing">
-  <ul>
+  <ul class="dir-listing">
   {% for entry in entries %}
-    <li>
-      <a href="{{ entry.target }}">{{ entry.name }}</a>
+    {% if entry.class is defined %}
+    <li class="dir-listing {{ entry.class }}">
+      {% else %}
+    <li class="dir-listing">
+    {% endif %}
+      <a href="{{ entry.target }}" >{{ entry.name | beautify_if_date }}</a>
     </li>
   {% endfor %}
   <ul>
