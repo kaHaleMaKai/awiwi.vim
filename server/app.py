@@ -52,6 +52,9 @@ md = markdown.Markdown(output_format="html5",
             }
 )
 
+
+lexer_map = {"pgsql": "sql"}
+
 theme_mode_key = "theme-mode"
 default_theme_mode = "light"
 server_root = Path(os.path.abspath(os.path.dirname(__file__)))
@@ -261,7 +264,7 @@ def statics(type: str, path: str):
 
 
 def render_non_journal(file: Path):
-    if re.search("^secret-|-secret[-.]|-secret$", file.stem) and not is_localhost():
+    if re.search("^secrets?-|-secrets?[-.]|-secrets?$", file.stem) and not is_localhost():
         return "this file is sensitive", 403
 
     name, ext = os.path.splitext(file)
@@ -285,10 +288,10 @@ def render_non_journal(file: Path):
     with open(file, "r") as f:
         text = f.read()
 
-    m = re.search(r"(?:vim: ft=)(\S+)", text)
+    m = re.search(r"(?:vim: ft=)(\S+?)([\s.])", text)
     if m:
         lexer_name = m.group(1)
-        lexer = get_lexer_by_name(lexer_name)
+        lexer = get_lexer_by_name(lexer_map.get(lexer_name, lexer_name))
     else:
         lexer = get_lexer_for_filename(file)
     content = highlight(text, lexer, HtmlFormatter(style="solarized-light", cssclass="highlight"))

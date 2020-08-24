@@ -674,6 +674,15 @@ div.single-search-box-modal {
   z-index: 2;
 }
 
+.secret-notice {
+  background-color: var(--theme-switch-color);
+  color: var(--body-bg);
+  font-weight: bold;
+  font-family: Hack;
+  padding: 0.4em;
+  text-align: center;
+}
+
 /*------ ADDED CSS ---------*/
 .slider:after {
  content: 'dark';

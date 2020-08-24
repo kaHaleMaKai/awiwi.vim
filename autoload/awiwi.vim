@@ -1074,9 +1074,9 @@ fun! awiwi#run(...) abort "{{{
       let dest = path#canonicalize(path#join(expand('%:p:h'), link.target))
       return awiwi#copy_file(dest)
     elseif a:0 >= 2 && a:2 == s:new_asset_cmd
-      if a:3 == s:url_asset_cmd
+      if get(a:000, 2, '') == s:url_asset_cmd
         return awiwi#create_asset_here_if_not_exists(s:url_asset_cmd)
-      elseif a:3 == s:paste_asset_cmd
+      elseif get(a:000, 2, '') == s:paste_asset_cmd
         return awiwi#create_asset_here_if_not_exists(s:paste_asset_cmd)
       else
         let args = ['empty']

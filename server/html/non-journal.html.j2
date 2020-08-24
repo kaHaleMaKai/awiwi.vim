@@ -1,5 +1,12 @@
 {% extends "base.html.j2" %}
 
+{% block content %}
+<div class="secret-notice">
+  <p>you can only see this secret on localhost</p>
+</div>
+{{ content }}
+{% endblock %}
+
 {% block aside %}
 
   <div class="title-aside">
