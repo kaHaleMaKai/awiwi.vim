@@ -28,14 +28,15 @@ from pygments.formatters import HtmlFormatter
 from urllib.parse import urlparse
 from passlib.hash import sha512_crypt
 from threading import Lock
+import subprocess
 
 
+ordinal_pattern = re.compile(r"\b([0-9]{1,2})(st|nd|rd|th)\b")
 md = markdown.Markdown(output_format="html5",
         extensions=[
             "fenced_code",
             "tables",
             "codehilite",
-            "tables",
             "def_list",
             "footnotes",
             "meta",
@@ -125,11 +126,11 @@ def is_logged_in():
     return session.get("logged_in", False)
 
 
-def secured_route(path: str):
+def secured_route(path: str, methods=("GET",)):
 
     def inner(route: Callable):
 
-        @app.route(path)
+        @app.route(path, methods=methods)
         @wraps(route)
         def f(*args, **kwargs):
             if is_localhost() or is_logged_in():
@@ -148,21 +149,19 @@ def filter_body(lines: list):
         if hide:
             if line.startswith("## "):
                 hide = False
-                yield line
+                ret = line
             else:
                 continue
         elif "<!---redacted-->" in line:
             hide = True
             continue
         else:
-            yield line
+            ret = line
+        yield replace_date_ordinal(line)
 
 
-def tag(text: str, element: str, cssclass: Optional[str] = None):
-    if cssclass:
-        return f'<{element} class="{cssclass}">{text}</{element}>'
-    else:
-        return f'<{element}>{text}</{element}>'
+def replace_date_ordinal(text: str):
+    return ordinal_pattern.sub(r'\1<sup>\2</sup>', text)
 
 
 def format_markdown(file, template, add_toc=True, title=None, **kwargs):
@@ -377,7 +376,7 @@ def calendar_week(date: Union[datetime.date, str]):
 
 
 @app.template_filter("beautify_if_date")
-def beautify_if_date(date: Union[datetime.date, str], only_day=True):
+def beautify_if_date(date: Union[datetime.date, str], format: str = None):
     if isinstance(date, str):
         try:
             date = datetime.date.fromisoformat(date)
@@ -392,7 +391,7 @@ def beautify_if_date(date: Union[datetime.date, str], only_day=True):
         suffix = "rd"
     else:
         suffix = "th"
-    month_year = "" if only_day else " %B %Y"
+    month_year = "" if not format else f" {format}"
     return date.strftime(f"%a, %-d<sup>{suffix}</sup>{month_year}")
 
 
@@ -516,6 +515,71 @@ def login():
         return redirect("/")
     else:
         abort(403)
+
+
+def format_search_hits(fd):
+    for line in fd.readlines():
+        file, line_no, col, text = line.split(":", 3)
+        if file == "journal/todo.md":
+            target = "/todo"
+            name = "todo"
+            type = "todo"
+        else:
+            parts = file.split("/")
+            type = parts[0]
+            if type == "journal":
+                journal_name = parts[-1].replace('.md', '')
+                target = f"/journal/{journal_name}"
+                name = f"{journal_name}"
+            elif type == "assets":
+                type = "asset"
+                date = "-".join(parts[1:4])
+                asset_name = parts[-1]
+                target = f"/assets/{date}/{asset_name}"
+                name = f"{date}/{asset_name}"
+            elif type == "recipes":
+                target = file
+                name = file.replace("/", " – ", 1)
+                type = "recipe"
+        yield dict(
+                target=target,
+                name=name,
+                line=int(line_no),
+                col=int(col),
+                type=type,
+                text=text.strip())
+
+
+def server_search_content(pattern: str):
+    cmd = ['rg', '-i', '-U', '--multiline-dotall', '--color=never',
+         '--column', '--line-number', '--no-heading',
+         '-g', '!awiwi*', pattern]
+
+    proc = subprocess.Popen(args=cmd, stdout=subprocess.PIPE, cwd=content_root, text=True)
+    try:
+        proc.wait(10)
+    except subprocess.TimeoutExpired as e:
+        return str(e), 500
+
+    def sortable(key: dict):
+        types = {"todo": 0, "journal": 1, "asset": 2, "recipe": 3}
+        t = types[key["type"]]
+        return f"{t}{key['name']}"
+
+    return sorted(format_search_hits(proc.stdout), key=sortable)
+
+
+@secured_route("/search/content", methods=["POST"])
+def search_content():
+    pattern = request.form.get("search-content")
+    if not pattern:
+        return "no pattern given", 400
+    content = server_search_content(pattern)
+    return render_template(
+            "search-content.html.j2",
+            title="search content",
+            theme_mode=get_theme_from_cookie(),
+            content=content)
 
 
 @app.route("/logout")

@@ -6,17 +6,30 @@
     <link rel="stylesheet" href="/static/css/common.css" />
     <link id="{id}" rel="stylesheet" href="/static/css/solarized.css" />
   </head>
-  <body>
-    <label class="switch">
-      <input type="checkbox" id="mode-switcher-input" {{ 'checked="true"' if theme_mode == "dark" else '' }} onclick="themeChanger()" />
-      <div class="slider round"></div>
-    </label>
 
-    <header>
-      <h1>
-        {% block title %}{{ title }}{% endblock %}
-      </h1>
-    </header>
+  <body>
+
+    <div class="top-bar">
+
+      <label class="switch">
+        <input type="checkbox" id="mode-switcher-input" {{ 'checked="true"' if theme_mode == "dark" else '' }} onclick="themeChanger()" />
+        <div class="slider round"></div>
+      </label>
+
+      <div class="single-search-box">
+        <form class="single-search-box" action="/search/content" method="post">
+          <input type="text" id="search-content" class="search-box" value="" placeholder="search…" name="search-content" />
+          <label class="search-box" for="search-content"></label>
+          <div class="single-search-box-modal"></div>
+        </form>
+      </div>
+
+      <header>
+        <h1>
+          {% block title %}{{ title }}{% endblock %}
+        </h1>
+      </header>
+    </div>
 
     <div class="container">
 

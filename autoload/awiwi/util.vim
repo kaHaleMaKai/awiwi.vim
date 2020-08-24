@@ -1,7 +1,7 @@
-" if exists('g:autoloaded_awiwi_util')
-"   finish
-" endif
-" let g:autoloaded_awiwi_util = v:true
+if exists('g:autoloaded_awiwi_util')
+  finish
+endif
+let g:autoloaded_awiwi_util = v:true
 
 let s:search_engine_plain = 'plain'
 let s:search_engine_regex = 'regex'

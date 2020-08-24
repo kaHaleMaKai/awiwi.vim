@@ -22,6 +22,7 @@ let s:todo_cmd = 'todo'
 let s:new_asset_cmd = 'create'
 let s:url_asset_cmd = 'url'
 let s:paste_asset_cmd = 'paste'
+let s:copy_asset_cmd = 'copy'
 
 let s:journal_subpath = path#join(g:awiwi_home, 'journal')
 let s:asset_subpath = path#join(g:awiwi_home, 'assets')
@@ -49,7 +50,6 @@ endfor
 fun! awiwi#get_data_dir() abort "{{{
   return s:awiwi_data_dir
 endfun "}}}
-
 
 let s:log_file = path#join(s:awiwi_data_dir, 'awiwi.log')
 let s:task_log_file = path#join(s:awiwi_data_dir, 'task.log')
@@ -763,7 +763,7 @@ fun! awiwi#_get_completion(ArgLead, CmdLine, CursorPos) abort "{{{
   elseif args[1] == s:asset_cmd
     let submatches = []
     if current_arg_pos > 2 && args[2] == s:new_asset_cmd
-      return [s:paste_asset_cmd, s:url_asset_cmd]
+      return [s:paste_asset_cmd, s:url_asset_cmd, s:copy_asset_cmd]
     endif
     if s:need_to_insert_files(current_arg_pos, args[2:])
       let files = map(s:get_all_asset_files(), {_, v -> printf('%s:%s', v.date, v.name)})
@@ -1065,14 +1065,24 @@ fun! awiwi#run(...) abort "{{{
       "let files = map(s:get_all_asset_files(), {_, v -> printf('%s:%s', v.date, v.name)})
       "return fzf#run(fzf#wrap({'source': files, 'sink': funcref('s:open_asset_sink')}))
       return fzf#vim#files(s:asset_subpath)
+    elseif a:0 >= 2 && a:2 == s:copy_asset_cmd
+      let link = awiwi#util#get_link_type(awiwi#util#get_link_under_cursor())
+      if link.type != 'asset'
+        echoerr '[ERROR] no asset file under cursor'
+        return
+      endif
+      let dest = path#canonicalize(path#join(expand('%:p:h'), link.target))
+      return awiwi#copy_file(dest)
     elseif a:0 >= 2 && a:2 == s:new_asset_cmd
-      if a:0 == 2
-        let filename = awiwi#create_asset_here_if_not_exists('empty')
-        call awiwi#open_asset(filename, {'new_window': v:true})
-      elseif a:3 == s:url_asset_cmd
+      if a:3 == s:url_asset_cmd
         return awiwi#create_asset_here_if_not_exists(s:url_asset_cmd)
       elseif a:3 == s:paste_asset_cmd
         return awiwi#create_asset_here_if_not_exists(s:paste_asset_cmd)
+      else
+        let args = ['empty']
+        call extend(args, a:000[2:])
+        let filename = call('awiwi#create_asset_here_if_not_exists', args)
+        call awiwi#open_asset(filename, {'new_window': v:true})
       endif
     endif
     let [date_file_expr, options] = s:parse_file_and_options(a:000[1:])
@@ -1202,6 +1212,7 @@ fun! awiwi#serve(...) abort "{{{
   call system(printf('(sleep 1; xdg-open http://localhost:5000/%s) &', target))
   echo printf('serving on %s:5000', empty(host) ? 'localhost' : host)
   1new
+  set wfh
   call termopen(printf('%s run %s', flask, host_arg))
   normal! <C-\><C-N>
   wincmd p
@@ -1220,4 +1231,17 @@ fun! awiwi#redact() abort "{{{
     let new_line = substitute(line, ' *<!---redacted-->', '', 'g')
   endif
   call setline(line('.'), new_line)
+endfun "}}}
+
+
+fun! awiwi#copy_file(path) abort "{{{
+  let cmd = ['xclip', '-selection', 'clipboard', '-r', a:path]
+  let ret = trim(system(cmd))
+  if !v:shell_error
+    echo printf('[INFO] copied file %s to clipboard', fnamemodify(a:path, ':h'))
+    return v:true
+  else
+    echo printf('[ERROR] could not copy file %s to clipboard', fnamemodify(a:path, ':h'))
+    return v:false
+  endif
 endfun "}}}

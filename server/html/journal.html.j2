@@ -1,17 +1,17 @@
 {% extends "base.html.j2" %}
 
 {% block page_title %}
-{{ title | beautify_if_date }}
+{{ title | beautify_if_date("%B %Y") }}
 {% endblock %}
 
 {% block title %}
-{{ title | beautify_if_date(true) }}
+{{ title | beautify_if_date(format="%B") }}
 {% endblock %}
 
 {% block aside %}
 
   <div class="title-aside">
-    <span>{{ title }}</span>
+    <span>{{ title | beautify_if_date }}</span>
   </div>
 
   {{ toc }}
