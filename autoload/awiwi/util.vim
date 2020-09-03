@@ -224,6 +224,8 @@ fun! awiwi#util#get_link_type(link) abort "{{{
     let ret.type = 'browser'
   elseif match(a:link, '^[a-z]\+://') > -1
     let ret.type = 'external'
+  elseif match(a:link, '\..*/recipes/.*') > -1
+    let ret.type = 'recipe'
   elseif match(a:link, '\..*/assets/.*') > -1
     let ret.type = 'asset'
   elseif match(a:link, '/\(journal/\)\?\([0-9]\{4}/\)\?\([0-9]\{2}/\)\?\d\{4}-\d\{2}-\d\{2}.md$')

@@ -11,6 +11,7 @@ let s:journal_cmd = 'journal'
 let s:continuation_cmd = 'continue'
 let s:entry_cmd = 'entries'
 let s:asset_cmd = 'asset'
+let s:link_cmd = 'link'
 let s:recipe_cmd = 'recipe'
 let s:search_cmd = 'search'
 let s:serve_cmd = 'serve'
@@ -72,6 +73,7 @@ let s:subcommands = [
       \ s:journal_cmd,
       \ s:entry_cmd,
       \ s:asset_cmd,
+      \ s:link_cmd,
       \ s:recipe_cmd,
       \ s:redact_cmd,
       \ s:search_cmd,
@@ -696,11 +698,12 @@ fun! s:get_all_recipe_files() abort "{{{
 endfun "}}}
 
 
-fun! s:need_to_insert_files(current_arg_pos, args) abort "{{{
-  if a:current_arg_pos == 2
+fun! s:need_to_insert_files(current_arg_pos, args, ...) abort "{{{
+  let start = get(a:000, 0, 2)
+  if a:current_arg_pos == start
     return v:true
   endif
-  return (a:current_arg_pos - s:has_new_win_cmd(a:args) - s:has_win_height_cmd(a:args)) == 2
+  return (a:current_arg_pos - s:has_new_win_cmd(a:args) - s:has_win_height_cmd(a:args)) == start
         \ ? v:true : v:false
 endfun "}}}
 
@@ -771,12 +774,13 @@ fun! awiwi#_get_completion(ArgLead, CmdLine, CursorPos) abort "{{{
     endif
     call s:insert_win_cmds(submatches, current_arg_pos, args[2:])
     return awiwi#util#match_subcommands(submatches, a:ArgLead)
-  elseif args[1] == s:recipe_cmd
+  elseif args[1] == s:recipe_cmd || (args[1] == s:link_cmd && get(args, 2, v:false) == s:recipe_cmd)
+    let start = args[1] == s:recipe_cmd ? 2 : 3
     let submatches = []
-    if s:need_to_insert_files(current_arg_pos, args[2:])
+    if s:need_to_insert_files(current_arg_pos, args[start:], start)
       call extend(submatches, s:get_all_recipe_files())
     endif
-    call s:insert_win_cmds(submatches, current_arg_pos, args[2:])
+    call s:insert_win_cmds(submatches, current_arg_pos, args[start:])
     return awiwi#util#match_subcommands(submatches, a:ArgLead)
   elseif args[1] == s:todo_cmd
     let submatches = []
@@ -785,9 +789,24 @@ fun! awiwi#_get_completion(ArgLead, CmdLine, CursorPos) abort "{{{
   elseif args[1] == s:serve_cmd && current_arg_pos == 2
     let submatches = ['localhost', '*']
     return awiwi#util#match_subcommands(submatches, a:ArgLead)
+  elseif args[1] == s:link_cmd
+    let submatches = [s:recipe_cmd]
+    return awiwi#util#match_subcommands(submatches, a:ArgLead)
   endif
 
   return []
+endfun "}}}
+
+
+fun! awiwi#insert_link_here(link) abort "{{{
+  let [col, line_nr] = [col('.') - 1, line('.')]
+  let line = getline(line_nr)
+  let new_line = [line[:col - 1], a:link]
+  if ! empty(line[col]) && match(line[col], '[[:space:]]') == -1
+    call add(new_line, ' ')
+  endif
+  call add(new_line, line[col:])
+  call setline(line_nr, join(new_line, ''))
 endfun "}}}
 
 
@@ -807,14 +826,7 @@ fun! awiwi#create_asset_here_if_not_exists(type, ...) abort "{{{
     let date = awiwi#util#get_own_date()
     let link = printf('![%s](/assets/%s/%s)', name, date, filename)
   endif
-  let [col, line_nr] = [col('.') - 1, line('.')]
-  let line = getline(line_nr)
-  let new_line = [line[:col - 1], link]
-  if ! empty(line[col]) && match(line[col], '[[:space:]]') == -1
-    call add(new_line, ' ')
-  endif
-  call add(new_line, line[col:])
-  call setline(line_nr, join(new_line, ''))
+  call awiwi#insert_link_here(link)
   return filename
 endfun "}}}
 
@@ -1093,14 +1105,30 @@ fun! awiwi#run(...) abort "{{{
       let file = date_file_expr
     endif
     call s:open_asset_by_name(date, file, options)
-  elseif a:1 == s:recipe_cmd
+  elseif a:1 == s:recipe_cmd || (a:1 == s:link_cmd && get(a:000, 1, '') == s:recipe_cmd)
     if a:0 == 1
       return fzf#vim#files(s:recipe_subpath)
     endif
     let [recipe, options] = s:parse_file_and_options(a:000[1:])
     let options.create_dirs = v:true
     let recipe_file = path#join(s:recipe_subpath, recipe)
-    call s:open_file(recipe_file, options)
+    if a:1 == s:recipe_cmd
+      call s:open_file(recipe_file, options)
+    else
+      let parts = split(recipe_file, '/')
+      for i in range(len(parts)-1, 0, -1)
+        if parts[i] == 'recipes'
+          let start = i + 1
+          break
+        endif
+      endfor
+
+      let file_name = call('path#join', parts[start:])
+      let path = s:relativize(recipe_file)
+      let link = printf('[recipe %s](%s)', file_name, path)
+      call awiwi#insert_link_here(link)
+      return
+    endif
   elseif a:1 == s:tasks_cmd
     call func#apply(funcref('awiwi#show_tasks'), func#spread(a:000[1:]))
   elseif a:1 == s:show_cmd
