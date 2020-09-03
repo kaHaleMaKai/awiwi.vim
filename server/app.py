@@ -1,27 +1,28 @@
 import os
 import re
 import sys
+import json
 import calendar
 import datetime
 import threading
 import atexit
 import mimetypes
-from typing import Callable, Optional, Union
+import hashlib
+from typing import Callable, Optional, Union, Tuple
 from pathlib import Path
-from flask import Flask, make_response, request, render_template, redirect, session, abort, Response
+from flask import Flask, make_response, request, render_template, redirect, session, abort, Response, jsonify
 from functools import lru_cache, wraps
 import itertools
 import markdown
-import markdown.extensions.fenced_code
-import markdown.extensions.tables
-import markdown.extensions.codehilite
-import markdown.extensions.tables
-import markdown.extensions.def_list
-import markdown.extensions.footnotes
-import markdown.extensions.meta
-import markdown.extensions.nl2br
-import markdown.extensions.sane_lists
-import markdown.extensions.toc
+from markdown.extensions.fenced_code import FencedCodeExtension
+from markdown.extensions.tables import TableExtension
+from markdown.extensions.codehilite import  CodeHiliteExtension
+from markdown.extensions.def_list import DefListExtension
+from markdown.extensions.footnotes import FootnoteExtension
+from markdown.extensions.meta import MetaExtension
+from markdown.extensions.nl2br import Nl2BrExtension
+from markdown.extensions.sane_lists import SaneListExtension
+from markdown.extensions.toc import TocExtension
 from pygments import highlight
 from pygments.lexers import get_lexer_for_filename, get_lexer_by_name
 from pygments.formatters import HtmlFormatter
@@ -34,22 +35,16 @@ import subprocess
 ordinal_pattern = re.compile(r"\b([0-9]{1,2})(st|nd|rd|th)\b")
 md = markdown.Markdown(output_format="html5",
         extensions=[
-            "fenced_code",
-            "tables",
-            "codehilite",
-            "def_list",
-            "footnotes",
-            "meta",
-            "nl2br",
-            "sane_lists",
-            "toc",
-            ],
-        extension_configs={
-            "codehilite": {
-                "css_class": "highlight",
-                "guess_lang": False,
-                }
-            }
+            FencedCodeExtension(),
+            TableExtension(),
+            CodeHiliteExtension(css_class="highlight", guess_lang=False),
+            DefListExtension(),
+            FootnoteExtension(),
+            MetaExtension(),
+            Nl2BrExtension(),
+            SaneListExtension(),
+            TocExtension()
+            ]
 )
 
 
@@ -120,6 +115,14 @@ class FileBasedAuthBackend(AuthBackend):
 file_auth = FileBasedAuthBackend(auth_cache_file)
 
 
+def hash_line(line: str):
+    if re.match("\s*\* \[[x ]\] ", line):
+        line = re.sub("\[[ x]\]", "", line, 1)
+    if line[-1] == "\n":
+        line = line[:-1]
+    return hashlib.md5(line.encode()).hexdigest()
+
+
 def is_localhost():
     host = request.host.rsplit(":", 1)[0]
     return host in ('localhost', '127.0.0.1', '::1')
@@ -146,21 +149,35 @@ def secured_route(path: str, methods=("GET",)):
     return inner
 
 
-def filter_body(lines: list):
+def filter_body(lines: list, offset: int):
     hide = False
-    for line in lines:
+    for line_no, line in enumerate(lines, start=offset):
         if hide:
             if line.startswith("## "):
                 hide = False
-                ret = line
             else:
                 continue
         elif "<!---redacted-->" in line:
             hide = True
             continue
-        else:
-            ret = line
+        elif (m := re.match("^(\s*\* )(\[[x ]\])( .*$)", line)):
+            hash = hash_line(line)
+            box = m.group(2)
+            checked = "checked" if "x" in box else ""
+            line = (f'{m.group(1)}<input type="checkbox" {checked} data-line-nr="{line_no}" ' +
+                    f'class="awiwi-checkbox" data-hash="{hash}"> {m.group(3)}')
         yield replace_date_ordinal(line)
+
+
+def get_file_for_endpoint(path: str) -> Path:
+    if path.startswith("/journal"):
+        rem, date = path.rsplit("/", 1)
+        year, month, _ = date.split("-")
+        return content_root/f"journal/{year}/{month}/{date}.md"
+    elif path.startswith("/todo"):
+        return content_root/"journal/todos.md"
+    else:
+        raise ValueError("not implemented yet")
 
 
 def replace_date_ordinal(text: str):
@@ -180,7 +197,7 @@ def format_markdown(file, template, add_toc=True, title=None, **kwargs):
         except ValueError:
             pass
         start = 1
-    body = filter_body(lines[start:])
+    body = filter_body(lines[start:], offset=start)
     if add_toc:
         md_text = "\n[TOC]\n" + "\n".join(body)
     else:
@@ -238,7 +255,7 @@ def get_adjacent_journal_file(current_date: datetime.date, diff: int):
             return p.stem.replace(".md", "")
 
 
-def get_prev_and_next_journal(path: Path):
+def get_prev_and_next_journal(path: Path) -> Tuple[Optional[str], Optional[str]]:
     journal_root = Path(content_root, "journal")
     paths = find_min_max_paths(journal_root, 3)
     min_, max_ = [datetime.date.fromisoformat(d.stem.replace(".md", "")) for d in paths]
@@ -264,8 +281,16 @@ def statics(type: str, path: str):
 
 
 def render_non_journal(file: Path):
-    if re.search("^secrets?-|-secrets?[-.]|-secrets?$", file.stem) and not is_localhost():
-        return "this file is sensitive", 403
+    is_secret = re.search("^secrets?-|-secrets?[-.]|-secrets?$", file.stem)
+    if is_secret and not is_localhost():
+        return render_template(
+                "non-journal.html.j2",
+                breadcrumbs=make_breadcrumbs(file),
+                content="",
+                theme_mode=get_theme_from_cookie(),
+                is_secret=True,
+                is_localhost=False
+                )
 
     name, ext = os.path.splitext(file)
     mime_type = mimetypes.guess_type(file)[0]
@@ -279,6 +304,9 @@ def render_non_journal(file: Path):
                 title=file.stem,
                 template="non-journal",
                 breadcrumbs=make_breadcrumbs(file),
+                is_secret=is_secret,
+                is_localhost=is_localhost(),
+                highlight_article=is_secret,
                 )
     elif mime_type and mime_type.startswith("image"):
         with open(file, "rb") as f:
@@ -300,6 +328,9 @@ def render_non_journal(file: Path):
             breadcrumbs=make_breadcrumbs(file),
             content=content,
             theme_mode=get_theme_from_cookie(),
+            is_localhost=is_localhost(),
+            is_secret=is_secret,
+            highlight_article=is_secret,
             )
 
 
@@ -357,10 +388,28 @@ def journal_redirect(year: str, month: str, file: str):
     return redirect(f"/journal/{file.replace('.md', '')}")
 
 
+def parse_date(date: str) -> datetime.date:
+    date = date.lower()
+    if date == "today":
+        return datetime.date.today()
+    elif date == "yesterday":
+        return datetime.date.today() - datetime.timedelta(days=1)
+    elif date in ("previous", "prev"):
+        today = datetime.date.today()
+        year_month = today.strftime("%Y/%m")
+        iso_date = today.strftime("%Y-%m-%d")
+        file = Path(f"{content_root}/journal/{year_month}/{iso_date}.md")
+        prev, _ = get_prev_and_next_journal(file)
+        return datetime.date.fromisoformat(prev)
+    else:
+        return datetime.date.fromisoformat(date)
+
+
 @secured_route("/journal/<date>")
 def journal(date: str):
     if date.endswith(".md"):
         return redirect(f"/journal/{date.replace('.md', '')}")
+    date = parse_date(date).isoformat()
     year, month, _ = date.split("-")
     file = Path(f"{content_root}/journal/{year}/{month}/{date}.md")
 
@@ -589,6 +638,52 @@ def search_content():
 def logout():
     session["logged_in"] = False
     return "", 200
+
+
+def json_response(data: dict, status: int = 200):
+    # return jsonify(data, status=status, content_type="application/json; chartset=UTF-8")
+    return jsonify(data), status
+
+
+@secured_route("/checkbox", methods=["PATCH"])
+def update_checkbox():
+    """
+    body: {"line_nr": N, "path": "/some/end/point", "check": true|false, "hash": "hexdigest"}
+    """
+    data = request.json
+    line_nr = data["line_nr"]
+    endpoint = data["path"]
+    check = data["check"]
+    hash = data["hash"]
+    path = get_file_for_endpoint(endpoint)
+
+    if not path.exists():
+        return json_response({"success": False, "msg": f"path {endpoint} does not exist"}, 404)
+    try:
+        update_checkbox_in_file(path, line_nr, check, hash)
+    except ValueError as e:
+        return json_response({"success": False, "msg": str(e)}, 409)
+    return json_response({"success": True})
+
+
+def update_checkbox_in_file(path: Path, line_nr: int, check: bool, hash: str) -> None:
+    check_char = "x" if check else " "
+    with open(path, "r+") as f:
+        for i in range(line_nr):
+            f.readline()
+        pos = f.tell()
+        line = f.readline()
+        if line[-1] == "\n":
+            line = line[:-1]
+        if hash != (this_hash := hash_line(line)):
+            raise ValueError(f"hashes don't match. exp: '{this_hash}. got: '{hash}'")
+        m = re.match("(\s*\* \[)([ x])", line)
+        is_checked = m.group(2) == "x"
+        if is_checked == check:
+            raise ValueError(f"checkbox is already {'un' if not is_checked else ''}checked")
+        offset = m.end() - 1
+        f.seek(pos + offset)
+        f.write(check_char)
 
 
 if __name__ == "__main__":

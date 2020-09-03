@@ -674,14 +674,24 @@ div.single-search-box-modal {
   z-index: 2;
 }
 
-.secret-notice {
+#secret-notice {
   background-color: var(--theme-switch-color);
   color: var(--body-bg);
   font-weight: bold;
   font-family: Hack;
   padding: 0.4em;
   text-align: center;
+  animation: secret-notice-disappears 2s both;
+  animation-delay: 3s;
 }
+
+@keyframes secret-notice-disappears {
+  0% { opacity: 1; }
+  70% { opacity: 0.1; font-size: 100%; }
+  100% { opacity: 0; visibility: hidden; font-size: 0; }
+}
+
+.highlight-article { }
 
 /*------ ADDED CSS ---------*/
 .slider:after {

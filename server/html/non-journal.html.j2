@@ -1,10 +1,16 @@
 {% extends "base.html.j2" %}
 
 {% block content %}
-<div class="secret-notice">
+
+{% if is_secret %}
+<div id="secret-notice">
   <p>you can only see this secret on localhost</p>
 </div>
+{% endif %}
+
+{% if not is_secret or is_localhost %}
 {{ content }}
+{% endif %}
 {% endblock %}
 
 {% block aside %}

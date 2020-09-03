@@ -1,5 +1,11 @@
 let html = document.getElementsByTagName('html')[0];
 
+html.classList.add('color-theme-in-transition');
+
+window.setTimeout(() => {
+  document.documentElement.classList.remove('color-theme-in-transition')
+}, 1000);
+
 let createCookie = (name, value) => {
     let date = new Date();
     date.setTime(date.getTime() + (9999*24*60*60*1000));
@@ -9,7 +15,7 @@ let createCookie = (name, value) => {
 
 if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
     html.classList.add('color-theme-in-transition');
-    window.setTimeout(function() {
+    window.setTimeout(() => {
       document.documentElement.classList.remove('color-theme-in-transition')
     }, 1000);
     html.setAttribute('data-theme', 'dark');
@@ -21,7 +27,7 @@ let el = document.getElementById('mode-switcher-input');
 
 window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
     html.classList.add('color-theme-in-transition');
-    window.setTimeout(function() {
+    window.setTimeout(() => {
       document.documentElement.classList.remove('color-theme-in-transition')
     }, 1000);
 
@@ -45,7 +51,7 @@ let themeChanger = () => {
 
     let theme = html.getAttribute('data-theme');
 
-    window.setTimeout(function() {
+    window.setTimeout(() => {
       document.documentElement.classList.remove('color-theme-in-transition')
     }, 1000);
 
@@ -57,4 +63,37 @@ let themeChanger = () => {
         html.setAttribute('data-theme', 'dark');
         document.cookie = createCookie('theme-mode', 'dark');
     }
+}
+
+const checkboxHandler = (e) => {
+  const that = e.currentTarget;
+  const hash = e.currentTarget.getAttribute('data-hash');
+  const lineNr = e.currentTarget.getAttribute('data-line-nr');
+  const check = e.currentTarget.checked;
+  const path = window.location.pathname;
+  const body = {path: path, check: check, line_nr: parseInt(lineNr), hash: hash};
+
+  const host = window.location.host;
+  const protocol = window.location.protocol;
+  const address = protocol + '//' + host + '/checkbox';
+
+  const data = { method: 'PATCH', body: JSON.stringify(body), headers: { 'Content-Type': 'application/json; charset=UTF-8' } };
+  fetch(address, data).then(r => r.json()).then(t => {
+    if (!t.success) {
+      that.checked = !that.checked;
+      alert("could not toggle box: " + t.msg);
+    }
+  });
+}
+
+const attachCheckboxes = () => {
+  const els = document.getElementsByClassName('awiwi-checkbox');
+  for (let i = 0; i < els.length; ++i) {
+    const el = els[i];
+    el.onclick = checkboxHandler;
+  }
+}
+
+const onloadHandler = () => {
+  attachCheckboxes();
 }

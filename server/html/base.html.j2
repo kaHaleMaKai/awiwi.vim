@@ -7,7 +7,7 @@
     <link id="{id}" rel="stylesheet" href="/static/css/solarized.css" />
   </head>
 
-  <body>
+  <body onload="onloadHandler()">
 
     <div class="top-bar">
 
@@ -46,7 +46,7 @@
 
       </div>
 
-      <div class="article">
+      <div class="article {{ 'highlight-article' if highlight_article|default(false) else '' }}">
 
         {% block content %}
         {{ content }}
