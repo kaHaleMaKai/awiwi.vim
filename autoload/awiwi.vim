@@ -1106,27 +1106,21 @@ fun! awiwi#run(...) abort "{{{
     endif
     call s:open_asset_by_name(date, file, options)
   elseif a:1 == s:recipe_cmd || (a:1 == s:link_cmd && get(a:000, 1, '') == s:recipe_cmd)
-    if a:0 == 1
-      return fzf#vim#files(s:recipe_subpath)
+    if a:000[-1] == s:recipe_cmd
+      if a:0 == 1
+        return fzf#vim#files(s:recipe_subpath)
+      else
+        call fzf#vim#files(s:recipe_subpath, { 'sink': funcref('awiwi#insert_recipe_link') } )
+        return
+      endif
     endif
     let [recipe, options] = s:parse_file_and_options(a:000[1:])
     let options.create_dirs = v:true
-    let recipe_file = path#join(s:recipe_subpath, recipe)
     if a:1 == s:recipe_cmd
+      let recipe_file = path#join(s:recipe_subpath, recipe)
       call s:open_file(recipe_file, options)
     else
-      let parts = split(recipe_file, '/')
-      for i in range(len(parts)-1, 0, -1)
-        if parts[i] == 'recipes'
-          let start = i + 1
-          break
-        endif
-      endfor
-
-      let file_name = call('path#join', parts[start:])
-      let path = s:relativize(recipe_file)
-      let link = printf('[recipe %s](%s)', file_name, path)
-      call awiwi#insert_link_here(link)
+      call awiwi#insert_recipe_link(recipe)
       return
     endif
   elseif a:1 == s:tasks_cmd
@@ -1272,4 +1266,20 @@ fun! awiwi#copy_file(path) abort "{{{
     echo printf('[ERROR] could not copy file %s to clipboard', fnamemodify(a:path, ':h'))
     return v:false
   endif
+endfun "}}}
+
+fun! awiwi#insert_recipe_link(recipe) abort "{{{
+  let recipe_file = path#join(s:recipe_subpath, a:recipe)
+  let parts = split(recipe_file, '/')
+  for i in range(len(parts)-1, 0, -1)
+    if parts[i] == 'recipes'
+      let start = i + 1
+      break
+    endif
+  endfor
+
+  let file_name = call('path#join', parts[start:])
+  let path = s:relativize(recipe_file)
+  let link = printf('[recipe %s](%s)', file_name, path)
+  call awiwi#insert_link_here(link)
 endfun "}}}
