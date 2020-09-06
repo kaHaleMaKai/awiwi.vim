@@ -28,15 +28,8 @@ let s:copy_asset_cmd = 'copy'
 let s:journal_subpath = path#join(g:awiwi_home, 'journal')
 let s:asset_subpath = path#join(g:awiwi_home, 'assets')
 let s:recipe_subpath = path#join(g:awiwi_home, 'recipes')
+let s:awiwi_data_dir = path#join(g:awiwi_home, 'data')
 let s:code_root_dir = expand('<sfile>:p:h:h')
-
-if exists('g:awiwi_data_dir')
-  let s:awiwi_data_dir = g:awiwi_data_dir
-elseif exists('$XDG_DATA_DIR')
-  let s:awiwi_data_dir = path#join($XDG_DATA_DIR, 'awiwi')
-else
-  let s:awiwi_data_dir = path#join(g:awiwi_home, 'data')
-endif
 
 for dir in [s:awiwi_data_dir, s:journal_subpath, s:asset_subpath, s:recipe_subpath]
   if !filewritable(dir)
