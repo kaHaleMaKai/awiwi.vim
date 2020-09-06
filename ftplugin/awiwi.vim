@@ -1,29 +1,9 @@
-if exists('b:loaded_awiwi')
-  finish
-endif
-let b:loaded_awiwi = v:true
-
 " assert plugins being available
 if !exists('g:awiwi_home')
-  throw AwiwiError 'g:awiwi_home is not defined'
-elseif !exists('*path#join')
-  throw 'AwiwiError: path.vim plugin is required'
-elseif !exists('*func#apply')
-  throw 'AwiwiError: func.vim plugin is required'
-elseif !exists('*str#startswith')
-  throw 'AwiwiError: str.vim plugin is required'
+  echoerr 'g:awiwi_home is not defined'
+  finish
 endif
 
-"if $XDG_CACHE_DIR != '' "{{{ create cache dir
-  "let s:cache_dir = $XDG_CACHE_DIR
-"else
-  "let s:cache_dir = printf('%s/.cache', $HOME)
-"endif
-"let s:cache_dir = printf("%s/%s", s:cache_dir, "awiwi")
-"let s:session_file = printf("%s/%s", s:cache_dir, "session.vim")
-"if !filereadable(s:session_file)
-  "call mkdir(fnamemodify(s:session_file, ':p:h'), 'p')
-"endif "}}}
 
 " ++++++++++++++++++++++++++++++++++++++++
 " +              commands                +

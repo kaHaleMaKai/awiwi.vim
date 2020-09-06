@@ -1204,6 +1204,25 @@ fun! awiwi#open_link(...) abort "{{{
 endfun "}}}
 
 
+fun! s:write_json_config() abort "{{{
+  let config_file = path#join(g:awiwi_home, 'config.json')
+  let conf = {
+        \ 'search_engine': g:awiwi_search_engine,
+        \ 'home': g:awiwi_home,
+        \ 'screensaver': g:awiwi_screensaver,
+        \ 'link_color': g:awiwi_link_color,
+        \ 'todo_markers': s:todo_markers,
+        \ 'onhold_markers': s:onhold_markers,
+        \ 'urgent_markers': s:urgent_markers,
+        \ 'delegate_markers': s:delegate_markers,
+        \ 'question_markers': s:question_markers,
+        \ 'due_markers': s:due_markers
+        \ }
+  let content = [json_encode(conf)]
+  call writefile(content, config_file)
+endfun "}}}
+
+
 fun! awiwi#serve(...) abort "{{{
   let host = get(a:000, 0, '')
   let flask = path#join(s:code_root_dir, 'server', '.venv', 'bin', 'flask')
@@ -1226,6 +1245,7 @@ fun! awiwi#serve(...) abort "{{{
   endif
   call system(printf('(sleep 1; xdg-open http://localhost:5000/%s) &', target))
   echo printf('serving on %s:5000', empty(host) ? 'localhost' : host)
+  call s:write_json_config()
   1new
   set wfh
   call termopen(printf('%s run %s', flask, host_arg))
