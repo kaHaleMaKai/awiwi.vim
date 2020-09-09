@@ -423,9 +423,6 @@ endfun "}}}
 
 
 fun! s:get_journal_file_by_date(date) abort "{{{
-  if a:date == 'todo' || a:date == 'todos'
-    return path#join(s:journal_subpath, 'todos.md')
-  endif
   let date = s:parse_date(a:date)
   let [year, month, day] = split(date, '-')
   return path#join(s:journal_subpath, year, month, date.'.md')
@@ -577,17 +574,19 @@ fun! awiwi#edit_journal(date, ...) abort "{{{
   else
     let date = s:parse_date(a:date)
   endif
-  try
-    let own_date = awiwi#util#get_own_date()
-  catch /AwiwiError/
-    let own_date = 'todos'
-  endtry
+  let own_date = awiwi#util#get_own_date()
   if date == own_date
     echom printf("journal page '%s' already open", date)
     return
   endif
   let file = s:get_journal_file_by_date(date)
   call s:open_file(file, options)
+endfun "}}}
+
+
+fun! awiwi#edit_todo(options) abort "{{{
+  let file = path#join(s:journal_subpath, 'todos.md')
+  call s:open_file(file, a:options)
 endfun "}}}
 
 
@@ -926,11 +925,15 @@ fun! awiwi#paste_file(filename) abort "{{{
 endfun "}}}
 
 
-fun! s:parse_file_and_options(args) abort "{{{
+fun! s:parse_file_and_options(args, ...) abort "{{{
     if len(a:args) == 0 || len(a:args) > 3
       echoerr printf('Awiwi journal: 1 to 3 arguments expected. got %d', len(a:args)-1)
     endif
-    let options = {'position': 'bottom', 'new_window': v:true}
+    if a:0
+      let options = copy(a:1)
+    else
+      let options = {'position': 'auto', 'new_window': v:true}
+    endif
     let file = ''
     for arg in a:args
       if index(s:journal_all_window_cmds, arg) > -1
@@ -1057,7 +1060,7 @@ fun! awiwi#run(...) abort "{{{
     throw 'AwiwiError: Awiwi expects 1+ arguments'
   endif
   if a:1 == s:journal_cmd
-    let [date, options] = s:parse_file_and_options(a:000[1:])
+    let [date, options] = s:parse_file_and_options(a:000[1:], {'new_window': v:false})
     call awiwi#edit_journal(date, options)
   elseif a:1 == s:continuation_cmd
     call awiwi#insert_and_open_continuation()
@@ -1150,7 +1153,7 @@ fun! awiwi#run(...) abort "{{{
     if empty(options)
       let options = {'new_window': v:true, 'height': 10}
     endif
-    call awiwi#edit_journal('todo', options)
+    call awiwi#edit_todo(options)
   endif
 endfun "}}}
 
