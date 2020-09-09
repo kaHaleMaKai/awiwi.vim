@@ -23,6 +23,7 @@ from markdown.extensions.meta import MetaExtension
 from markdown.extensions.nl2br import Nl2BrExtension
 from markdown.extensions.sane_lists import SaneListExtension
 from markdown.extensions.toc import TocExtension
+from markdown_strikethrough.extension import StrikethroughExtension
 from pygments import highlight
 from pygments.lexers import get_lexer_for_filename, get_lexer_by_name
 from pygments.formatters import HtmlFormatter
@@ -43,7 +44,8 @@ md = markdown.Markdown(output_format="html5",
             MetaExtension(),
             Nl2BrExtension(),
             SaneListExtension(),
-            TocExtension()
+            TocExtension(),
+            StrikethroughExtension(),
             ]
 )
 
