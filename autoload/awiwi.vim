@@ -341,21 +341,29 @@ fun! s:format_search_result(start, ...) abort "{{{
     let line = prinft('%s...%s', start.content, end[-(max_len/2-1):])
 endfun "}}}
 
+
 fun! s:parse_date(date) abort "{{{
   if a:date == 'today'
     return strftime('%F')
   elseif a:date == 'yesterday'
     let date = s:get_yesterday(strftime('%F'))
-  elseif a:date == 'previous'
-    let date = s:get_previous_date(strftime('%F'))
-  elseif a:date == 'next'
-    let date = s:get_next_date(strftime('%F'))
+  elseif a:date == 'prev' || a:date == 'previous' || a:date == 'previous date' || a:date == 'previous day'
+    try
+      let date = s:get_offset_date(awiwi#util#get_own_date(), -1)
+    catch /AwiwiError/
+      let date = s:get_offset_date(s:get_today(), -1)
+    endtry
+  elseif a:date == 'next' || a:date == 'next date' || a:date == 'next day'
+    try
+      let date = s:get_offset_date(awiwi#util#get_own_date(), +1)
+    catch /AwiwiError/
+      let date = s:get_offset_date(s:get_today(), +1)
+    endtry
   else
     let date = a:date
   endif
   return date
 endfun "}}}
-
 
 
 fun! s:get_yesterday(date) abort "{{{
@@ -559,21 +567,7 @@ endfun "}}}
 fun! awiwi#edit_journal(date, ...) abort "{{{
   let options = get(a:000, 0, {})
   let options.last_line = v:true
-  if a:date == 'previous'
-    try
-      let date = s:get_offset_date(awiwi#util#get_own_date(), -1)
-    catch /AwiwiError/
-      let date = s:get_offset_date(s:get_today(), -1)
-    endtry
-  elseif a:date == 'next'
-    try
-      let date = s:get_offset_date(awiwi#util#get_own_date(), +1)
-    catch /AwiwiError/
-      let date = s:get_offset_date(s:get_today(), +1)
-    endtry
-  else
-    let date = s:parse_date(a:date)
-  endif
+  let date = s:parse_date(a:date)
   let own_date = awiwi#util#get_own_date()
   if date == own_date
     echom printf("journal page '%s' already open", date)
@@ -660,10 +654,14 @@ fun! awiwi#insert_and_open_continuation() abort "{{{
 endfun "}}}
 
 
-fun! s:get_all_journal_files() abort "{{{
-    return sort(map(
-          \ split(glob(path#join(g:awiwi_home, 'journal', '**', '*.md'))),
-          \ {_, v -> fnamemodify(v, ':t:r')}))
+fun! s:get_all_journal_files(...) abort "{{{
+  let files =sort(map(
+        \ split(glob(path#join(g:awiwi_home, 'journal', '**', '*.md'))),
+        \ {_, v -> fnamemodify(v, ':t:r')}))
+  if get(a:000, 0, v:false)
+    call extend(files, ['previous day', 'next day', 'yesterday', 'today'])
+  endif
+  return files
 endfun "}}}
 
 
@@ -743,9 +741,10 @@ fun! awiwi#_get_completion(ArgLead, CmdLine, CursorPos) abort "{{{
     endif
     let prev_cmds = uniq(args[2:current_arg_pos-1]) + [s:tasks_filter_cmd]
     return filter(matches, {_, v -> index(prev_cmds, v) == -1})
-  elseif args[1] == s:journal_cmd
+  elseif args[1] == s:journal_cmd || (args[1] == s:link_cmd && get(args, 2, '') == s:journal_cmd)
+    let start = args[1] == s:recipe_cmd ? 2 : 3
     let submatches = []
-    if s:need_to_insert_files(current_arg_pos, args[2:])
+    if s:need_to_insert_files(current_arg_pos, args[start:], start)
       call extend(submatches, s:get_all_journal_files())
       let todos_idx = index(submatches, 'todos')
       if todos_idx != -1
@@ -753,7 +752,7 @@ fun! awiwi#_get_completion(ArgLead, CmdLine, CursorPos) abort "{{{
       endif
       call extend(submatches, ['todos', 'today', 'next', 'previous'], 0)
     endif
-    call s:insert_win_cmds(submatches, current_arg_pos, args[2:])
+    call s:insert_win_cmds(submatches, current_arg_pos, args[start:])
     return awiwi#util#match_subcommands(submatches, a:ArgLead)
   elseif args[1] == s:asset_cmd
     let submatches = []
@@ -766,7 +765,7 @@ fun! awiwi#_get_completion(ArgLead, CmdLine, CursorPos) abort "{{{
     endif
     call s:insert_win_cmds(submatches, current_arg_pos, args[2:])
     return awiwi#util#match_subcommands(submatches, a:ArgLead)
-  elseif args[1] == s:recipe_cmd || (args[1] == s:link_cmd && get(args, 2, v:false) == s:recipe_cmd)
+  elseif args[1] == s:recipe_cmd || (args[1] == s:link_cmd && get(args, 2, '') == s:recipe_cmd)
     let start = args[1] == s:recipe_cmd ? 2 : 3
     let submatches = []
     if s:need_to_insert_files(current_arg_pos, args[start:], start)
@@ -782,7 +781,7 @@ fun! awiwi#_get_completion(ArgLead, CmdLine, CursorPos) abort "{{{
     let submatches = ['localhost', '*']
     return awiwi#util#match_subcommands(submatches, a:ArgLead)
   elseif args[1] == s:link_cmd
-    let submatches = [s:recipe_cmd]
+    let submatches = [s:journal_cmd, s:recipe_cmd]
     return awiwi#util#match_subcommands(submatches, a:ArgLead)
   endif
 
@@ -1059,9 +1058,20 @@ fun! awiwi#run(...) abort "{{{
   if !a:0
     throw 'AwiwiError: Awiwi expects 1+ arguments'
   endif
-  if a:1 == s:journal_cmd
+  if a:1 == s:journal_cmd || (a:1 == s:link_cmd && get(a:000, 1, '') == s:journal_cmd)
+    if a:000[-1] == s:journal_cmd
+      if a:0 == 1
+        return fzf#vim#files(s:journal_subpath)
+      else
+        return fzf#run(fzf#wrap({'source': s:get_all_journal_files(v:true), 'sink': funcref('awiwi#insert_journal_link')}))
+      endif
+    endif
     let [date, options] = s:parse_file_and_options(a:000[1:], {'new_window': v:false})
-    call awiwi#edit_journal(date, options)
+    if a:1 == s:link_cmd
+      return awiwi#insert_journal_link(date)
+    else
+      call awiwi#edit_journal(date, options)
+    endif
   elseif a:1 == s:continuation_cmd
     call awiwi#insert_and_open_continuation()
   elseif a:1 == s:activate_cmd
@@ -1297,5 +1307,12 @@ fun! awiwi#insert_recipe_link(recipe) abort "{{{
   let file_name = call('path#join', parts[start:])
   let path = s:relativize(recipe_file)
   let link = printf('[recipe %s](%s)', file_name, path)
+  call awiwi#insert_link_here(link)
+endfun "}}}
+
+
+fun! awiwi#insert_journal_link(date) abort "{{{
+  let file = s:relativize(s:get_journal_file_by_date(a:date))
+  let link = printf('[journal for %s](%s)', a:date, file)
   call awiwi#insert_link_here(link)
 endfun "}}}
