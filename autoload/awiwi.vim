@@ -742,7 +742,7 @@ fun! awiwi#_get_completion(ArgLead, CmdLine, CursorPos) abort "{{{
     let prev_cmds = uniq(args[2:current_arg_pos-1]) + [s:tasks_filter_cmd]
     return filter(matches, {_, v -> index(prev_cmds, v) == -1})
   elseif args[1] == s:journal_cmd || (args[1] == s:link_cmd && get(args, 2, '') == s:journal_cmd)
-    let start = args[1] == s:recipe_cmd ? 2 : 3
+    let start = args[1] == s:journal_cmd ? 2 : 3
     let submatches = []
     if s:need_to_insert_files(current_arg_pos, args[start:], start)
       call extend(submatches, s:get_all_journal_files())
@@ -752,18 +752,26 @@ fun! awiwi#_get_completion(ArgLead, CmdLine, CursorPos) abort "{{{
       endif
       call extend(submatches, ['todos', 'today', 'next', 'previous'], 0)
     endif
-    call s:insert_win_cmds(submatches, current_arg_pos, args[start:])
+    if args[1] == s:journal_cmd
+      call s:insert_win_cmds(submatches, current_arg_pos, args[start:])
+    endif
     return awiwi#util#match_subcommands(submatches, a:ArgLead)
-  elseif args[1] == s:asset_cmd
+  elseif args[1] == s:asset_cmd || (args[1] == s:link_cmd && get(args, 2, '') == s:asset_cmd)
     let submatches = []
-    if current_arg_pos > 2 && args[2] == s:new_asset_cmd
+    if current_arg_pos > 2 && args[1] == s:asset_cmd && args[2] == s:new_asset_cmd
       return [s:paste_asset_cmd, s:url_asset_cmd, s:copy_asset_cmd]
     endif
-    if s:need_to_insert_files(current_arg_pos, args[2:])
+    let start = args[1] == s:asset_cmd ? 2 : 3
+    if len(args) == 2
+      call add(submatches, s:new_asset_cmd)
+    endif
+    if s:need_to_insert_files(current_arg_pos, args[start:], start)
       let files = map(s:get_all_asset_files(), {_, v -> printf('%s:%s', v.date, v.name)})
       call extend(submatches, files)
     endif
-    call s:insert_win_cmds(submatches, current_arg_pos, args[2:])
+    if args[1] == s:asset_cmd
+      call s:insert_win_cmds(submatches, current_arg_pos, args[start:])
+    endif
     return awiwi#util#match_subcommands(submatches, a:ArgLead)
   elseif args[1] == s:recipe_cmd || (args[1] == s:link_cmd && get(args, 2, '') == s:recipe_cmd)
     let start = args[1] == s:recipe_cmd ? 2 : 3
@@ -771,7 +779,9 @@ fun! awiwi#_get_completion(ArgLead, CmdLine, CursorPos) abort "{{{
     if s:need_to_insert_files(current_arg_pos, args[start:], start)
       call extend(submatches, s:get_all_recipe_files())
     endif
-    call s:insert_win_cmds(submatches, current_arg_pos, args[start:])
+    if args[1] == s:recipe_cmd
+      call s:insert_win_cmds(submatches, current_arg_pos, args[start:])
+    endif
     return awiwi#util#match_subcommands(submatches, a:ArgLead)
   elseif args[1] == s:todo_cmd
     let submatches = []
@@ -781,7 +791,7 @@ fun! awiwi#_get_completion(ArgLead, CmdLine, CursorPos) abort "{{{
     let submatches = ['localhost', '*']
     return awiwi#util#match_subcommands(submatches, a:ArgLead)
   elseif args[1] == s:link_cmd
-    let submatches = [s:journal_cmd, s:recipe_cmd]
+    let submatches = [s:journal_cmd, s:recipe_cmd, s:asset_cmd]
     return awiwi#util#match_subcommands(submatches, a:ArgLead)
   endif
 
@@ -1078,7 +1088,7 @@ fun! awiwi#run(...) abort "{{{
     call awiwi#activate_current_task()
   elseif a:1 == s:deactivate_cmd
     call awiwi#deactivate_active_task()
-  elseif a:1 == s:asset_cmd
+  elseif a:1 == s:asset_cmd || (a:1 == s:link_cmd && get(a:000, 1, '') == s:asset_cmd)
     if a:0 == 1
       "let files = map(s:get_all_asset_files(), {_, v -> printf('%s:%s', v.date, v.name)})
       "return fzf#run(fzf#wrap({'source': files, 'sink': funcref('s:open_asset_sink')}))
@@ -1100,17 +1110,24 @@ fun! awiwi#run(...) abort "{{{
         let args = ['empty']
         call extend(args, a:000[2:])
         let filename = call('awiwi#create_asset_here_if_not_exists', args)
-        call awiwi#open_asset(filename, {'new_window': v:true})
+        return awiwi#open_asset(filename, {'new_window': v:true})
       endif
     endif
-    let [date_file_expr, options] = s:parse_file_and_options(a:000[1:])
+
+    let start = a:1 == s:asset_cmd ? 1 : 2
+    let [date_file_expr, options] = s:parse_file_and_options(a:000[start:])
     if str#contains(date_file_expr, ':')
       let [date, file] = split(date_file_expr, ':')
     else
       let date = awiwi#util#get_own_date()
       let file = date_file_expr
     endif
-    call s:open_asset_by_name(date, file, options)
+    if a:1 == s:link_cmd
+      return awiwi#insert_asset_link(date, file)
+    else
+      return s:open_asset_by_name(date, file, options)
+    endif
+
   elseif a:1 == s:recipe_cmd || (a:1 == s:link_cmd && get(a:000, 1, '') == s:recipe_cmd)
     if a:000[-1] == s:recipe_cmd
       if a:0 == 1
@@ -1314,5 +1331,12 @@ endfun "}}}
 fun! awiwi#insert_journal_link(date) abort "{{{
   let file = s:relativize(s:get_journal_file_by_date(a:date))
   let link = printf('[journal for %s](%s)', a:date, file)
+  call awiwi#insert_link_here(link)
+endfun "}}}
+
+
+fun! awiwi#insert_asset_link(date, name) abort "{{{
+  let path = s:relativize(s:get_asset_path(a:date, a:name))
+  let link = printf('[asset %s, %s](%s)', a:name, a:date, path)
   call awiwi#insert_link_here(link)
 endfun "}}}
