@@ -166,8 +166,8 @@ def filter_body(lines: list, offset: int):
             hash = hash_line(line)
             box = m.group(2)
             checked = "checked" if "x" in box else ""
-            line = (f'{m.group(1)}<input type="checkbox" {checked} data-line-nr="{line_no}" ' +
-                    f'class="awiwi-checkbox" data-hash="{hash}"> {m.group(3)}')
+            line = (f'{m.group(1)}<input type="checkbox" id="checkbox-line-{line_no}" {checked} data-line-nr="{line_no}" ' +
+                    f'class="awiwi-checkbox" data-hash="{hash}"> <label for="checkbox-line-{line_no}"><span>{m.group(3)}</span></label>')
         yield replace_date_ordinal(line)
 
 

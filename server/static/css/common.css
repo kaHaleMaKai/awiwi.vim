@@ -24,6 +24,7 @@ html {
   --title-aside: #606060;
   --blockquote: #989898;
   --blockquote-border: #d8d8d8;
+  --cancelled-text: #d0d0d0;
   --hr: #e0e0e0;
   --pre-border: #aaa;
   --pre-color: #bbb;
@@ -66,6 +67,8 @@ html[data-theme='dark'] {
   --title-aside: #808080;
   --blockquote: #707070;
   --blockquote-border: #333333;
+  --cancelled-text: #515151;
+  --hr: #e0e0e0;
   --hr: #2f2f2f; /* make brighter, or not to be seen */
   --pre-border: #808080;
   --pre-color: #606060;
@@ -685,9 +688,67 @@ div.single-search-box-modal {
   animation-delay: 3s;
 }
 
+input[type=checkbox].awiwi-checkbox + label {
+  display: block;
+  margin: 0.2em;
+  cursor: pointer;
+  padding: 0.2em;
+}
+
+input[type=checkbox].awiwi-checkbox {
+  display: none;
+}
+
+input[type=checkbox].awiwi-checkbox + label:before {
+  content: "\2714 ";
+  border: 0.1em solid;
+  border-color: var(--search-box-border);
+  border-radius: 0.2em;
+  display: inline-block;
+  width: 0.9em;
+  height: 0.9em;
+  padding-left: 0.2em;
+  padding-bottom: 0.3em;
+  margin-right: 0.2em;
+  vertical-align: bottom;
+  color: transparent;
+  transition: .2s;
+}
+
+input[type=checkbox].awiwi-checkbox + label:active:before {
+  transform: scale(0);
+}
+
+input[type=checkbox]:checked.awiwi-checkbox + label:before {
+  background-color: var(--body-bg);
+  border-color: var(--theme-switch-color);
+  color: var(--theme-switch-color);
+}
+
+input[type=checkbox].awiwi-checkbox + label span {
+  color: var(--body-color);
+  transition: 0.6s ease;
+}
+
+input[type=checkbox]:checked.awiwi-checkbox + label span {
+  color: var(--cancelled-text);
+  transition: 0.6s ease;
+}
+
+input[type=checkbox]:disabled.awiwi-checkbox + label:before {
+  transform: scale(1);
+  border-color: #aaa;
+}
+
+input[type=checkbox]:checked:disabled.awiwi-checkbox + label:before {
+  transform: scale(1);
+  background-color: #bfb;
+  border-color: #bfb;
+}
+
 @keyframes secret-notice-disappears {
-  0% { opacity: 1; }
-  70% { opacity: 0.1; font-size: 100%; }
+    0% { opacity: 1; }
+   70% { opacity: 0.1; font-size: 100%; }
   100% { opacity: 0; visibility: hidden; font-size: 0; }
 }
 
