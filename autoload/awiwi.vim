@@ -510,21 +510,6 @@ fun! awiwi#open_asset(name, ...) abort "{{{
 endfun "}}}
 
 
-fun! awiwi#open_journal_or_asset(...) abort "{{{
-  if a:0
-    call awiwi#open_asset()
-  endif
-  let [name, rem] = s:get_asset_under_cursor(v:true)
-  if name == ''
-    normal! gf
-  elseif awiwi#util#is_date(name)
-    call awiwi#edit_journal(name)
-  else
-    call awiwi#open_asset()
-  endif
-endfun "}}}
-
-
 fun! s:get_today() abort "{{{
   return strftime('%F')
 endfun "}}}
@@ -953,6 +938,7 @@ fun! s:parse_file_and_options(args, ...) abort "{{{
         elseif arg == s:journal_new_window_cmd
           let options.position = 'auto'
         endif
+        let options.new_window = v:true
       elseif str#startswith(arg, s:journal_height_window_cmd) || str#startswith(arg, s:journal_width_window_cmd)
         let options.height = str2nr(split(arg, '=')[-1])
       else
