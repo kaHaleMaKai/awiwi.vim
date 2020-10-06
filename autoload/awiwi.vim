@@ -84,6 +84,7 @@ let s:tasks_urgent_cmd = 'urgent'
 let s:tasks_onhold_cmd = 'onhold'
 let s:tasks_question_cmd = 'question'
 let s:tasks_todo_cmd = 'todo'
+let s:tasks_incidents_cmd = 'incidents'
 
 let s:journal_new_window_cmd = '+new'
 let s:journal_hnew_window_cmd = '+hnew'
@@ -109,7 +110,8 @@ let s:tasks_subcommands = [
       \ s:tasks_urgent_cmd,
       \ s:tasks_onhold_cmd,
       \ s:tasks_question_cmd,
-      \ s:tasks_todo_cmd
+      \ s:tasks_todo_cmd,
+      \ s:tasks_incidents_cmd
       \ ]
 
 let s:todo_markers = ['TODO']
@@ -126,6 +128,7 @@ let s:urgent_markers = [
 let s:delegate_markers = ['@todo', '@@']
 let s:question_markers = ['QUESTION']
 let s:due_markers = ['DUE', 'DUE TO', 'UNTIL', '@until', '@due']
+let s:incident_markers = ['@incident']
 
 " 1}}}
 
@@ -272,6 +275,9 @@ fun! awiwi#show_tasks(...) abort "{{{
   endif
   if s:contains(args, s:tasks_question_cmd, s:tasks_all_cmd)
     call add(markers, awiwi#get_markers('question'))
+  endif
+  if s:contains(args, s:tasks_incidents_cmd, s:tasks_all_cmd)
+    call add(markers, awiwi#get_markers('incident'))
   endif
   if args[0] == s:tasks_filter_cmd
     if a:0 == 1
@@ -1273,13 +1279,13 @@ endfun "}}}
 
 fun! awiwi#redact() abort "{{{
   let line = getline('.')
-  if match(line, '<!---redacted-->') == -1
+  if match(line, '!!redacted') == -1
     let space = empty(line) || str#endswith(line, ' ')
           \ ? '' : ' '
-    let tag = space . '<!---redacted-->'
+    let tag = space . '!!redacted'
     let new_line = line . tag
   else
-    let new_line = substitute(line, ' *<!---redacted-->', '', 'g')
+    let new_line = substitute(line, ' *!!redacted', '', 'g')
   endif
   call setline(line('.'), new_line)
 endfun "}}}

@@ -48,6 +48,9 @@ html {
   --highlight-kn-color: #cb4b16;
   --highlight-kt-color: #b58900;
 
+  --img-opacity: 100%;
+  --img-sepia: sepia(0%);
+  --img-sepia-hover: sepia(0%);
 }
 
 html[data-theme='dark'] {
@@ -91,6 +94,10 @@ html[data-theme='dark'] {
   --highlight-hll-background: #073642;
   --highlight-kn-color: #cb4b16;
   --highlight-kt-color: #b58900;
+
+  --img-opacity: 60%;
+  --img-sepia: sepia(40%);
+  --img-sepia-hover: sepia(20%);
 }
 
 html.color-theme-in-transition,
@@ -148,6 +155,14 @@ p {
 
 img {
   max-width: 100%;
+  opacity: var(--img-opacity);
+  filter: var(--img-sepia);
+  transition: opacity .5s ease-in-out, filter .5s ease-in-out;
+}
+
+img:hover {
+  opacity: 1;
+  filter: var(--img-sepia-hover);
 }
 
 h1, h2, h3, h4, h5, h6 {

@@ -161,6 +161,9 @@ augroup awiwiAutosave
   au InsertLeave,CursorHold *.md silent w
 augroup END
 
+inoremap <silent> <buffer> <C-d> <C-r>=strftime('%F')<CR>
+inoremap <silent> <buffer> <C-f> <C-r>=strftime('%H:%M')<CR>
+
 iabbrev :shrug: `¯\_(ツ)_/¯`
 iabbrev :arrow: →
 iabbrev :check: ✔

@@ -159,7 +159,7 @@ def filter_body(lines: list, offset: int):
                 hide = False
             else:
                 continue
-        elif "<!---redacted-->" in line:
+        elif "!!redacted" in line:
             hide = True
             continue
         elif (m := re.match("^(\s*\* )(\[[x ]\])( .*$)", line)):

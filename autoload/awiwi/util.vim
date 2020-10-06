@@ -233,3 +233,32 @@ fun! awiwi#util#get_link_type(link) abort "{{{
   endif
   return ret
 endfun "}}}
+
+
+fun! awiwi#util#get_visual_selection() abort "{{{
+  echoerr mode()
+  if mode() !=? 'v'
+    return ''
+  endif
+  let line0, col0 = getpos("'<")[1:2]
+  let line1, col1 = getpos("'>")[1:2]
+  let lines = []
+  if mode == 'V'
+    for line in range(line0, line1)
+      call add(lines, getline(line))
+    endfor
+  elseif line0 == line1
+    call add(lines, getline(line0)[col0:col1])
+  else
+    for line in range(line0, line1)
+      let text = getline(line)
+      if line == line0
+        let text = text[col0:]
+      elseif line == line1
+        let text = text[:col1]
+      endif
+      call add(lines, text)
+    endfor
+  endif
+  return join(lines, "\n")
+endfun "}}}
