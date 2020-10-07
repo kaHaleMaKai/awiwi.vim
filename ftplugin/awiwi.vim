@@ -152,6 +152,32 @@ fun! s:handle_enter() abort "{{{
   normal! j
 endfun "}}}
 
+
+fun! s:delete_old_tasks() abort "{{{
+py3 << EOF
+import re
+import datetime
+
+
+today = datetime.date.today()
+max_line_nr: int = int(vim.eval("line('$')"))
+
+for line_nr in range(max_line_nr - 1, -1, -1):
+    line: str = vim.eval(f"getline('{line_nr}')")
+    if line.startswith("* [ ]"):
+        continue
+    match = re.search("(?:[(]from )([-0-9]{10})(?:[)])", line)
+    if not match:
+        continue
+    date = datetime.date.fromisoformat(match.group(1))
+    if (today - date).days <= 30:
+        continue
+    vim.command(f"{line_nr}d")
+EOF
+endfun "}}}
+
+
+
 nnoremap <silent> <buffer> o :call <sid>handle_enter_on_insert()<CR>
 inoremap <silent> <buffer> <Enter> <Esc>:call <sid>handle_enter_on_insert()<CR>
 nnoremap <silent> <buffer> <Enter> :call <sid>handle_enter()<CR>
@@ -159,6 +185,11 @@ nnoremap <silent> <buffer> <Enter> :call <sid>handle_enter()<CR>
 augroup awiwiAutosave
   au!
   au InsertLeave,CursorHold *.md silent w
+augroup END
+
+augroup awiwiDeleteOldTasks
+  au!
+  au BufWritePre */journal/todos.md call <sid>delete_old_tasks()
 augroup END
 
 inoremap <silent> <buffer> <C-d> <C-r>=strftime('%F')<CR>
