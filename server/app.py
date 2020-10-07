@@ -152,15 +152,28 @@ def secured_route(path: str, methods=("GET",)):
 
 
 def filter_body(lines: list, offset: int):
+    redaction_pattern = "!!redacted"
     hide = False
+    # we only have h1…h6 – using 7 is safe here
+    marker_depth = 7
     for line_no, line in enumerate(lines, start=offset):
         if hide:
-            if line.startswith("## "):
-                hide = False
+            if (m := re.match('^(?P<marker>##+) ', line)):
+                current_depth = len(m.group("marker"))
+                if current_depth <= marker_depth:
+                    hide = False
             else:
                 continue
-        elif "!!redacted" in line:
-            hide = True
+        elif redaction_pattern in line:
+            if (m := re.match('^(?P<marker>##+) ', line)):
+                marker_depth = len(m.group("marker"))
+                hide = True
+            else:
+                rem = line.split(redaction_pattern)[-1].strip()
+                if rem:
+                    yield f"*** redacted (cause: {rem}) ***"
+                else:
+                    yield "*** redacted ***"
             continue
         elif (m := re.match("^(\s*\* )(\[[x ]\])( .*$)", line)):
             hash = hash_line(line)

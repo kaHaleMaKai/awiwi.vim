@@ -47,7 +47,11 @@ fun! s:inHeaderWithSimpleMarkers(name, marker, hi, ...) abort "{{{
   return call('s:inHeaderWithMarkers', args)
 endfun "}}}
 
-call s:tagInHeader('awiwiRedacted', '!!redacted', 'ctermfg=190 ctermbg=3')
+syn match awiwiRedacted /\([[:space:]]\|^\)\@<=\(!!redacted\)\([[:space:]]\|$\)\@=/ containedin=markdownH1,markdownH2,markdownH3,markdownH4,markdownH5,markdownH6,markdownCode
+hi awiwiRedacted ctermfg=190 ctermbg=3
+syn match awiwiRedactedCause /\(\([[:space:]]\|^\)!!redacted[[:space:]]\+\)\@<=.*$/ containedin=markdownH1,markdownH2,markdownH3,markdownH4,markdownH5,markdownH6,markdownCode
+hi awiwiRedactedCause cterm=bold ctermfg=245
+
 call s:tagInHeader('awiwiIncident', '@incident', 'ctermfg=190 ctermbg=3')
 call s:tagInHeader('awiwiIncident', '@incident', 'ctermfg=190 ctermbg=3')
 call s:inHeaderWithSimpleMarkers('awiwiTodo', 'todo', 'cterm=bold ctermfg=3')
@@ -122,8 +126,10 @@ if get(g:, 'awiwi_highlight_links', v:true)
   "syn match awiwiLinkTargetStart /\]\@<=(\([^)].\{-})\($\|[^)]\)\)\@=/   contained
   "syn match awiwiLinkTargetEnd /\]\@<=([^)].\{-})\($\|[^)]\)\@=/         contained
   if conceal != ''
-    syn match awiwiLinkProtocol _\(\](\)\@<=https://\([^)].\{-})\($\|[^)]\)\)\@=_ contained conceal containedin=markdownH1,markdownH2,markdownH3,markdownH4,markdownH5,markdownH6
+    syn match awiwiLinkProtocol _\(\](\)\@<=https\?://\([^)].\{-})\($\|[^)]\)\)\@=_ contained conceal containedin=markdownH1,markdownH2,markdownH3,markdownH4,markdownH5,markdownH6
   endif
+  " FIXME for redmine, it would be great only to show the issue id with a hashtag in front
+  " exe printf('syn match awiwiLinkDomain   _\(\](https://redmine.pmd5.org/issues/\)\@<=[0-9]\+\()$\|)[^)]\)\@=_  contained containedin=%s %s%s', s:headers, conceal, conceal_target_char)
   exe printf('syn match awiwiLinkDomain   _\(\](\(https://[^/]\+/\)\)\@<=[^)].\{-}\()$\|)[^)]\)\@=_  contained containedin=%s %s%s', s:headers, conceal, conceal_target_char)
   exe printf('syn match awiwiLinkInternalTarget   _\(\](\)\@<=[^h)].\{-}\()$\|)[^h)]\)\@=_           contained containedin=%s %s%s', s:headers, conceal, conceal_target_char)
 
