@@ -171,9 +171,9 @@ def filter_body(lines: list, offset: int):
             else:
                 rem = line.split(redaction_pattern)[-1].strip()
                 if rem:
-                    yield f"*** redacted (cause: {rem}) ***"
+                    yield f" --- redacted (cause: {rem}) --- "
                 else:
-                    yield "*** redacted ***"
+                    yield " --- redacted --- "
             continue
         elif (m := re.match("^(\s*\* )(\[[x ]\])( .*$)", line)):
             hash = hash_line(line)
