@@ -195,6 +195,8 @@ augroup END
 inoremap <silent> <buffer> <C-d> <C-r>=strftime('%F')<CR>
 inoremap <silent> <buffer> <C-f> <C-r>=strftime('%H:%M')<CR>
 
+exe 'inoremap <buffer> <C-k> <C-o>:Awiwi link '
+
 iabbrev :shrug: `¯\_(ツ)_/¯`
 iabbrev :arrow: →
 iabbrev :check: ✔

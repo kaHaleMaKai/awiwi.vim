@@ -29,6 +29,41 @@
 {% endblock %}
 
 
+{% block content %}
+{{ content }}
+
+{% if schedule|default(false) %}
+<h2>schedule</h2>
+<table class="schedule">
+  <tr>
+    {% for name in ["start", "end", "duration"] %}
+      <th>{{ name }}</th>
+    {% endfor %}
+  </tr>
+
+  {% for start, end, duration in schedule %}
+  <tr>
+    <td>{{ start }}</td>
+    <td>{{ end }}</td>
+    <td>{{ duration }}</td>
+  </tr>
+  {% endfor %}
+
+  {% if total|default(false) %}
+    <tr class="total-row">
+      <td><b>total</b></td>
+      <td></td>
+      <td class="{{ 'positive-balance' if good_balance else 'negative-balance' }}">{{ total }}</td>
+    </tr>
+  {% endif %}
+
+</table id>
+{% endif %}
+
+
+{% endblock %}
+
+
 {% block footer %}
 
   <hr>

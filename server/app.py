@@ -27,17 +27,25 @@ from markdown_strikethrough.extension import StrikethroughExtension
 from pygments import highlight
 from pygments.lexers import get_lexer_for_filename, get_lexer_by_name
 from pygments.formatters import HtmlFormatter
+from pygments.util import ClassNotFound
 from urllib.parse import urlparse
 from passlib.hash import sha512_crypt
 from threading import Lock
 import subprocess
 
 
+checkclock_path = Path("~/.config/qtile/widgets").expanduser().absolute()
+sys.path.insert(1, str(checkclock_path))
+from checkclock import ReadOnlyCheckclock, as_time, as_hours_and_minutes
+
+
+checkclock = ReadOnlyCheckclock(Path("~/.config/qtile/checkclock.sqlite").expanduser(), working_days="Tue-Fri")
+
+
 ordinal_pattern = re.compile(r"\b([0-9]{1,2})(st|nd|rd|th)\b")
 md = markdown.Markdown(output_format="html5",
         extensions=[
             FencedCodeExtension(),
-            TableExtension(),
             CodeHiliteExtension(css_class="highlight", guess_lang=False),
             DefListExtension(),
             FootnoteExtension(),
@@ -46,10 +54,11 @@ md = markdown.Markdown(output_format="html5",
             SaneListExtension(),
             TocExtension(),
             StrikethroughExtension(),
+            TableExtension()
             ]
 )
 
-
+download_extensions = [".ods", ".odt"]
 lexer_map = {"pgsql": "sql"}
 
 theme_mode_key = "theme-mode"
@@ -181,7 +190,7 @@ def filter_body(lines: list, offset: int):
             checked = "checked" if "x" in box else ""
             line = (f'{m.group(1)}<input type="checkbox" id="checkbox-line-{line_no}" {checked} data-line-nr="{line_no}" ' +
                     f'class="awiwi-checkbox" data-hash="{hash}"> <label for="checkbox-line-{line_no}"><span>{m.group(3)}</span></label>')
-        yield replace_date_ordinal(line)
+        yield replace_date_ordinal(line).replace("\n", "")
 
 
 def get_file_for_endpoint(path: str) -> Path:
@@ -295,6 +304,12 @@ def statics(type: str, path: str):
     return Response(content, mimetype=mime)
 
 
+def is_binary(file: Path):
+    textchars = bytearray({7,8,9,10,12,13,27} | set(range(0x20, 0x100)) - {0x7f})
+    with open(file, "rb") as f:
+        return bool(f.read(1024).translate(None, textchars))
+
+
 def render_non_journal(file: Path):
     is_secret = re.search("^secrets?-|-secrets?[-.]|-secrets?$", file.stem)
     if is_secret and not is_localhost():
@@ -336,8 +351,14 @@ def render_non_journal(file: Path):
         lexer_name = m.group(1)
         lexer = get_lexer_by_name(lexer_map.get(lexer_name, lexer_name))
     else:
-        lexer = get_lexer_for_filename(file)
-    content = highlight(text, lexer, HtmlFormatter(style="solarized-light", cssclass="highlight"))
+        try:
+            lexer = get_lexer_for_filename(file)
+        except ClassNotFound:
+            lexer = None
+    if lexer:
+        content = highlight(text, lexer, HtmlFormatter(style="solarized-light", cssclass="highlight"))
+    else:
+        content = "\n".join(text.split("\n"))
     return render_template(
             "non-journal.html.j2",
             breadcrumbs=make_breadcrumbs(file),
@@ -365,6 +386,22 @@ def asset_redirect(year: str, month: str, day: str, file: str):
     return redirect(f"/assets/{date}/{file}")
 
 
+def as_downloadable_file(path: Path, mime_type: Optional[str] = None):
+    if not mime_type:
+        mime_type = mimetypes.guess_type(str(path))[0]
+    size = os.path.getsize(path)
+    with open(path, "rb") as f:
+        headers = {
+                "Content-Description": "File Transfer",
+                "Content-Transfer-Encoding": "binary",
+                "Expires": "0",
+                "Cache-Control": "must-revalidate",
+                "Pragma": "public",
+                "Content-Length": str(size),
+                }
+        return Response(f.read(), mimetype=mime_type, content_type="application/octet-stream", direct_passthrough=True, headers=headers)
+
+
 @secured_route("/assets/<date>/<file>")
 def asset(date: str, file: str):
     try:
@@ -372,6 +409,9 @@ def asset(date: str, file: str):
     except ValueError:
         raise FileNotFoundError(f"not a valid date: '{date}'")
     path = content_root/f"assets/{date.replace('-', '/')}/{file}"
+    mime_type = mimetypes.guess_type(str(path))[0]
+    if mime_type and "application" in mime_type:
+        return as_downloadable_file(path, mime_type)
     return render_non_journal(path)
 
 
@@ -420,6 +460,17 @@ def parse_date(date: str) -> datetime.date:
         return datetime.date.fromisoformat(date)
 
 
+def get_schedule(checkclock, days_back):
+    if not days_back:
+        for start, end in checkclock.merge_durations(0):
+            diff = end - start
+            time = diff.total_seconds()
+            yield start.strftime("%H:%M"), end.strftime("%H:%M"), time
+    else:
+        for start, end, duration in checkclock.get_backlog(days_back):
+            yield start.strftime("%H:%M"), end.strftime("%H:%M"), duration
+
+
 @secured_route("/journal/<date>")
 def journal(date: str):
     if date.endswith(".md"):
@@ -429,10 +480,24 @@ def journal(date: str):
     file = Path(f"{content_root}/journal/{year}/{month}/{date}.md")
 
     prev, next = get_prev_and_next_journal(file)
-    breadcrumbs = make_breadcrumbs(file)
-    title = beautify_if_date(date)
 
-    return format_markdown(file, template="journal", breadcrumbs=breadcrumbs, prev=prev, next=next)
+    args = dict(
+            template="journal",
+            breadcrumbs=make_breadcrumbs(file),
+            prev=prev,
+            next=next,
+            title=beautify_if_date(date),
+            )
+
+    days_back = (datetime.date.today() - parse_date(date)).days
+    schedule = list(get_schedule(checkclock, days_back))
+    if schedule:
+        balance = checkclock.get_balance(days_back)
+        args["good_balance"] = balance >= 0
+        args["total"] = as_time(int(sum(duration for _, _, duration in schedule))).strftime("%k:%M")
+    args["schedule"] = [(start, end, as_time(duration).strftime("%k:%M")) for start, end, duration in schedule]
+
+    return format_markdown(file, **args)
 
 
 @app.template_filter("calendar_week")

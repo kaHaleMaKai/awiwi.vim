@@ -31,6 +31,8 @@ let s:recipe_subpath = path#join(g:awiwi_home, 'recipes')
 let s:awiwi_data_dir = path#join(g:awiwi_home, 'data')
 let s:code_root_dir = expand('<sfile>:p:h:h')
 
+let s:xdg_open_exts = ['ods', 'odt']
+
 for dir in [s:awiwi_data_dir, s:journal_subpath, s:asset_subpath, s:recipe_subpath]
   if !filewritable(dir)
     if !mkdir(dir, 'p')
@@ -1211,6 +1213,7 @@ if exists('g:airline_section_x')
   let g:airline_section_y = ''
 endif
 
+
 fun! awiwi#open_link(...) abort "{{{
   let link = awiwi#util#get_link_type(get(a:000, 0, awiwi#util#get_link_under_cursor()))
   if empty(link.type)
@@ -1221,7 +1224,13 @@ fun! awiwi#open_link(...) abort "{{{
     call system(cmd)
   elseif link.type == 'asset' || link.type == 'journal'
     let dest = path#canonicalize(path#join(expand('%:p:h'), link.target))
-    call s:open_file(dest, {'new_window': v:true})
+    let extension = fnamemodify(dest, ':e')
+    if index(s:xdg_open_exts, extension) > -1
+      let cmd = ['xdg-open', shellescape(dest), '&']
+      call system(join(cmd, ' '))
+    else
+      call s:open_file(dest, {'new_window': v:true})
+    endif
   endif
 endfun "}}}
 
@@ -1302,6 +1311,7 @@ fun! awiwi#copy_file(path) abort "{{{
     return v:false
   endif
 endfun "}}}
+
 
 fun! awiwi#insert_recipe_link(recipe) abort "{{{
   let recipe_file = path#join(s:recipe_subpath, a:recipe)

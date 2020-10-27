@@ -61,8 +61,8 @@ call s:inHeaderWithSimpleMarkers('awiwiOnHole', 'onhold', 'cterm=bold ctermfg=3'
 let markers = []
 let marker_opts = {'escape_mode': 'vim'}
 
-exe printf('syn match awiwiUrgentEnd /\(\<%s\>\)\@<=.\+$/', awiwi#get_markers('urgent', marker_opts))
-exe printf('syn match awiwiUrgentStart /^.*\ze\<\(%s\)\>/', awiwi#get_markers('urgent', marker_opts))
+exe printf('syn match awiwiUrgentEnd /\(\<%s\>\)\@<=.\+$/ contains=markdownCode,markdownCodeBlock,markdownCodeDelimiter', awiwi#get_markers('urgent', marker_opts))
+exe printf('syn match awiwiUrgentStart /^.*\ze\<\(%s\)\>/ contains=markdownCode,markdownCodeBlock,markdownCodeDelimiter', awiwi#get_markers('urgent', marker_opts))
 exe printf('syn match awiwiUrgent /\<\(%s\)\>/', awiwi#get_markers('urgent', marker_opts))
 
 exe printf('syn match awiwiDelegate /(\?\(%s\)\([[:space:]]\+[^[:space:])]\+\)\{0,2})\?/', awiwi#get_markers('delegate', marker_opts))
