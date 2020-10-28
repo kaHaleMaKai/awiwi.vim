@@ -486,7 +486,6 @@ def journal(date: str):
             breadcrumbs=make_breadcrumbs(file),
             prev=prev,
             next=next,
-            title=beautify_if_date(date),
             )
 
     days_back = (datetime.date.today() - parse_date(date)).days
