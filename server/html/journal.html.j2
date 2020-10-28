@@ -32,7 +32,7 @@
 {% block content %}
 {{ content }}
 
-{% if schedule|default(false) %}
+{% if is_localhost and schedule|default(false) %}
 <h2>schedule</h2>
 <table class="schedule">
   <tr>
