@@ -426,15 +426,11 @@ table th {
   border-color: var(--table-border);
   transition: 0.8s;
   transition-delay: 0.3s;
-}
-
-table th {
   background-color: var(--table-header-bg);
   color: var(--table-header-color);
-  transition: 0.8s;
 }
 
-table td {
+table tr, table tr td {
   padding: .2em 1em;
   vertical-align: top;
   border: none;
@@ -458,11 +454,12 @@ table tr:nth-child(even) {
   transition: 0.07s;
 }
 
-table tr:hover, table tr:nth-child(even):hover {
+table tr:hover, table tr:nth-child(even):hover, table tr:hover th {
   color: var(--table-row-hover-color);
   background-color: var(--table-row-hover-bg);
   transition: 0.07s;
   --negative-balance: var(--table-row-hover-color);
+  --positive-balance: var(--table-row-hover-color);
 }
 
 .author {
@@ -844,11 +841,11 @@ tr.total-row {
 }
 
 .negative-balance:after {
-  content: " ✖"
+  content: " ✕"
 }
 
 .positive-balance:after {
-  content: " ✔"
+  content: " ✓"
 }
 
 
