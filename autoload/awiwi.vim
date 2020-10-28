@@ -561,11 +561,14 @@ fun! awiwi#edit_journal(date, ...) abort "{{{
   let options = get(a:000, 0, {})
   let options.last_line = v:true
   let date = s:parse_date(a:date)
-  let own_date = awiwi#util#get_own_date()
-  if date == own_date
-    echom printf("journal page '%s' already open", date)
-    return
-  endif
+  try
+    let own_date = awiwi#util#get_own_date()
+    if date == own_date
+      echom printf("journal page '%s' already open", date)
+      return
+    endif
+  catch /AwiwiUtilError/
+  endtry
   let file = s:get_journal_file_by_date(date)
   call s:open_file(file, options)
 endfun "}}}
