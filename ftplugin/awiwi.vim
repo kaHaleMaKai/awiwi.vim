@@ -28,6 +28,11 @@ nnoremap <silent> <buffer> gn :Awiwi journal next<CR>
 nnoremap <silent> <buffer> gp :Awiwi journal previous<CR>
 
 
+if str#contains(expand('%:h'), '/assets/')
+  nnoremap <silent> <buffer> gj :exe printf('e %s', awiwi#get_journal_for_current_asset())<CR>
+endif
+
+
 fun! s:handle_enter_on_insert() abort "{{{
   let line = getline('.')
   let m = matchlist(line, '^\([[:space:]]*\)\([-*]\)\([[:space:]]\+\)\(\[[ x]\+\]\)\?')

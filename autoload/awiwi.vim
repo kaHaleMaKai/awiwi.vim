@@ -1345,3 +1345,9 @@ fun! awiwi#insert_asset_link(date, name) abort "{{{
   let link = printf('[asset %s, %s](%s)', a:name, a:date, path)
   call awiwi#insert_link_here(link)
 endfun "}}}
+
+
+fun! awiwi#get_journal_for_current_asset() abort "{{{
+  let date = join(path#split(expand('%:p:h'))[-3:], '-')
+  return s:get_journal_file_by_date(date)
+endfun "}}}
