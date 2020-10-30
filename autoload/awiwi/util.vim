@@ -195,43 +195,60 @@ endfun "}}}
 
 
 fun! awiwi#util#get_link_under_cursor() abort "{{{
+  let link = awiwi#util#as_link('')
   let line = getline('.')
   let col = col('.') - 1
   let open_bracket = strridx(line[:col], '[')
   if open_bracket == -1
-    return ''
+    let col += 1
+    let open_bracket = strridx(line[:col], '[')
   endif
+  if open_bracket == -1
+    return link
+  endif
+
   let closing_parens = stridx(line, ')', col)
   if closing_parens == -1
-    return ''
+    return link
   endif
   let closing_bracket = stridx(line[:closing_parens], ']', open_bracket)
   if closing_bracket == -1
-    return ''
+    return link
   endif
   if open_bracket > closing_bracket
         \ || line[closing_bracket+1] != '('
         \ || closing_parens < closing_bracket
-    return ''
+    return link
   endif
-  return line[closing_bracket+2:closing_parens-1]
+  if open_bracket > 0 && line[open_bracket - 1] == '!'
+    let link.type = 'image'
+  endif
+  let link.target = line[closing_bracket+2:closing_parens-1]
+  return awiwi#util#determine_link_type(link)
 endfun "}}}
 
 
-fun! awiwi#util#get_link_type(link) abort "{{{
-  let ret = {'target': a:link, 'type': ''}
-  if match(a:link, '^https\?://') > -1
-    let ret.type = 'browser'
+fun! awiwi#util#as_link(link) abort "{{{
+  return {'target': a:link, 'type': ''}
+endfun "}}}
+
+
+fun! awiwi#util#determine_link_type(link) abort "{{{
+  let link = copy(a:link)
+  if link.type == 'image'
+    return link
+  elseif match(a:link, '^https\?://') > -1
+    let link.type = 'browser'
   elseif match(a:link, '^[a-z]\+://') > -1
-    let ret.type = 'external'
+    let link.type = 'external'
   elseif match(a:link, '\..*/recipes/.*') > -1
-    let ret.type = 'recipe'
+    let link.type = 'recipe'
   elseif match(a:link, '\..*/assets/.*') > -1
-    let ret.type = 'asset'
+    let link.type = 'asset'
   elseif match(a:link, '/\(journal/\)\?\([0-9]\{4}/\)\?\([0-9]\{2}/\)\?\d\{4}-\d\{2}-\d\{2}.md$')
-    let ret.type = 'journal'
+    let link.type = 'journal'
   endif
-  return ret
+  return link
 endfun "}}}
 
 

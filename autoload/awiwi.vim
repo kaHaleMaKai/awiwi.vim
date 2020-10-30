@@ -1091,7 +1091,7 @@ fun! awiwi#run(...) abort "{{{
       "return fzf#run(fzf#wrap({'source': files, 'sink': funcref('s:open_asset_sink')}))
       return fzf#vim#files(s:asset_subpath)
     elseif a:0 >= 2 && a:2 == s:copy_asset_cmd
-      let link = awiwi#util#get_link_type(awiwi#util#get_link_under_cursor())
+      let link = awiwi#util#get_link_under_cursor()
       if link.type != 'asset'
         echoerr '[ERROR] no asset file under cursor'
         return
@@ -1218,7 +1218,11 @@ endif
 
 
 fun! awiwi#open_link(...) abort "{{{
-  let link = awiwi#util#get_link_type(get(a:000, 0, awiwi#util#get_link_under_cursor()))
+  if a:0
+    let link = awiwei#util#determine_link_type(awiwi#util#as_link(a:1))
+  else
+    let link = awiwi#util#get_link_under_cursor()
+  endif
   if empty(link.type)
     echoerr printf('cannot open link: "%s"', link.target)
   endif
@@ -1234,6 +1238,11 @@ fun! awiwi#open_link(...) abort "{{{
     else
       call s:open_file(dest, {'new_window': v:true})
     endif
+  elseif link.type == 'image'
+    let date = join(split(fnamemodify(link.target, ':h:t'), '-'), '/')
+    let file = fnamemodify(link.target, ':t')
+    let dest = path#join(g:awiwi_home, 'assets', date, file)
+    call system(['xdg-open', dest])
   endif
 endfun "}}}
 
@@ -1281,6 +1290,7 @@ fun! awiwi#serve(...) abort "{{{
   echo printf('serving on %s:5000', empty(host) ? 'localhost' : host)
   call s:write_json_config()
   1new
+  set winheight=1
   set wfh
   call termopen(printf('%s run %s', flask, host_arg))
   normal! <C-\><C-N>
