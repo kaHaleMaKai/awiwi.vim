@@ -97,3 +97,28 @@ const attachCheckboxes = () => {
 const onloadHandler = () => {
   attachCheckboxes();
 }
+
+const downKeys = new Set();
+
+document.addEventListener('keydown', (e) => {
+  switch (e.code) {
+    case "AltLeft":
+    case "ShiftLeft":
+    case "KeyD":
+      downKeys.add(e.code);
+  }
+  if (downKeys.size === 3) {
+    const switcher = document.getElementById('mode-switcher-input');
+    switcher.checked = !switcher.checked;
+    themeChanger();
+  }
+})
+
+document.addEventListener('keyup', (e) => {
+  switch (e.code) {
+    case "AltLeft":
+    case "ShiftLeft":
+    case "KeyD":
+      downKeys.delete(e.code);
+  }
+})
