@@ -182,7 +182,6 @@ EOF
 endfun "}}}
 
 
-
 nnoremap <silent> <buffer> o :call <sid>handle_enter_on_insert()<CR>
 inoremap <silent> <buffer> <Enter> <Esc>:call <sid>handle_enter_on_insert()<CR>
 nnoremap <silent> <buffer> <Enter> :call <sid>handle_enter()<CR>

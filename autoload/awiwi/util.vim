@@ -229,6 +229,9 @@ endfun "}}}
 
 
 fun! awiwi#util#as_link(link) abort "{{{
+  if type(a:link) == v:t_dict
+    return copy(a:link)
+  endif
   return {'target': a:link, 'type': ''}
 endfun "}}}
 
@@ -237,15 +240,15 @@ fun! awiwi#util#determine_link_type(link) abort "{{{
   let link = copy(a:link)
   if link.type == 'image'
     return link
-  elseif match(a:link, '^https\?://') > -1
+  elseif match(link.target, '^https\?://') > -1
     let link.type = 'browser'
-  elseif match(a:link, '^[a-z]\+://') > -1
+  elseif match(link.target, '^[a-z]\+://') > -1
     let link.type = 'external'
-  elseif match(a:link, '\..*/recipes/.*') > -1
+  elseif match(link.target, '\..*/recipes/.*') > -1
     let link.type = 'recipe'
-  elseif match(a:link, '\..*/assets/.*') > -1
+  elseif match(link.target, '\..*/assets/.*') > -1
     let link.type = 'asset'
-  elseif match(a:link, '/\(journal/\)\?\([0-9]\{4}/\)\?\([0-9]\{2}/\)\?\d\{4}-\d\{2}-\d\{2}.md$')
+  elseif match(link.target, '/\(journal/\)\?\([0-9]\{4}/\)\?\([0-9]\{2}/\)\?\d\{4}-\d\{2}-\d\{2}.md$')
     let link.type = 'journal'
   endif
   return link
@@ -278,4 +281,60 @@ fun! awiwi#util#get_visual_selection() abort "{{{
     endfor
   endif
   return join(lines, "\n")
+endfun "}}}
+
+
+fun! awiwi#util#get_code_block_lines(inclusive) abort "{{{
+  let bad_result = [-1, -1]
+  let current_line = line('.')
+  let triple_ticks = '```'
+  if str#startswith(getline(current_line), triple_ticks)
+    echoerr '[ERROR] not inside of a code block'
+    return bad_result
+  endif
+  let block_start = -1
+  let block_end = -1
+
+  for line in range(current_line - 1, 1, -1)
+    if str#startswith(getline(line), triple_ticks)
+      let block_start = line
+      break
+    endif
+  endfor
+  if block_start == -1
+    echoerr '[ERROR] not inside of a code block'
+    return bad_result
+  endif
+
+  for line in range(current_line + 1, line('$'))
+    if str#startswith(getline(line), triple_ticks)
+      let block_end = line
+      break
+    endif
+  endfor
+  if block_end == -1
+    echoerr '[ERROR] cannot find end of code block'
+    return bad_result
+  endif
+
+  let offset = a:inclusive ? 0 : 1
+  return [block_start + offset, block_end - offset]
+endfun "}}}
+
+
+fun! awiwi#util#copy_code_block(inclusive) abort "{{{
+  let [start, end] = awiwi#util#get_code_block_lines(a:inclusive)
+  if start == -1
+    return
+  endif
+  exe printf('%d,%dyank', start, end)
+endfun "}}}
+
+
+fun! awiwi#util#select_code_block(inclusive) abort "{{{
+  let [start, end] = awiwi#util#get_code_block_lines(a:inclusive)
+  if start == -1
+    return
+  endif
+  exe printf('normal! %dggV%dgg', start, end)
 endfun "}}}

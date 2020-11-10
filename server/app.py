@@ -171,19 +171,22 @@ def filter_body(lines: list, offset: int):
                 current_depth = len(m.group("marker"))
                 if current_depth <= marker_depth:
                     hide = False
+                else:
+                    continue
             else:
                 continue
         elif redaction_pattern in line:
             if (m := re.match('^(?P<marker>##+) ', line)):
                 marker_depth = len(m.group("marker"))
                 hide = True
+                line = f"""{m.group("marker")} _…redacted…_"""
             else:
                 rem = line.split(redaction_pattern)[-1].strip()
                 if rem:
                     yield f" --- redacted (cause: {rem}) --- "
                 else:
                     yield " --- redacted --- "
-            continue
+                continue
         elif (m := re.match("^(\s*\* )(\[[x ]\])( .*$)", line)):
             hash = hash_line(line)
             box = m.group(2)

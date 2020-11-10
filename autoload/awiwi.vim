@@ -1344,8 +1344,9 @@ endfun "}}}
 
 
 fun! awiwi#insert_journal_link(date) abort "{{{
-  let file = s:relativize(s:get_journal_file_by_date(a:date))
-  let link = printf('[journal for %s](%s)', a:date, file)
+  let date = s:parse_date(a:date)
+  let file = s:relativize(s:get_journal_file_by_date(date))
+  let link = printf('[journal for %s](%s)', date, file)
   call awiwi#insert_link_here(link)
 endfun "}}}
 

@@ -100,12 +100,16 @@ const onloadHandler = () => {
 
 const downKeys = new Set();
 
+let mykey = null;
+
 document.addEventListener('keydown', (e) => {
   switch (e.code) {
     case "AltLeft":
     case "ShiftLeft":
-    case "KeyD":
+    case "KeyE":
+      e.preventDefault();
       downKeys.add(e.code);
+      mykey = e;
   }
   if (downKeys.size === 3) {
     const switcher = document.getElementById('mode-switcher-input');
@@ -116,9 +120,9 @@ document.addEventListener('keydown', (e) => {
 
 document.addEventListener('keyup', (e) => {
   switch (e.code) {
+    case "KeyE":
     case "AltLeft":
     case "ShiftLeft":
-    case "KeyD":
       downKeys.delete(e.code);
   }
 })
