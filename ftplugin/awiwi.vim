@@ -198,6 +198,7 @@ augroup END
 
 inoremap <silent> <buffer> <C-d> <C-r>=strftime('%F')<CR>
 inoremap <silent> <buffer> <C-f> <C-r>=strftime('%H:%M')<CR>
+inoremap <silent> <buffer> <C-q> <C-o>:Awiwi redact<CR>
 
 exe 'inoremap <buffer> <C-k> <C-o>:Awiwi link '
 
