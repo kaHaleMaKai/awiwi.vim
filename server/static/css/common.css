@@ -579,7 +579,8 @@ div.article {
   padding-bottom: 4em;
 }
 
-div.article > h2:first-child {
+div.article > h2:first-child,
+div.article > section > h2:first-child {
   margin: 0;
   margin-top: 0;
 }
@@ -843,7 +844,6 @@ tr.total-row {
 .positive-balance:after {
   content: " ✓"
 }
-
 
 @keyframes secret-notice-disappears {
     0% { opacity: 1; }
