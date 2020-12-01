@@ -1,3 +1,7 @@
+let sectionIndex = [];
+let isPresenting = false;
+
+
 const _ = (expr) => {
   if (typeof expr === "string") {
     return document.querySelector(expr);
@@ -5,8 +9,10 @@ const _ = (expr) => {
   return expr;
 }
 
+
 const except = (array, expr) => {
 }
+
 
 const asCustomArray = (...arr) => {
   const ret = [...arr];
@@ -21,6 +27,7 @@ const asCustomArray = (...arr) => {
   }
   return ret;
 }
+
 
 const __ = (expr, ...more) => {
   const nodesOrExpressions = [expr];
@@ -38,7 +45,9 @@ const __ = (expr, ...more) => {
   return asCustomArray(...ret);
 }
 
+
 const log = (expr) => console.log(expr);
+
 
 const createNode = (expr) => {
   if (typeof expr === 'object') {
@@ -53,6 +62,7 @@ const createNode = (expr) => {
   return container;
 }
 
+
 const wrap = (el, wrapper) => {
   const node = _(el);
   const container = createNode(wrapper);
@@ -60,6 +70,7 @@ const wrap = (el, wrapper) => {
   container.appendChild(node);
   return container;
 }
+
 
 const wrapChildren = (el, wrapper) => {
   const node = _(el);
@@ -74,7 +85,6 @@ const wrapChildren = (el, wrapper) => {
   return container;
 }
 
-let sectionIndex = [];
 
 const wrapInSection = (start) => {
   const cls = start.tagName === "H2" ? "page" : "subpage";
@@ -94,6 +104,7 @@ const wrapInSection = (start) => {
   nodes.forEach(n => section.appendChild(n));
   return section;
 }
+
 
 const wrapInSections = () => {
   if (_("section") !== null) {
@@ -130,6 +141,7 @@ const wrapInSections = () => {
   sectionIndex = index;
 }
 
+
 const hideSurrounding = () => {
   __("body", "html", "div.container").addClasses("no-overflow");
   __("div.aside",
@@ -139,6 +151,7 @@ const hideSurrounding = () => {
   ).addClasses("hidden");
   _("div.article").classList.add("modal");
 }
+
 
 const unhideSurrounding = () => {
   __("div.aside",
@@ -150,11 +163,11 @@ const unhideSurrounding = () => {
   _("div.article").classList.remove("modal");
 }
 
+
 const prepareSlides = () => {
   _("#section-0_0").classList.add("current-page");
 }
 
-let isPresenting = false;
 
 const togglePresentation = () => {
   wrapInSections();
@@ -180,13 +193,16 @@ const togglePresentation = () => {
   isPresenting = !isPresenting;
 }
 
+
 const getPageNumber = (el) => {
   return Number(el.getAttribute("data-page"));
 }
 
+
 const getSubPageNumber = (el) => {
   return Number(el.getAttribute("data-sub-page"));
 }
+
 
 const getNextPage = (direction) => {
   const page = getPageNumber(_("section.current-page"));
@@ -206,6 +222,7 @@ const getNextPage = (direction) => {
   return null;
 }
 
+
 const getOppositeDirection = (direction) => {
   switch (direction) {
     case "left": return "right";
@@ -215,6 +232,7 @@ const getOppositeDirection = (direction) => {
   }
 }
 
+
 const removeFadeClasses = (el) => {
   el.classList.forEach(cls => {
     if (cls.startsWith("fade-")) {
@@ -223,15 +241,18 @@ const removeFadeClasses = (el) => {
   });
 }
 
+
 const replaceFadeClass = (el, cls) => {
   removeFadeClasses(el);
   el.classList.add(cls);
 }
 
+
 const makeSlideVisible = (el) => {
   removeFadeClasses(el);
   el.classList.remove("hidden");
 }
+
 
 const fadePage = (direction) => {
   const nextPage = getNextPage(direction);
@@ -264,6 +285,7 @@ const fadePage = (direction) => {
 
   makeSlideVisible(nextPage)
 }
+
 
 document.addEventListener('keyup', (e) => {
   if (e.code === "KeyF") {
