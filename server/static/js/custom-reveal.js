@@ -1,5 +1,29 @@
-let sectionIndex = [];
-let isPresenting = false;
+const state = {
+  "sectionIndex": [],
+  "isPresenting": false,
+  "settingsLoaded": false
+}
+const settings = {
+  fragmentAll: false
+}
+
+
+const loadSettings = () => {
+  if (state.settingsLoaded) {
+    return;
+  }
+  state.settingsLoaded = true;
+  const div = document.querySelector("#awiwi-settings");
+  if (div === null) {
+    return;
+  }
+  else {
+    const s = JSON.parse(div.textContent);
+    for (const k in s) {
+      settings[k] = s[k];
+    }
+  }
+}
 
 
 const _ = (expr) => {
@@ -7,10 +31,6 @@ const _ = (expr) => {
     return document.querySelector(expr);
   }
   return expr;
-}
-
-
-const except = (array, expr) => {
 }
 
 
@@ -106,6 +126,33 @@ const wrapInSection = (start) => {
 }
 
 
+const addFragmentClasses = () => {
+
+  const addFragmentClassOnSubElements = (section) => {
+    const id = section.id;
+    ["p", "div"].forEach(type => {
+      __(`#${id} > ${type}`).addClasses("fragment");
+    });
+    ["table", "li", "img", "dl"].forEach(type => {
+      __(`#${id} ${type}`).addClasses("fragment");
+    })
+  }
+
+  __("section > :first-child").forEach(el => {
+    if (/^H[1-6]$/.test(el.tagName) && el.classList.contains("fragment-all")) {
+      addFragmentClassOnSubElements(el.parentElement);
+    }
+  });
+
+  __("p.fragment, div.fragment, table.fragment, li.fragment, img.fragment").addClasses("hide-fragment");
+}
+
+
+const removeFragmentClasses = () => {
+  __(".hide-fragment, .show-fragment").removeClasses("show-fragment", "hide-fragment");
+}
+
+
 const wrapInSections = () => {
   if (_("section") !== null) {
     return;
@@ -138,7 +185,7 @@ const wrapInSections = () => {
     numPages++;
     index.push(subIndex);
   })
-  sectionIndex = index;
+  state.sectionIndex = index;
 }
 
 
@@ -169,15 +216,29 @@ const prepareSlides = () => {
 }
 
 
+const fragmentAllIfRequested = () => {
+  if (!settings.fragmentAll) {
+    return;
+  }
+  if (_(".fragment-all") !== null) {
+    return;
+  }
+  __("h2, h3, h4, h5, h6").addClasses("fragment-all");
+}
+
+
 const togglePresentation = () => {
   wrapInSections();
-  if (isPresenting) {
+  fragmentAllIfRequested();
+
+  if (state.isPresenting) {
     unhideSurrounding();
     _("section.current-page").classList.remove("current-page");
     __("section").removeClasses(
       "fade-left", "fade-right", "fade-up", "fade-down", "hidden",
       "presenting", "current-page"
     );
+    removeFragmentClasses();
   }
   else {
     hideSurrounding();
@@ -190,7 +251,8 @@ const togglePresentation = () => {
     __("section.page").except(_("section.current-page")).addClasses("fade-right");
     __("section.subpage").addClasses("fade-down");
   }
-  isPresenting = !isPresenting;
+  state.isPresenting = !state.isPresenting;
+  addFragmentClasses();
 }
 
 
@@ -204,20 +266,48 @@ const getSubPageNumber = (el) => {
 }
 
 
+const getNextItem = (direction) => {
+  if (direction === "left" || direction === "right") {
+    return null;
+  }
+  const currentPage = _("section.current-page");
+
+  if (direction === "down") {
+    return _(`#${currentPage.id} .hide-fragment`);
+  }
+
+  const els = __(`#${currentPage.id} .show-fragment`);
+  if (els.length <= 1) {
+    return null;
+  }
+  return els[els.length - 2];
+}
+
+
+const getCurrentItem = () => {
+  const currentPage = _("section.current-page");
+  const els = __(`#${currentPage.id} .show-fragment`);
+  if (els.length === 0) {
+    return null;
+  }
+  return els[els.length - 1];
+}
+
+
 const getNextPage = (direction) => {
   const page = getPageNumber(_("section.current-page"));
   const subPage = getSubPageNumber(_("section.current-page"));
   if (page > 0 && direction === "left") {
-    return sectionIndex[page-1][0];
+    return state.sectionIndex[page-1][0];
   }
-  else if (page < sectionIndex.length - 1 && direction === "right") {
-    return sectionIndex[page+1][0];
+  else if (page < state.sectionIndex.length - 1 && direction === "right") {
+    return state.sectionIndex[page+1][0];
   }
   else if (subPage > 0 && direction === "up") {
-    return sectionIndex[page][subPage-1];
+    return state.sectionIndex[page][subPage-1];
   }
-  else if (subPage < sectionIndex[page].length - 1 && direction === "down") {
-    return sectionIndex[page][subPage+1];
+  else if (subPage < state.sectionIndex[page].length - 1 && direction === "down") {
+    return state.sectionIndex[page][subPage+1];
   }
   return null;
 }
@@ -249,12 +339,27 @@ const replaceFadeClass = (el, cls) => {
 
 
 const makeSlideVisible = (el) => {
+  __(`#${el.id} > .show-fragment`).forEach(el => el.classList.replace("show-fragment", "hide-fragment"));
   removeFadeClasses(el);
   el.classList.remove("hidden");
 }
 
 
 const fadePage = (direction) => {
+  const currentItem = getCurrentItem();
+  const nextItem = getNextItem(direction);
+
+  if (nextItem === null && currentItem !== null && direction === "up") {
+      currentItem.classList.replace("show-fragment", "hide-fragment");
+  }
+  else if (nextItem !== null) {
+    nextItem.classList.replace("hide-fragment", "show-fragment");
+    if (currentItem !== null && direction === "up") {
+      currentItem.classList.replace("show-fragment", "hide-fragment");
+    }
+    return;
+  }
+
   const nextPage = getNextPage(direction);
   if (nextPage === null) {
     return;
@@ -286,18 +391,17 @@ const fadePage = (direction) => {
   makeSlideVisible(nextPage)
 }
 
-
 document.addEventListener('keyup', (e) => {
   if (e.code === "KeyF") {
+    loadSettings();
     togglePresentation();
     return;
   }
-  if (!isPresenting) return;
+  if (!state.isPresenting) return;
 
   if (e.code === "ArrowLeft" || e.code === "ArrowRight"
       || e.code === "ArrowUp" || e.code === "ArrowDown") {
     const direction = e.code.substring(5).toLowerCase();
     fadePage(direction);
   }
-
 })
