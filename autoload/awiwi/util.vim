@@ -178,7 +178,10 @@ endfun "}}}
 fun! awiwi#util#get_own_date() abort "{{{
   let name = expand('%:t:r')
   if !awiwi#util#is_date(name)
-    throw s:AwiwiUtilError('AwiwiUtilError: not on journal page')
+    let name = join(path#split(expand('%:p'))[-4:-2], '-')
+    if !awiwi#util#is_date(name)
+      throw s:AwiwiUtilError('AwiwiUtilError: not on journal or asset page')
+    endif
   endif
   return name
 endfun "}}}

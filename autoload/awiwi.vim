@@ -69,6 +69,7 @@ let s:subcommands = [
       \ s:entry_cmd,
       \ s:asset_cmd,
       \ s:link_cmd,
+      \ s:paste_asset_cmd,
       \ s:recipe_cmd,
       \ s:redact_cmd,
       \ s:search_cmd,
@@ -760,6 +761,7 @@ fun! awiwi#_get_completion(ArgLead, CmdLine, CursorPos) abort "{{{
     let start = args[1] == s:asset_cmd ? 2 : 3
     if len(args) == 2
       call add(submatches, s:new_asset_cmd)
+      call add(submatches, s:paste_asset_cmd)
     endif
     if s:need_to_insert_files(current_arg_pos, args[start:], start)
       let files = map(s:get_all_asset_files(), {_, v -> printf('%s:%s', v.date, v.name)})
@@ -1085,6 +1087,9 @@ fun! awiwi#run(...) abort "{{{
     call awiwi#activate_current_task()
   elseif a:1 == s:deactivate_cmd
     call awiwi#deactivate_active_task()
+  elseif a:1 == s:paste_asset_cmd ||
+        \ (a:1 == s:asset_cmd && get(a:000, 1, '') == s:paste_asset_cmd)
+    return awiwi#create_asset_here_if_not_exists(s:paste_asset_cmd)
   elseif a:1 == s:asset_cmd || (a:1 == s:link_cmd && get(a:000, 1, '') == s:asset_cmd)
     if a:0 == 1
       "let files = map(s:get_all_asset_files(), {_, v -> printf('%s:%s', v.date, v.name)})
@@ -1361,4 +1366,17 @@ endfun "}}}
 fun! awiwi#get_journal_for_current_asset() abort "{{{
   let date = join(path#split(expand('%:p:h'))[-3:], '-')
   return s:get_journal_file_by_date(date)
+endfun "}}}
+
+
+fun! awiwi#handle_paste_in_insert_mode() abort "{{{
+  let type = awiwi#guess_selection_mime_type()
+  if empty(type)
+    return
+  elseif type == 'text/plain'
+    normal! "+p
+  else
+    call awiwi#create_asset_here_if_not_exists(s:paste_asset_cmd)
+    normal! f)la
+  endif
 endfun "}}}
