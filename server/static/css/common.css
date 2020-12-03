@@ -872,6 +872,12 @@ tr.total-row {
   100% { opacity: 0; visibility: hidden; font-size: 0; }
 }
 
+section.hidden       div.highlight,
+section.current-page div.highlight {
+  width: max-content;
+  max-width: 60VW;
+}
+
 .highlight-article { }
 
 /*------ ADDED CSS ---------*/
