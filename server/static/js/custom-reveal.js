@@ -37,6 +37,7 @@ const _ = (expr) => {
 const asCustomArray = (...arr) => {
   const ret = [...arr];
   ret.except = (expr) => asCustomArray(...ret.filter(el => el !== expr));
+  ret.filter_ = (fn) => asCustomArray(...ret.filter(fn));
   ret.addClasses = (...classes) => {
     ret.forEach(el => el.classList.add(...classes))
     return ret;
@@ -131,10 +132,14 @@ const addFragmentClasses = () => {
   const addFragmentClassOnSubElements = (section) => {
     const id = section.id;
     ["p", "div"].forEach(type => {
-      __(`#${id} > ${type}`).addClasses("fragment");
+      __(`#${id} > ${type}`)
+        .filter_(el => !el.classList.contains("no-fragment"))
+        .addClasses("fragment");
     });
     ["table", "li", "img", "dl"].forEach(type => {
-      __(`#${id} ${type}`).addClasses("fragment");
+      __(`#${id} ${type}`)
+        .filter_(el => !el.classList.contains("no-fragment"))
+        .addClasses("fragment");
     })
   }
 
