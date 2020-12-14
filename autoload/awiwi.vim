@@ -117,19 +117,25 @@ let s:tasks_subcommands = [
       \ s:tasks_incidents_cmd
       \ ]
 
-let s:todo_markers = ['TODO']
+let s:todo_markers = ['TODO', '@todo']
 let s:onhold_markers = [
       \ 'ONHOLD',
-      \ 'HOLD'
+      \ 'HOLD',
+      \ '@onhole',
+      \ '@onhold'
       \ ]
 let s:urgent_markers = [
       \ 'FIXME',
       \ 'CRITICAL',
       \ 'URGENT',
-      \ 'IMPORTANT'
+      \ 'IMPORTANT',
+      \ '@fixme',
+      \ '@critical',
+      \ '@urgent',
+      \ '@important'
       \ ]
-let s:delegate_markers = ['@todo', '@@']
-let s:question_markers = ['QUESTION']
+let s:delegate_markers = ['@@']
+let s:question_markers = ['QUESTION', 'q?', 'Q?']
 let s:due_markers = ['DUE', 'DUE TO', 'UNTIL', '@until', '@due']
 let s:incident_markers = ['@incident']
 
