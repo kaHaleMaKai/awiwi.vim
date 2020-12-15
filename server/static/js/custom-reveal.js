@@ -238,6 +238,7 @@ const togglePresentation = () => {
 
   if (state.isPresenting) {
     unhideSurrounding();
+    __("body", "img").removeClasses("presenting");
     _("section.current-page").classList.remove("current-page");
     __("section").removeClasses(
       "fade-left", "fade-right", "fade-up", "fade-down", "hidden",
@@ -247,6 +248,7 @@ const togglePresentation = () => {
   }
   else {
     hideSurrounding();
+    __("body", "img").addClasses("presenting");
     _("section").classList.add("current-page");
 
     __("section")
