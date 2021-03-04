@@ -4,6 +4,12 @@ if !exists('g:awiwi_home')
   finish
 endif
 
+" don't put too much pressure on the machine
+set updatetime=4000
+if exists('g:gitgutter_enabled')
+  let g:gitgutter_enabled = v:false
+  GitGutterDisable
+endif
 
 " ++++++++++++++++++++++++++++++++++++++++
 " +              commands                +
@@ -28,7 +34,7 @@ nnoremap <silent> <buffer> gn :Awiwi journal next<CR>
 nnoremap <silent> <buffer> gp :Awiwi journal previous<CR>
 
 
-if str#contains(expand('%:h'), '/assets/')
+if awiwi#str#contains(expand('%:h'), '/assets/')
   nnoremap <silent> <buffer> gj :exe printf('e %s', awiwi#get_journal_for_current_asset())<CR>
 endif
 
@@ -73,7 +79,7 @@ fun! s:handle_enter_on_insert() abort "{{{
     endif
     let marker = m[1] . m[2] . ' [ ] '
     let pos = strlen(marker) + 1
-    if str#endswith(&ft, '.todo')
+    if awiwi#str#endswith(&ft, '.todo')
       let text = marker.printf(' (from %s)', strftime('%F'))
       let append = v:false
     else
@@ -201,7 +207,7 @@ inoremap <silent> <buffer> <C-f> <C-r>=strftime('%H:%M')<CR>
 inoremap <silent> <buffer> <C-q> <C-o>:Awiwi redact<CR>
 inoremap <silent> <buffer> <C-v> <C-o>:call awiwi#handle_paste_in_insert_mode()<CR>
 
-exe 'inoremap <buffer> <C-k> <C-o>:Awiwi link '
+exe 'inoremap <buffer> <C-s> <C-o>:Awiwi link '
 
 iabbrev :shrug: `¯\_(ツ)_/¯`
 iabbrev :arrow: →

@@ -37,7 +37,7 @@ fun! awiwi#util#match_subcommands(subcommands, ArgLead) abort "{{{
   let subcommands = copy(a:subcommands)
   let search_engine = awiwi#util#get_search_engine()
   if search_engine == s:search_engine_plain
-    return filter(subcommands, {_, v -> str#startswith(v, a:ArgLead)})
+    return filter(subcommands, {_, v -> awiwi#str#startswith(v, a:ArgLead)})
   elseif search_engine == s:search_engine_regex
     return filter(subcommands, {_, v -> match(v, a:ArgLead) > -1})
   endif
@@ -75,7 +75,7 @@ endfun "}}}
 fun! awiwi#util#get_resource(path, ...) abort "{{{
   let paths = [fnamemodify(s:script, ':h:h:h'), 'resources', a:path]
   call extend(paths, a:000)
-  let resource_path = call(funcref('path#join'), paths)
+  let resource_path = call(funcref('awiwi#path#join'), paths)
   if has_key(s:resources, resource_path)
     return s:resources[resource_path]
   endif
@@ -154,7 +154,7 @@ fun! awiwi#util#input(prompt, ...) abort "{{{
   let opts = get(a:000, 0, {})
   let opts.prompt = a:prompt
   if has_key(opts, 'completion')
-    if !str#startswith(opts.completion, 'customlist')
+    if !awiwi#str#startswith(opts.completion, 'customlist')
       let opts.completion = printf('customlist,%s', opts.completion)
     endif
   endif
@@ -178,7 +178,7 @@ endfun "}}}
 fun! awiwi#util#get_own_date() abort "{{{
   let name = expand('%:t:r')
   if !awiwi#util#is_date(name)
-    let name = join(path#split(expand('%:p'))[-4:-2], '-')
+    let name = join(awiwi#path#split(expand('%:p'))[-4:-2], '-')
     if !awiwi#util#is_date(name)
       throw s:AwiwiUtilError('AwiwiUtilError: not on journal or asset page')
     endif
@@ -291,7 +291,7 @@ fun! awiwi#util#get_code_block_lines(inclusive) abort "{{{
   let bad_result = [-1, -1]
   let current_line = line('.')
   let triple_ticks = '```'
-  if str#startswith(getline(current_line), triple_ticks)
+  if awiwi#str#startswith(getline(current_line), triple_ticks)
     echoerr '[ERROR] not inside of a code block'
     return bad_result
   endif
@@ -299,7 +299,7 @@ fun! awiwi#util#get_code_block_lines(inclusive) abort "{{{
   let block_end = -1
 
   for line in range(current_line - 1, 1, -1)
-    if str#startswith(getline(line), triple_ticks)
+    if awiwi#str#startswith(getline(line), triple_ticks)
       let block_start = line
       break
     endif
@@ -310,7 +310,7 @@ fun! awiwi#util#get_code_block_lines(inclusive) abort "{{{
   endif
 
   for line in range(current_line + 1, line('$'))
-    if str#startswith(getline(line), triple_ticks)
+    if awiwi#str#startswith(getline(line), triple_ticks)
       let block_end = line
       break
     endif

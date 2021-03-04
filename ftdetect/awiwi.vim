@@ -15,7 +15,7 @@ augroup awiwiFtDetect
 
   let s:au_assets = [
         \ printf('au BufWinEnter %s/assets/**/*', g:awiwi_home),
-        \ 'if !empty(&filetype) && !str#endswith(&filetype, ".awiwi")',
+        \ 'if !empty(&filetype) && !awiwi#str#endswith(&filetype, ".awiwi")',
         \ '  | exe "setlocal filetype=".&filetype.".awiwi"',
         \ '| else',
         \ '  | exe "setlocal filetype=awiwi"',
