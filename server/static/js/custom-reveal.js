@@ -1,7 +1,9 @@
 const state = {
   "sectionIndex": [],
   "isPresenting": false,
-  "settingsLoaded": false
+  "settingsLoaded": false,
+  "pageHeader": "h1",
+  "subpageHeader": "h2"
 }
 const settings = {
   fragmentAll: false
@@ -108,14 +110,15 @@ const wrapChildren = (el, wrapper) => {
 
 
 const wrapInSection = (start) => {
-  const cls = start.tagName === "H2" ? "page" : "subpage";
+  const cls = start.tagName === state.pageHeader.toUpperCase() ? "page" : "subpage";
   const nodeExpr = `section.${cls}`;
   const section = createNode(nodeExpr);
   const nodes = [];
   nodes.push(start);
   let sib = start.nextElementSibling;
+  const pattern = `^${state.pageHeader}|${state.subpageHeader}$`.toUpperCase();
   while (sib !== null) {
-    if (/^H[23]$/.test(sib.tagName)) {
+    if (sib.tagName.match(pattern)) {
       break;
     }
     nodes.push(sib);
@@ -162,7 +165,7 @@ const wrapInSections = () => {
   if (_("section") !== null) {
     return;
   }
-    __("div.article > h2, div.article > h3").forEach(h => wrapInSection(h));
+    __(`div.article > ${state.pageHeader}, div.article > ${state.subpageHeader}`).forEach(h => wrapInSection(h));
   const index = [];
   let numPages = 0;
   __("section.page").forEach(s => {
@@ -228,6 +231,7 @@ const fragmentAllIfRequested = () => {
   if (_(".fragment-all") !== null) {
     return;
   }
+  __(".article h1").addClasses("fragment-all");
   __("h2, h3, h4, h5, h6").addClasses("fragment-all");
 }
 
@@ -237,6 +241,7 @@ const togglePresentation = () => {
   fragmentAllIfRequested();
 
   if (state.isPresenting) {
+    _("div.article").setAttribute("data-page-header", "");
     unhideSurrounding();
     __("body", "img").removeClasses("presenting");
     _("section.current-page").classList.remove("current-page");
@@ -247,6 +252,7 @@ const togglePresentation = () => {
     removeFragmentClasses();
   }
   else {
+    _("div.article").setAttribute("data-page-header", state.pageHeader);
     hideSurrounding();
     __("body", "img").addClasses("presenting");
     _("section").classList.add("current-page");
