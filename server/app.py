@@ -25,6 +25,9 @@ from markdown.extensions.sane_lists import SaneListExtension
 from markdown.extensions.toc import TocExtension
 from markdown.extensions.attr_list import AttrListExtension
 from markdown_strikethrough.extension import StrikethroughExtension
+from kbdextension import KbdExtension
+from markdown_del_ins import DelInsExtension
+from markdown_blockdiag.extension import BlockdiagExtension
 from pygments import highlight
 from pygments.lexers import get_lexer_for_filename, get_lexer_by_name
 from pygments.formatters import HtmlFormatter

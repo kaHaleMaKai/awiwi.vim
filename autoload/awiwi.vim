@@ -25,11 +25,16 @@ let s:url_asset_cmd = 'url'
 let s:paste_asset_cmd = 'paste'
 let s:copy_asset_cmd = 'copy'
 
+let s:serve_start_cmd = 'start'
+let s:serve_stop_cmd = 'stop'
+
 let s:journal_subpath = awiwi#path#join(g:awiwi_home, 'journal')
 let s:asset_subpath = awiwi#path#join(g:awiwi_home, 'assets')
 let s:recipe_subpath = awiwi#path#join(g:awiwi_home, 'recipes')
 let s:awiwi_data_dir = awiwi#path#join(g:awiwi_home, 'data')
 let s:code_root_dir = expand('<sfile>:p:h:h')
+let s:server_started = v:false
+let s:server_host = ''
 
 let s:xdg_open_exts = ['ods', 'odt']
 
@@ -796,6 +801,8 @@ fun! awiwi#_get_completion(ArgLead, CmdLine, CursorPos) abort "{{{
     call s:insert_win_cmds(submatches, current_arg_pos+1, args[2:])
     return awiwi#util#match_subcommands(submatches, a:ArgLead)
   elseif args[1] == s:serve_cmd && current_arg_pos == 2
+    let submatches = [s:server_started ? s:serve_stop_cmd : s:serve_start_cmd]
+  elseif args[1] == s:serve_cmd && current_arg_pos == 3 && args[2] == s:serve_start_cmd
     let submatches = ['localhost', '*']
     return awiwi#util#match_subcommands(submatches, a:ArgLead)
   elseif args[1] == s:link_cmd
@@ -1169,10 +1176,13 @@ fun! awiwi#run(...) abort "{{{
   elseif a:1 == s:search_cmd
     call call(funcref('awiwi#fuzzy_search'), a:000[1:])
   elseif a:1 == s:serve_cmd
-    if a:0 >= 2
-      call awiwi#serve(a:2)
-    else
+    if a:0 == 1
       call awiwi#serve()
+    elseif a:2 == s:serve_start_cmd
+      let host = get(a:000, 2, 'localhost')
+      call awiwi#start_server(host)
+    elseif a:2 == s:serve_stop_cmd
+      call awiwi#stop_server()
     endif
   elseif a:1 == s:redact_cmd
     call awiwi#redact()
@@ -1285,17 +1295,43 @@ fun! s:write_json_config() abort "{{{
 endfun "}}}
 
 
-fun! awiwi#serve(...) abort "{{{
-  let host = get(a:000, 0, '')
+fun! awiwi#start_server(host) abort "{{{
+  if s:server_started
+    echoerr printf('server already running on %s:5000', s:server_host)
+    return
+  endif
+  if a:host == '*' || a:host == 'all'
+    let host = '0.0.0.0'
+  elseif a:host == '' || a:host == '127.0.0.1' || a:host == '::1'
+    let host = 'localhost'
+  else
+    let host = a:host
+  endif
   let flask = awiwi#path#join(s:code_root_dir, 'server', '.venv', 'bin', 'flask')
   let app = awiwi#path#join(s:code_root_dir, 'server', 'app.py')
   let $FLASK_APP = app
   let $FLASK_ROOT = g:awiwi_home
   let $FLASK_ENV = 'development'
-  if host == '*' || host == 'all'
-    let host = '0.0.0.0'
-  endif
   let host_arg = empty(host) ? '' : shellescape(printf('--host=%s', host))
+  echo printf('serving on %s:5000', host)
+  call s:write_json_config()
+  1new
+  set winheight=1
+  set wfh
+  call termopen(printf('%s run %s', flask, host_arg))
+  normal! <C-\><C-N>
+  wincmd p
+  stopi
+  let s:server_host = host
+  let s:server_started = v:true
+endfun "}}}
+
+
+fun! awiwi#serve() abort "{{{
+  if !s:server_started
+    call awiwi#start_server('localhost')
+    call system('sleep 0.5')
+  endif
   let dir = g:awiwi_home[-1] == '/' ? g:awiwi_home[:-1] : g:awiwi_home
   let current_file = expand('%:p')[len(dir)+1:]
   if awiwi#str#endswith(current_file, 'journal/todos.md')
@@ -1305,16 +1341,7 @@ fun! awiwi#serve(...) abort "{{{
   else
     let target = current_file
   endif
-  call system(printf('(sleep 1; xdg-open http://localhost:5000/%s) &', target))
-  echo printf('serving on %s:5000', empty(host) ? 'localhost' : host)
-  call s:write_json_config()
-  1new
-  set winheight=1
-  set wfh
-  call termopen(printf('%s run %s', flask, host_arg))
-  normal! <C-\><C-N>
-  wincmd p
-  stopi
+  call system('(xdg-open http://%s:5000/%s) &', s:server_host, target))
 endfun "}}}
 
 
