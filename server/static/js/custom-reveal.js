@@ -146,8 +146,8 @@ const addFragmentClasses = () => {
     ["p", "div"].forEach(type => {
       __(`#${id} > ${type}`)
         .filter_(el => !el.classList.contains("no-fragment"))
-        .filter_(el => el.childElementCount > 0 && asCustomArray(...el.childNodes).all(child => !child.classList.contains("no-fragment")))
-        .filter_(el => !asCustomArray(...el.childNodes).all(child => child.classList.contains("fragment")))
+        .filter_(el => asCustomArray(...el.children).all(child => !child.classList.contains("no-fragment")))
+        .filter_(el => el.childElementCount === 0 || !asCustomArray(...el.children).all(child => child.classList.contains("fragment")))
         .addClasses("fragment");
     });
   }
