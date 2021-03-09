@@ -213,3 +213,8 @@ iabbrev :shrug: `¯\_(ツ)_/¯`
 iabbrev :arrow: →
 iabbrev :check: ✔
 iabbrev :cross: ✖
+
+let awiwi_server = get(g:, 'awiwi_autostart_server', '')
+if !empty(awiwi_server) && !awiwi#server_is_running()
+  call awiwi#start_server(awiwi_server)
+endif
