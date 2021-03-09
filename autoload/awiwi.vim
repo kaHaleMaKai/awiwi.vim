@@ -807,7 +807,7 @@ fun! awiwi#_get_completion(ArgLead, CmdLine, CursorPos) abort "{{{
     call s:insert_win_cmds(submatches, current_arg_pos+1, args[2:])
     return awiwi#util#match_subcommands(submatches, a:ArgLead)
   elseif args[1] == s:server_cmd && current_arg_pos == 2
-    let submatches = [s:server_started ? s:server_stop_cmd : s:server_start_cmd, s:server_logs_cmd]
+    let submatches = [awiwi#server_is_running() ? s:server_stop_cmd : s:server_start_cmd, s:server_logs_cmd]
     return awiwi#util#match_subcommands(submatches, a:ArgLead)
   elseif args[1] == s:server_cmd && current_arg_pos == 3 && args[2] == s:server_start_cmd
     let submatches = ['localhost', '*']
@@ -1329,7 +1329,7 @@ endfun "}}}
 
 
 fun! awiwi#stop_server() abort "{{{
-  if s:server_started
+  if awiwi#server_is_running()
     echo printf('stopping server on %s:5000', s:server_host)
     if s:server_job_id > 0
       call jobstop(s:server_job_id)
@@ -1342,8 +1342,13 @@ fun! awiwi#stop_server() abort "{{{
 endfun "}}}
 
 
+fun! awiwi#server_is_running() abort "{{{
+  return s:server_started
+endfun "}}}
+
+
 fun! awiwi#start_server(host) abort "{{{
-  if s:server_started
+  if awiwi#server_is_running()
     echoerr printf('server already running on %s:5000', s:server_host)
     return
   endif
@@ -1377,7 +1382,7 @@ endfun "}}}
 
 
 fun! awiwi#serve() abort "{{{
-  if !s:server_started
+  if !awiwi#server_is_running()
     call awiwi#start_server('localhost')
     call system('sleep 0.5')
   endif
