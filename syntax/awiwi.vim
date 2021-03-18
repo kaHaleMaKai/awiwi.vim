@@ -100,10 +100,10 @@ hi awiwiTaskDate cterm=italic ctermfg=247
 if get(g:, 'awiwi_highlight_links', v:true)
   let containers = s:headers . ',awiwiList1,awiwiList2,awiwiTaskListOpen1,awiwiTaskListOpen2,markdownList,markdownListMarker'
   syn region awiwiLink
-        \ start=/\C\(^\|[^[]\)\@<=\(^[-*] \+\)\@<!\[\S\@=/
-        \ end=/\C\S\@<=)\($\|[^)]\)\@=/
+        \ start=/\C\(^\s*[-*] \+\)\@<!\[/
+        \ end=/\C[^)]\@<=)/
         \ keepend
-        \ contains=awiwiLinkStart,awiwiLinkName,awiwiLinkEnd,awiwiLinkInternalTarget,awiwiLinkProtocol,awiwiLinkDomain
+        \ contains=awiwiLinkStart,awiwiLinkName,awiwiLinkEnd,awiwiLinkInternalTarget,awiwiLinkProtocol,awiwiLinkPath,awiwiRedmineIssue,awiwiLinkDomain,awiwiLinkUrlStart,awiwiLinkUrlEnd
         \ containedin=markdownH1,markdownH2,markdownH3,markdownH4,markdownH5,markdownH6,awiwiList1,awiwiList2,awiwiTaskListOpen1,awiwiTaskListOpen2,markdownList,markdownListMarker
 
   let conceal = get(g:, 'awiwi_conceal_links', v:true) ? 'conceal cchar=' : ''
@@ -115,23 +115,31 @@ if get(g:, 'awiwi_highlight_links', v:true)
     let [conceal_start_char, conceal_end_char, conceal_target_char] = ['', '', '']
   endif
 
-  exe printf('syn match awiwiLinkStart  /\C\(^\|[^[]\)\@<=\[\(..\{-}]([^)].\{-})\)\@=/ contained containedin=%s %s%s', containers, conceal, conceal_start_char)
-  syn match awiwiLinkName   /\C\[\@<=.\{-}\(]([^)].\{-})\)\@=/ containedin=markdownH1,markdownH2,markdownH3,markdownH4,markdownH5,markdownH6,awiwiList1,awiwiList2,awiwiTaskListOpen1,awiwiTaskListOpen2,markdownList,markdownListMarker
-  exe printf('syn match awiwiLinkEnd    /\C\S\@<=\]\(([^)].\{-})\)\@=/                 contained containedin=%s %s%s', containers, conceal, conceal_end_char)
-  "syn match awiwiLinkTargetStart /\C\]\@<=(\([^)].\{-})\($\|[^)]\)\)\@=/   contained
-  "syn match awiwiLinkTargetEnd /\C\]\@<=([^)].\{-})\($\|[^)]\)\@=/         contained
-  if conceal != ''
-    syn match awiwiLinkProtocol _\C\(\](\)\@<=https\?://\([^)].\{-})\($\|[^)]\)\)\@=_ contained conceal containedin=markdownH1,markdownH2,markdownH3,markdownH4,markdownH5,markdownH6,awiwiList1,awiwiList2,awiwiTaskListOpen1,awiwiTaskListOpen2,markdownList,markdownListMarker
-  endif
-  " FIXME for redmine, it would be great only to show the issue id with a hashtag in front
-  " exe printf('syn match awiwiLinkDomain   _\(\](https://redmine.pmd5.org/issues/\)\@<=[0-9]\+\()$\|)[^)]\)\@=_  contained containedin=%s %s%s', containers, conceal, conceal_target_char)
-  exe printf('syn match awiwiLinkDomain   _\C\(\](\(https://[^/]\+/\)\)\@<=[^)].\{-}\()$\|)[^)]\)\@=_  contained containedin=%s %s%s', containers, conceal, conceal_target_char)
-  exe printf('syn match awiwiLinkInternalTarget   _\C\(\](\)\@<=[^h)].\{-}\()$\|)[^h)]\)\@=_           contained containedin=%s %s%s', containers, conceal, conceal_target_char)
+  exe printf('syn match awiwiLinkStart  /\C\(^\s*[-*]\s\+\)\@<!\[/ contained containedin=%s %s%s', containers, conceal, conceal_start_char)
+  syn match awiwiLinkName   /\C\[\@<=[^[\]]\+\(](\)\@=/ containedin=markdownH1,markdownH2,markdownH3,markdownH4,markdownH5,markdownH6,awiwiList1,awiwiList2,awiwiTaskListOpen1,awiwiTaskListOpen2,markdownList,markdownListMarker
+  exe printf('syn match awiwiLinkEnd    /\C[^\]]\@<=\](\@=/  contained containedin=%s %s%s', containers, conceal, conceal_end_char)
 
+  if conceal != ''
+    syn match awiwiLinkProtocol _\C\(\](\)\@<=https\?://\(www\.\)\?\([^)]\+)\)\@=_ contained conceal containedin=markdownH1,markdownH2,markdownH3,markdownH4,markdownH5,markdownH6,awiwiList1,awiwiList2,awiwiTaskListOpen1,awiwiTaskListOpen2,markdownList,markdownListMarker
+  endif
+  exe printf('syn match awiwiLinkUrlStart _\C\]\@<=(_ contained   containedin=%s', containers)
+  exe printf('syn match awiwiLinkUrlEnd   _\C\(\]([^)]\+\)\@<=)_  contained containedin=%s', containers)
+  exe printf('syn match awiwiLinkDomain _\C\(\](https\?://\(www\.\)\?\)\@<=[^/]\+/\?\([^)]\+)\)\@=_  contained containedin=%s', containers)
+  exe printf('syn match awiwiLinkPath   _\C\(\](https://[^/]\+/\)\@<=[^)]\+)\@=_  contained containedin=%s %s%s', containers, conceal, conceal_target_char)
+  exe printf('syn match awiwiLinkInternalTarget   _\C\(\](\)\@<=[^h)].\{-}\()$\|)[^h)]\)\@=_  contained containedin=%s %s%s', containers, conceal, conceal_target_char)
+  " FIXME for redmine, it would be great only to show the issue id with a hashtag in front
+  exe printf('syn match awiwiLinkPath     _\C\(\](\)\@<=https://redmine.pmd5.org/issues/\([0-9]\+)\)\@=_  contained containedin=%s %s#', containers, conceal)
+  exe printf('syn match awiwiRedmineIssue   _\C\(\](https://redmine.pmd5.org/issues/\)\@<=[0-9]\+)\@=_    contained containedin=%s', containers)
+
+  let domain_color = get(g:, 'awiwi_domain_color', 243)
   let link_color = get(g:, 'awiwi_link_color', 142)
   let link_style = get(g:, 'awiwi_link_style', 'underline')
   for group in ['Name', 'Start', 'End']
     exe printf('hi awiwiLink%s cterm=%s ctermfg=%d', group, link_style, link_color)
+  endfor
+  exe printf('hi awiwiRedmineIssue ctermfg=%d cterm=bold', domain_color)
+  for group in ['Domain', 'UrlStart', 'UrlEnd']
+    exe printf('hi awiwiLink%s   ctermfg=%d', group, domain_color)
   endfor
 endif
 
@@ -140,3 +148,4 @@ syn match awiwiFileTypePrefix /\C\(^[^a-zA-Z0-9_]*\)\@<=vim: ft?\( [a-z].*\)\@=/
 syn match awiwiFileType       /\C\(^[^a-zA-Z0-9_]*vim: ft=\)\@<=[a-z].*$/        contained
 hi awiwiFileTypePrefix ctermfg=247
 hi awiwiFileType       ctermfg=3   cterm=bold
+hi awiwiLinkPath       ctermfg=247
