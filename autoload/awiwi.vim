@@ -37,9 +37,11 @@ let s:awiwi_data_dir = awiwi#path#join(g:awiwi_home, 'data')
 let s:code_root_dir = expand('<sfile>:p:h:h')
 let s:server_started = v:false
 let s:server_host = ''
+let s:server_port = ''
 let s:server_buffer_nr = ''
 let s:server_job_id = -1
 let s:server_logs = {"stdout": [], "stderr": [], "exit": []}
+let s:default_port = '5823'
 
 let s:xdg_open_exts = ['ods', 'odt']
 
@@ -1193,7 +1195,8 @@ fun! awiwi#run(...) abort "{{{
       return
     elseif a:2 == s:server_start_cmd
       let host = get(a:000, 2, 'localhost')
-      call awiwi#start_server(host)
+      let port = get(a:000, 3, s:default_port)
+      call awiwi#start_server(host, port)
     elseif a:2 == s:server_stop_cmd
       call awiwi#stop_server()
     elseif a:2 == s:server_logs_cmd
@@ -1330,13 +1333,18 @@ endfun "}}}
 
 fun! awiwi#stop_server() abort "{{{
   if awiwi#server_is_running()
-    echo printf('stopping server on %s:5000', s:server_host)
+    echo printf('stopping server on %s:%s', s:server_host, s:server_port)
     if s:server_job_id > 0
-      call jobstop(s:server_job_id)
+      try
+        call jobstop(s:server_job_id)
+      catch /E900/
+        echoerr 'no server running. dropping job id'
+      endtry
       let s:server_job_id = -1
     endif
     let s:server_started = v:false
     let s:server_host = ''
+    let s:server_port = ''
     let s:server_buffer_nr = -1
   endif
 endfun "}}}
@@ -1347,9 +1355,10 @@ fun! awiwi#server_is_running() abort "{{{
 endfun "}}}
 
 
-fun! awiwi#start_server(host) abort "{{{
+fun! awiwi#start_server(host, ...) abort "{{{
+  let port = get(a:000, 0, get(g:, 'awiwi_server_port', s:default_port))
   if awiwi#server_is_running()
-    echoerr printf('server already running on %s:5000', s:server_host)
+    echoerr printf('server already running on %s:%s', s:server_host, s:server_port)
     return
   endif
   if a:host == '*' || a:host == 'all'
@@ -1364,9 +1373,12 @@ fun! awiwi#start_server(host) abort "{{{
   let $FLASK_APP = app
   let $FLASK_ROOT = g:awiwi_home
   let $FLASK_ENV = 'development'
+  let $FLASK_HOST = host
+  let $FLASK_PORT = port
   let host_arg = printf('--host=%s', host)
-  let job_args = [flask, 'run', host_arg]
-  echo printf('serving on %s:5000', host)
+  let port_arg = printf('--port=%s', port)
+  let job_args = [flask, 'run', host_arg, port_arg]
+  echo printf('serving on %s:%s', host, port)
   call s:write_json_config()
   let opts = {}
   let opts.on_stdout = { id, data, event -> extend(s:server_logs.stdout, data) }
@@ -1377,13 +1389,14 @@ fun! awiwi#start_server(host) abort "{{{
   endfor
   let s:server_job_id = jobstart(job_args, opts)
   let s:server_host = host
+  let s:server_port = port
   let s:server_started = v:true
 endfun "}}}
 
 
 fun! awiwi#serve() abort "{{{
   if !awiwi#server_is_running()
-    call awiwi#start_server('localhost')
+    call awiwi#start_server('localhost', s:default_port)
     call system('sleep 0.5')
   endif
   let dir = g:awiwi_home[-1] == '/' ? g:awiwi_home[:-1] : g:awiwi_home
@@ -1395,7 +1408,7 @@ fun! awiwi#serve() abort "{{{
   else
     let target = current_file
   endif
-  let host_arg = printf('http://%s:5000/%s', s:server_host, target)
+  let host_arg = printf('http://%s:%s/%s', s:server_host, s:server_port, target)
   call jobstart(['xdg-open', host_arg])
 endfun "}}}
 

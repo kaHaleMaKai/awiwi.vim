@@ -71,6 +71,7 @@ default_theme_mode = "light"
 server_root = Path(os.path.abspath(os.path.dirname(__file__)))
 content_root = Path(os.environ.get('FLASK_ROOT', '.'))
 listen_address = os.environ.get("FLASK_HOST")
+flask_port = os.environ.get("FLASK_PORT")
 auth_cache_file = content_root/"auth"
 flask_secret_file = content_root/"flask-secret"
 
@@ -775,4 +776,4 @@ def update_checkbox_in_file(path: Path, line_nr: int, check: bool, hash: str) ->
 
 
 if __name__ == "__main__":
-    app.run(host=listen_address, debug=True)
+    app.run(host=listen_address, port=flask_port, debug=True)
