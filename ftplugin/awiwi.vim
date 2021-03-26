@@ -39,11 +39,21 @@ if awiwi#str#contains(expand('%:h'), '/assets/')
 endif
 
 
-fun! s:handle_enter_on_insert() abort "{{{
+fun! s:handle_enter_on_insert(mode, above) abort "{{{
   let line = getline('.')
+  " is this any kind of list?
   let m = matchlist(line, '^\([[:space:]]*\)\([-*]\)\([[:space:]]\+\)\(\[[ x]\+\]\)\?')
   if empty(m)
-    normal! o
+    if a:mode == 'n'
+      normal! o
+    else
+      let pos = getcurpos()[-1]
+      if pos > strlen(line)
+        exe "normal! a\n"
+      else
+        exe "normal! i\n"
+      endif
+    endif
     starti
     return
   endif
@@ -188,8 +198,9 @@ EOF
 endfun "}}}
 
 
-nnoremap <silent> <buffer> o :call <sid>handle_enter_on_insert()<CR>
-inoremap <silent> <buffer> <Enter> <Esc>:call <sid>handle_enter_on_insert()<CR>
+nnoremap <silent> <buffer> O :call <sid>handle_enter_on_insert('n', v:true)<CR>
+nnoremap <silent> <buffer> o :call <sid>handle_enter_on_insert('n', v:false)<CR>
+inoremap <silent> <buffer> <Enter> <C-o>:call <sid>handle_enter_on_insert('i', v:false)<CR>
 nnoremap <silent> <buffer> <Enter> :call <sid>handle_enter()<CR>
 
 augroup awiwiAutosave
@@ -204,6 +215,7 @@ augroup END
 
 inoremap <silent> <buffer> <C-d> <C-r>=strftime('%F')<CR>
 inoremap <silent> <buffer> <C-f> <C-r>=strftime('%H:%M')<CR>
+nnoremap <silent> <buffer> <C-q> :Awiwi redact<CR>
 inoremap <silent> <buffer> <C-q> <C-o>:Awiwi redact<CR>
 inoremap <silent> <buffer> <C-v> <C-o>:call awiwi#handle_paste_in_insert_mode()<CR>
 
