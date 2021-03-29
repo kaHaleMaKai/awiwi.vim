@@ -6,7 +6,6 @@ let g:autoloaded_awiwi_util = v:true
 let s:search_engine_plain = 'plain'
 let s:search_engine_regex = 'regex'
 let s:search_engine_fuzzy = 'fuzzy'
-let s:date_pattern = '^[0-9]\{4}-[0-9]\{2}-[0-9]\{2}$'
 
 let s:resources = {}
 let s:script = expand('<sfile>:p')
@@ -68,7 +67,7 @@ fun! s:AwiwiUtilError(msg, ...) abort "{{{
   else
     let msg = a:msg
   endif
-  return 'AwiwiTaskError: ' . msg
+  return 'AwiwiUtilError: ' . msg
 endfun "}}}
 
 
@@ -167,28 +166,6 @@ fun! awiwi#util#input(prompt, ...) abort "{{{
     call inputrestore()
   endtry
   return text
-endfun "}}}
-
-
-fun! awiwi#util#is_date(expr) abort "{{{
-  return match(a:expr, s:date_pattern) > -1
-endfun "}}}
-
-
-fun! awiwi#util#get_own_date() abort "{{{
-  let name = expand('%:t:r')
-  if !awiwi#util#is_date(name)
-    let name = join(awiwi#path#split(expand('%:p'))[-4:-2], '-')
-    if !awiwi#util#is_date(name)
-      throw s:AwiwiUtilError('AwiwiUtilError: not on journal or asset page')
-    endif
-  endif
-  return name
-endfun "}}}
-
-
-fun! awiwi#util#ints_to_date(year, month, day) abort "{{{
-  return printf('%04d-%02d-%02d', a:year, a:month, a:day)
 endfun "}}}
 
 
@@ -340,4 +317,14 @@ fun! awiwi#util#select_code_block(inclusive) abort "{{{
     return
   endif
   exe printf('normal! %dggV%dgg', start, end)
+endfun "}}}
+
+
+fun! awiwi#util#relativize(path, ...) abort "{{{
+  if a:0 > 0
+    let other_file = awiwi#path#absolute(a:1)
+  else
+    let other_file = awiwi#path#absolute(expand('%'))
+  endif
+  return awiwi#path#relativize(a:path, other_file)
 endfun "}}}

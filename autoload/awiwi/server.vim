@@ -109,7 +109,7 @@ endfun "}}}
 
 fun! awiwi#server#serve() abort "{{{
   if !awiwi#server#server_is_running()
-    call awiwi#start_server('localhost', s:default_port)
+    call awiwi#server#start_server('localhost', s:default_port)
     call system('sleep 0.5')
   endif
   let dir = g:awiwi_home[-1] == '/' ? g:awiwi_home[:-1] : g:awiwi_home

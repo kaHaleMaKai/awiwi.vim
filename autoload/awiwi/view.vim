@@ -238,7 +238,7 @@ fun! awiwi#view#new_task(...) abort "{{{
   if a:0
     if type(a:1) == v:t_string
       let title = a:1
-      let date = awiwi#util#get_own_date()
+      let date = awiwi#date#get_own_date()
     else
       if has_key(a:1, 'name')
         let title = a:1['name']

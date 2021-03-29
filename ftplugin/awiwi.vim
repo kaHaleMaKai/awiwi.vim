@@ -17,9 +17,9 @@ endif
 
 command!
       \ -nargs=+
-      \ -complete=customlist,awiwi#_get_completion
+      \ -complete=customlist,awiwi#cmd#get_completion
       \ Awiwi
-      \ call awiwi#run(<f-args>)
+      \ call awiwi#cmd#run(<f-args>)
 
 " ++++++++++++++++++++++++++++++++++++++++
 " +                maps                  +
@@ -35,7 +35,7 @@ nnoremap <silent> <buffer> gp :Awiwi journal previous<CR>
 
 
 if awiwi#str#contains(expand('%:h'), '/assets/')
-  nnoremap <silent> <buffer> gj :exe printf('e %s', awiwi#get_journal_for_current_asset())<CR>
+  nnoremap <silent> <buffer> gj :exe printf('e %s', awiwi#asset#get_journal_for_current_asset())<CR>
 endif
 
 

@@ -1,0 +1,108 @@
+let s:date_pattern = '^[0-9]\{4}-[0-9]\{2}-[0-9]\{2}$'
+
+
+fun! s:AwiwiDateError(msg, ...) abort "{{{
+  if a:0
+    let args = [a:msg]
+    call extend(args, a:000)
+    let msg = call('printf', args)
+  else
+    let msg = a:msg
+  endif
+  return 'AwiwiDateError: ' . msg
+endfun "}}}
+
+
+fun! s:get_today() abort "{{{
+  return strftime('%F')
+endfun "}}}
+
+
+fun! awiwi#date#parse_date(date) abort "{{{
+  if a:date == 'today'
+    return strftime('%F')
+  elseif a:date == 'yesterday'
+    let date = s:get_yesterday(strftime('%F'))
+  elseif a:date == 'prev' || a:date == 'previous' || a:date == 'previous date' || a:date == 'previous day'
+    try
+      let date = s:get_offset_date(awiwi#date#get_own_date(), -1)
+    catch /AwiwiError/
+      let date = s:get_offset_date(s:get_today(), -1)
+    endtry
+  elseif a:date == 'next' || a:date == 'next date' || a:date == 'next day'
+    try
+      let date = s:get_offset_date(awiwi#date#get_own_date(), +1)
+    catch /AwiwiError/
+      let date = s:get_offset_date(s:get_today(), +1)
+    endtry
+  else
+    let date = a:date
+  endif
+  return date
+endfun "}}}
+
+
+fun! s:get_yesterday(date) abort "{{{
+  let [year, month, day] = map(split(a:date, '-'), {_, v -> str2nr(v)})
+  " not 1st of month
+  if str2nr(day) > 1
+    return s:ints_to_date(year, month, day - 1)
+  endif
+  " date is 1st of month
+  let num_days = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+  " no switch to Feb. of Dec.
+  if month == 2 || month >= 3
+    return s:ints_to_date(year, month - 1, num_days[month - 1])
+  " switch to Feb.
+  elseif month == 3
+    " check for leap year
+    if year % 400 == 0 || (year % 4 == 0 && year % 100 != 0)
+      let day = 29
+    else
+      let day = 28
+    endif
+    return s:ints_to_date(year, 2, day)
+  " switch from Jan. back to Dec.
+  else
+    return s:ints_to_date(year - 1, 12, 31)
+  endif
+endfun "}}}
+
+
+fun! s:get_offset_date(date, offset) abort "{{{
+  let files = awiwi#get_all_journal_files()
+  let idx = index(files, a:date)
+  if idx == -1
+    if awiwi#date#parse_date('today') == a:date
+      return a:date
+    endif
+    throw printf('AwiwiError: date %s not found', a:date)
+  elseif a:offset <= 0 && idx + a:offset <= 0
+    throw printf('AwiwiError: no date found before %s', a:date)
+  elseif a:offset >= 0 && idx + a:offset >= len(files) - 1
+    throw printf('AwiwiError: no date found after %s', a:date)
+  endif
+  return files[idx + a:offset]
+endfun "}}}
+
+
+fun! s:ints_to_date(year, month, day) abort "{{{
+  return printf('%04d-%02d-%02d', a:year, a:month, a:day)
+endfun "}}}
+
+
+fun! awiwi#date#get_own_date() abort "{{{
+  let name = expand('%:t:r')
+  if !s:is_date(name)
+    let name = join(awiwi#path#split(expand('%:p'))[-4:-2], '-')
+    if !s:is_date(name)
+      throw s:AwiwiDateError('not on journal or asset page')
+    endif
+  endif
+  return name
+endfun "}}}
+
+
+fun! s:is_date(expr) abort "{{{
+  return match(a:expr, s:date_pattern) > -1
+endfun "}}}
