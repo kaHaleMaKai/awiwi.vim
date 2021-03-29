@@ -1,3 +1,50 @@
+const _ = (expr) => {
+  if (typeof expr === "string") {
+    return document.querySelector(expr);
+  }
+  return expr;
+}
+
+
+const asCustomArray = (...arr) => {
+  const ret = [...arr];
+  ret.except = (expr) => asCustomArray(...ret.filter(el => el !== expr));
+  ret.filter_ = (fn) => asCustomArray(...ret.filter(fn));
+  ret.addClasses = (...classes) => {
+    ret.forEach(el => el.classList.add(...classes))
+    return ret;
+  };
+  ret.removeClasses = (...classes) => {
+    ret.forEach(el => el.classList.remove(...classes));
+    return ret;
+  }
+  ret.all = (fn) => ret.filter(fn).length === ret.length;
+  ret.any = (fn) => ret.filter(fn).length > 0;
+  return ret;
+}
+
+
+const __ = (expr, ...more) => {
+  const nodesOrExpressions = [expr];
+  nodesOrExpressions.push(...more);
+
+  if (typeof expr === "string") {
+    return asCustomArray(...document.querySelectorAll(nodesOrExpressions.join(", ")));
+  }
+  if (nodesOrExpressions.constructor !== Array) {
+    let ret = [nodesOrExpressions];
+  }
+  else {
+    let ret = nodesOrExpressions;
+  }
+  return asCustomArray(...ret);
+}
+
+
+const log = (expr) => console.log(expr);
+
+
+
 let html = document.getElementsByTagName('html')[0];
 
 html.classList.add('color-theme-in-transition');
@@ -94,8 +141,22 @@ const attachCheckboxes = () => {
   }
 }
 
+const addParentClasses = () => {
+  const subClasses = ["centered"];
+  ["table", "li", "img", "dl"].forEach(type => {
+    subClasses.forEach(cls => {
+      __(`${type}.${cls}`).forEach(el => {
+        if (!el.parentElement.classList.contains(cls)) {
+          el.parentElement.classList.add(cls);
+        }
+      })
+    })
+  })
+}
+
 const onloadHandler = () => {
   attachCheckboxes();
+  addParentClasses();
 }
 
 const downKeys = new Set();

@@ -9,6 +9,13 @@ const settings = {
   fragmentAll: false
 }
 
+const arrowSymbols = {
+  "left": "⬅",
+  "right": "➡",
+  "up": "⬆",
+  "down": "⬇"
+}
+
 
 const loadSettings = () => {
   if (state.settingsLoaded) {
@@ -26,52 +33,6 @@ const loadSettings = () => {
     }
   }
 }
-
-
-const _ = (expr) => {
-  if (typeof expr === "string") {
-    return document.querySelector(expr);
-  }
-  return expr;
-}
-
-
-const asCustomArray = (...arr) => {
-  const ret = [...arr];
-  ret.except = (expr) => asCustomArray(...ret.filter(el => el !== expr));
-  ret.filter_ = (fn) => asCustomArray(...ret.filter(fn));
-  ret.addClasses = (...classes) => {
-    ret.forEach(el => el.classList.add(...classes))
-    return ret;
-  };
-  ret.removeClasses = (...classes) => {
-    ret.forEach(el => el.classList.remove(...classes));
-    return ret;
-  }
-  ret.all = (fn) => ret.filter(fn).length === ret.length;
-  ret.any = (fn) => ret.filter(fn).length > 0;
-  return ret;
-}
-
-
-const __ = (expr, ...more) => {
-  const nodesOrExpressions = [expr];
-  nodesOrExpressions.push(...more);
-
-  if (typeof expr === "string") {
-    return asCustomArray(...document.querySelectorAll(nodesOrExpressions.join(", ")));
-  }
-  if (nodesOrExpressions.constructor !== Array) {
-    let ret = [nodesOrExpressions];
-  }
-  else {
-    let ret = nodesOrExpressions;
-  }
-  return asCustomArray(...ret);
-}
-
-
-const log = (expr) => console.log(expr);
 
 
 const createNode = (expr) => {
@@ -249,18 +210,20 @@ const togglePresentation = () => {
   if (state.isPresenting) {
     _("div.article").setAttribute("data-page-header", "");
     unhideSurrounding();
-    __("body", "img").removeClasses("presenting");
+    __("body", "img", "h1", "h2", "h3", "h4", "h5", "h6").removeClasses("presenting");
     _("section.current-page").classList.remove("current-page");
     __("section").removeClasses(
       "fade-left", "fade-right", "fade-up", "fade-down", "hidden",
       "presenting", "current-page"
     );
+    __(".arrow-indicator").addClasses("hidden");
     removeFragmentClasses();
   }
   else {
     _("div.article").setAttribute("data-page-header", state.pageHeader);
+    __(".arrow-indicator.hidden").removeClasses("hidden");
     hideSurrounding();
-    __("body", "img").addClasses("presenting");
+    __("body", "img", "h1", "h2", "h3", "h4", "h5", "h6").addClasses("presenting");
     _("section").classList.add("current-page");
 
     __("section")
@@ -272,6 +235,7 @@ const togglePresentation = () => {
   }
   state.isPresenting = !state.isPresenting;
   addFragmentClasses();
+  setArrowColors();
 }
 
 
@@ -357,7 +321,22 @@ const replaceFadeClass = (el, cls) => {
 }
 
 
+const setArrowColors = () => {
+  ["left", "right", "up", "down"].forEach(dir => {
+    const arrow = _(`img.${dir}-arrow`);
+    if (getNextPage(dir) !== null) {
+      if (!arrow.classList.contains("active")) {
+        arrow.classList.add("active");
+      }
+    }
+    else {
+      arrow.classList.remove("active");
+    }
+  });
+}
+
 const makeSlideVisible = (el) => {
+  setArrowColors();
   __(`#${el.id} > .show-fragment`).forEach(el => el.classList.replace("show-fragment", "hide-fragment"));
   removeFadeClasses(el);
   el.classList.remove("hidden");

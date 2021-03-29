@@ -49,6 +49,17 @@
       </div>
 
       <div class="article {{ 'highlight-article' if highlight_article|default(false) else '' }}">
+        <div class="arrow-indicator up-arrow hidden">
+          <img class="arrow-img up-arrow" src="/static/img/up-arrow.png" />
+        </div>
+
+        <div class="arrow-indicator left-arrow hidden">
+          <img class="arrow-img left-arrow" src="/static/img/left-arrow.png" />
+        </div>
+
+        <div class="arrow-indicator right-arrow hidden">
+          <img class="arrow-img right-arrow" src="/static/img/right-arrow.png" />
+        </div>
 
         {% block content %}
         {{ content }}
@@ -57,6 +68,10 @@
         {% block footer %}{% endblock %}
       </div>
     </div>
+        <div class="arrow-indicator down-arrow hidden">
+          <img class="arrow-img down-arrow" src="/static/img/down-arrow.png" />
+        </div>
+
 
   </body>
 
