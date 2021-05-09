@@ -15,6 +15,7 @@ let s:tasks_cmd = 'tasks'
 let s:todo_cmd = 'todo'
 
 let s:new_asset_cmd = 'create'
+let s:empty_asset_cmd = 'empty'
 let s:url_asset_cmd = 'url'
 let s:paste_asset_cmd = 'paste'
 let s:copy_asset_cmd = 'copy'
@@ -85,11 +86,10 @@ let s:tasks_subcommands = [
 
 fun! awiwi#cmd#get_cmd(name) abort "{{{
   let name = printf('%s_cmd', a:name)
-  let cmd = get(s:, name, unset)
-  if cmd == s:unset
+  if !has_key(s:, name)
     throw s:AwiwiError('command %s does not exist', name)
   endif
-  return cmd
+  return get(s:, name)
 endfun "}}}
 
 
@@ -308,7 +308,7 @@ fun! awiwi#cmd#run(...) abort "{{{
       elseif get(a:000, 2, '') == s:paste_asset_cmd
         return awiwi#asset#create_asset_here_if_not_exists(s:paste_asset_cmd)
       else
-        let args = ['empty']
+        let args = [s:empty_asset_cmd]
         call extend(args, a:000[2:])
         let filename = call('awiwi#asset#create_asset_here_if_not_exists', args)
         return awiwi#asset#open_asset(filename, {'new_window': v:true})

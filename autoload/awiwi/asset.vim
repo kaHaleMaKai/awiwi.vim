@@ -24,7 +24,7 @@ fun! s:create_asset(type, path) abort "{{{
   if !filewritable(dir)
     call mkdir(dir, 'p')
   endif
-  if a:type == 'empty'
+  if a:type == awiwi#cmd#get_cmd('empty_asset')
     call writefile([], a:path)
   elseif a:type == awiwi#cmd#get_cmd('url_asset')
     let url = awiwi#util#input('url: ')
@@ -40,7 +40,7 @@ endfun "}}}
 
 
 fun! awiwi#asset#create_asset_link(...) abort "{{{
-  let name = get(a:000, 0, '')
+  let name = join(a:000, ' ')
   if name == ''
     let name = awiwi#util#input('asset name: ')
   endif
@@ -60,10 +60,7 @@ fun! awiwi#asset#create_asset_link(...) abort "{{{
         \   '', 'g'
         \ )
 
-  let filename = get(a:000, 1, '')
-  if filename == ''
-    let filename = awiwi#util#input('asset file: ', {'default': default_filename})
-  endif
+  let filename = awiwi#util#input('asset file: ', {'default': default_filename})
   if filename == ''
     echo '[INFO] no asset created'
     return ['', '', '']
@@ -88,7 +85,7 @@ endfun "}}}
 
 
 fun! awiwi#asset#insert_asset_link(date, name) abort "{{{
-  let path = awiwi#date#relativize(s:get_asset_path(a:date, a:name))
+  let path = awiwi#util#relativize(s:get_asset_path(a:date, a:name))
   let link = printf('[asset %s, %s](%s)', a:name, a:date, path)
   call awiwi#insert_link_here(link)
 endfun "}}}

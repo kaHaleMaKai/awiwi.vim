@@ -60,8 +60,6 @@ let s:question_markers = ['QUESTION', 'q?', 'Q?']
 let s:due_markers = ['DUE', 'DUE TO', 'UNTIL', '@until', '@due']
 let s:incident_markers = ['@incident']
 
-let s:unset = '__unset__'
-
 " 1}}}
 
 fun! s:AwiwiError(msg, ...) abort "{{{
@@ -684,7 +682,7 @@ fun! awiwi#handle_paste_in_insert_mode() abort "{{{
   elseif type == 'text/plain'
     normal! "+p
   else
-    call awiwi#asset#create_asset_here_if_not_exists(s:paste_asset_cmd)
+    call awiwi#asset#create_asset_here_if_not_exists(awiwi#cmd#get_cmd('paste_asset'))
     normal! f)la
   endif
 endfun "}}}

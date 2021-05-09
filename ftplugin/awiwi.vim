@@ -45,7 +45,8 @@ fun! s:handle_enter_on_insert(mode, above) abort "{{{
   let m = matchlist(line, '^\([[:space:]]*\)\([-*]\)\([[:space:]]\+\)\(\[[ x]\+\]\)\?')
   if empty(m)
     if a:mode == 'n'
-      normal! o
+      let key = a:above ? 'O' : 'o'
+      exe printf('normal! %s', key)
     else
       let pos = getcurpos()[-1]
       if pos > strlen(line)
@@ -213,13 +214,14 @@ augroup awiwiDeleteOldTasks
   au BufEnter,BufWritePre */journal/todos.md call <sid>delete_old_tasks()
 augroup END
 
-inoremap <silent> <buffer> <C-d> <C-r>=strftime('%F')<CR>
+" inoremap <silent> <buffer> <C-d> <C-r>=strftime('%F')<CR>
 inoremap <silent> <buffer> <C-f> <C-r>=strftime('%H:%M')<CR>
 nnoremap <silent> <buffer> <C-q> :Awiwi redact<CR>
 inoremap <silent> <buffer> <C-q> <C-o>:Awiwi redact<CR>
 inoremap <silent> <buffer> <C-v> <C-o>:call awiwi#handle_paste_in_insert_mode()<CR>
 
 exe 'inoremap <buffer> <C-s> <C-o>:Awiwi link '
+exe 'inoremap <buffer> <C-d> <C-o>:Awiwi asset create<CR>'
 
 iabbrev :shrug: `¯\_(ツ)_/¯`
 iabbrev :arrow: →

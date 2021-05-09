@@ -81,6 +81,17 @@ html {
   --negative-balance: #ff7070;
   --positive-balance: #20a020;
   --slide-bg: #e8e8e8;
+
+  --hi-red:       #f4f4f4;
+  --hi-red-bg:    #f06060;
+  --hi-orange:    #f4f4f4;
+  --hi-orange-bg: #f0a840;
+  --hi-yellow:    #606060;
+  --hi-yellow-bg: #f0f040;
+  --hi-blue:      #f4f4f4;
+  --hi-blue-bg:   #8080f0;
+  --hi-green:     #606060;
+  --hi-green-bg:  #70f070;
 }
 
 html[data-theme='dark'] {
@@ -533,6 +544,16 @@ table tr:hover, table tr:nth-child(even):hover, table tr:hover th {
   transition: 0.07s;
   --negative-balance: var(--table-row-hover-color);
   --positive-balance: var(--table-row-hover-color);
+}
+
+section.presenting table,
+section.presenting tbody,
+section.presenting tr {
+  line-height: 1.2em;
+}
+
+section.presenting table:hover {
+  min-width: 50%;
 }
 
 .author {
@@ -1110,4 +1131,34 @@ img.arrow-img {
 
 img.arrow-img.active {
   opacity: var(--arrow-active-color);
+}
+
+.hi-red {
+  background: var(--hi-red-bg);
+  color:  var(--hi-red);
+  font-weight: bold;
+}
+
+.hi-orange {
+  background: var(--hi-orange-bg);
+  color:  var(--hi-orange);
+  font-weight: bold;
+}
+
+.hi-yellow {
+  background: var(--hi-yellow-bg);
+  color:  var(--hi-yellow);
+  font-weight: bold;
+}
+
+.hi-green {
+  background: var(--hi-green-bg);
+  color:  var(--hi-green);
+  font-weight: bold;
+}
+
+.hi-blue {
+  background: var(--hi-blue-bg);
+  color:  var(--hi-blue);
+  font-weight: bold;
 }

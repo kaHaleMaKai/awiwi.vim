@@ -30,10 +30,10 @@ endfun "}}}
 
 
 fun! awiwi#util#match_subcommands(subcommands, ArgLead) abort "{{{
-  if a:ArgLead == ''
-    return copy(a:subcommands)
-  endif
   let subcommands = copy(a:subcommands)
+  if a:ArgLead == ''
+    return subcommands
+  endif
   let search_engine = awiwi#util#get_search_engine()
   if search_engine == s:search_engine_plain
     return filter(subcommands, {_, v -> awiwi#str#startswith(v, a:ArgLead)})
