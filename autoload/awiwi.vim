@@ -412,15 +412,23 @@ endfun "}}}
 
 
 fun! awiwi#insert_link_here(link) abort "{{{
-  let [col, line_nr] = [col('.') - 1, line('.')]
+  let pos = getcurpos()
+  let [line_nr, col] = [pos[1], pos[2]]
+  let offset = pos[-1] - col
   let line = getline(line_nr)
   let new_line = [line[:col - 1]]
-  if ! empty(line[col]) && match(line[col], '[[:space:]]') == -1
+  let ch = line[col - 1]
+  if ! empty(ch) && match(ch, '[[:space:]]') == -1
     call add(new_line, ' ')
   endif
   call extend(new_line, [a:link, ' '])
   call add(new_line, line[col:])
-  call setline(line_nr, join(new_line, ''))
+  let new_content = join(new_line, '')
+  let length = strlen(new_content) - strlen(line[col:])
+  let pos[2] = length
+  let pos[-1] = length + offset
+  call setline(line_nr, new_content)
+  call setpos('.', pos)
 endfun "}}}
 
 
