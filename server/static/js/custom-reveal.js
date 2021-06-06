@@ -104,7 +104,7 @@ const addFragmentClasses = () => {
         .addClasses("fragment");
     });
 
-    ["p", "div"].forEach(type => {
+    ["p", "div", "blockquote"].forEach(type => {
       __(`#${id} > ${type}`)
         .filter_(el => !el.classList.contains("no-fragment"))
         .filter_(el => asCustomArray(...el.children).all(child => !child.classList.contains("no-fragment")))
@@ -119,7 +119,7 @@ const addFragmentClasses = () => {
     }
   });
 
-  __("p.fragment, div.fragment, table.fragment, li.fragment, img.fragment").addClasses("hide-fragment");
+  __("p.fragment, div.fragment, table.fragment, li.fragment, img.fragment", "blockquote.fragment").addClasses("hide-fragment");
 }
 
 
