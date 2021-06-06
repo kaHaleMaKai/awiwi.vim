@@ -45,14 +45,14 @@ fun! s:handle_enter_on_insert(mode, above) abort "{{{
   let line = getline('.')
   " is this any kind of list?
   let m = matchlist(line, '^\([[:space:]]*\)\([-*]\)\([[:space:]]\+\)\(\[[ x]\+\]\)\?')
+  let o_cmd = printf('normal! %s', a:above ? 'O' : 'o')
   if empty(m)
     if a:mode == 'n'
-      let key = a:above ? 'O' : 'o'
-      exe printf('normal! %s', key)
+      exe o_cmd
     else
       let pos = getcurpos()[-1]
       if pos > strlen(line)
-        exe "normal! a\n"
+        exe 'normal! o'
       else
         exe "normal! i\n"
       endif
@@ -63,7 +63,11 @@ fun! s:handle_enter_on_insert(mode, above) abort "{{{
   let find_spaces = matchlist(line, '^\([[:space:]]*\)\([-*]\)\([[:space:]]\+\)\(\[[ x]\+\][[:space:]]*\)\?$')
   if !empty(find_spaces)
     let spaces = find_spaces[1]
-    call setline('.', spaces)
+    if !empty(spaces)
+      call setline('.', line[2:])
+    else
+      call setline('.', spaces)
+    endif
     starti
     return
   endif
@@ -76,7 +80,7 @@ fun! s:handle_enter_on_insert(mode, above) abort "{{{
   elseif empty(m[4])
     if match(line, '[[:space:]][^[:space:]]') == -1
       call setline('.', '')
-      normal! o
+      exe o_cmd
       starti
       return
     endif
@@ -86,7 +90,7 @@ fun! s:handle_enter_on_insert(mode, above) abort "{{{
     if match(line, '\][[:space:]]*[^[:space:]]') == -1
           \ || match(line, '^[-*][[:space:]]\+\[[x ]\][[:space:]]\+(from [-0-9]\+)[[:space:]]*$') > -1
       call setline('.', '')
-      normal! o
+      exe o_cmd
       starti
       return
     endif
@@ -100,9 +104,14 @@ fun! s:handle_enter_on_insert(mode, above) abort "{{{
     endif
   endif
   let cursor = getcurpos()
-  let cursor[1] += 1
   let cursor[2] = pos
-  call append('.', text)
+  let line_nr = cursor[1]
+  if a:above
+    call append(line_nr - 1, text)
+  else
+    let cursor[1] += 1
+    call append(line_nr, text)
+  endif
   call setpos('.', cursor)
   if append
     starti!
@@ -223,7 +232,7 @@ inoremap <silent> <buffer> <C-q> <C-o>:Awiwi redact<CR>
 inoremap <silent> <buffer> <C-v> <C-o>:call awiwi#handle_paste_in_insert_mode()<CR>
 
 exe 'inoremap <buffer> <C-s> <C-o>:Awiwi link '
-exe 'inoremap <buffer> <C-d> <C-o>:Awiwi asset create<CR>'
+exe 'inoremap <buffer> <C-b> <C-o>:Awiwi asset create<CR>'
 
 iabbrev :shrug: `¯\_(ツ)_/¯`
 iabbrev :arrow: →
