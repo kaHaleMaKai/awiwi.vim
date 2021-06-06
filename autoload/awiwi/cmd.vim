@@ -395,10 +395,7 @@ fun! awiwi#cmd#run(...) abort "{{{
 
     call fzf#run(fzf#wrap({'source': entries}))
   elseif a:1 == s:todo_cmd
-    let [_, options] = s:parse_file_and_options(a:000)
-    if empty(options)
-      let options = {'new_window': v:false, 'new_tab': v:true}
-    endif
+    let [_, options] = s:parse_file_and_options(a:000, {'new_window': v:false, 'new_tab': v:true})
     call awiwi#edit_todo(options)
   endif
 endfun "}}}
