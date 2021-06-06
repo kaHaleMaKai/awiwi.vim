@@ -316,7 +316,8 @@ fun! awiwi#edit_journal(date, ...) abort "{{{
       echom printf("journal page '%s' already open", date)
       return
     endif
-  catch /AwiwiUtilError/
+  catch /AwiwiDateError/
+    echo "hello"
   endtry
   let file = awiwi#get_journal_file_by_date(date)
   call awiwi#open_file(file, options)
@@ -413,10 +414,11 @@ endfun "}}}
 fun! awiwi#insert_link_here(link) abort "{{{
   let [col, line_nr] = [col('.') - 1, line('.')]
   let line = getline(line_nr)
-  let new_line = [line[:col - 1], a:link]
+  let new_line = [line[:col - 1]]
   if ! empty(line[col]) && match(line[col], '[[:space:]]') == -1
     call add(new_line, ' ')
   endif
+  call extend(new_line, [a:link, ' '])
   call add(new_line, line[col:])
   call setline(line_nr, join(new_line, ''))
 endfun "}}}
@@ -625,6 +627,10 @@ endfun "}}}
 
 fun! awiwi#redact() abort "{{{
   let line = getline('.')
+  let pos = getcurpos()
+  " go to the end of the line, definitely
+  let pos[2] = 2000
+  let pos[-1] = 2000
   if match(line, '!!redacted') == -1
     let space = empty(line) || awiwi#str#endswith(line, ' ')
           \ ? '' : ' '
@@ -634,6 +640,7 @@ fun! awiwi#redact() abort "{{{
     let new_line = substitute(line, ' *!!redacted', '', 'g')
   endif
   call setline(line('.'), new_line)
+  call setpos('.', pos)
 endfun "}}}
 
 

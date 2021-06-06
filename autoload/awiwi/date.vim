@@ -26,13 +26,13 @@ fun! awiwi#date#parse_date(date) abort "{{{
   elseif a:date == 'prev' || a:date == 'previous' || a:date == 'previous date' || a:date == 'previous day'
     try
       let date = s:get_offset_date(awiwi#date#get_own_date(), -1)
-    catch /AwiwiError/
+    catch /AwiwiDateError/
       let date = s:get_offset_date(s:get_today(), -1)
     endtry
   elseif a:date == 'next' || a:date == 'next date' || a:date == 'next day'
     try
       let date = s:get_offset_date(awiwi#date#get_own_date(), +1)
-    catch /AwiwiError/
+    catch /AwiwiDateError/
       let date = s:get_offset_date(s:get_today(), +1)
     endtry
   else
