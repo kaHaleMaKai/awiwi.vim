@@ -293,6 +293,8 @@ fun! awiwi#open_file(file, options) abort "{{{
       endif
     endif
     let cmd = printf('%s%s', height ? height : '', win_cmd)
+  elseif get(a:options, 'new_tab', v:false)
+    let cmd = 'tabnew'
   else
     let cmd = 'e'
   endif
@@ -603,7 +605,7 @@ if exists('g:airline_section_x')
 endif
 
 
-fun! awiwi#open_link(...) abort "{{{
+fun! awiwi#open_link(options, ...) abort "{{{
   if a:0
     let link = awiwei#util#determine_link_type(awiwi#util#as_link(a:1))
   else
@@ -622,7 +624,7 @@ fun! awiwi#open_link(...) abort "{{{
       let cmd = ['xdg-open', shellescape(dest), '&']
       call system(join(cmd, ' '))
     else
-      call awiwi#open_file(dest, {'new_window': v:true})
+      call awiwi#open_file(dest, a:options)
     endif
   elseif link.type == 'image'
     let date = join(split(fnamemodify(link.target, ':h:t'), '-'), '/')

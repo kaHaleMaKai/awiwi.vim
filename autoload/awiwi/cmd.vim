@@ -57,11 +57,13 @@ let s:journal_new_window_cmd = '+new'
 let s:journal_hnew_window_cmd = '+hnew'
 let s:journal_vnew_window_cmd = '+vnew'
 let s:journal_same_window_cmd = '-new'
+let s:journal_new_tab_cmd = '+tab'
 let s:journal_all_window_cmds = [
       \ s:journal_new_window_cmd,
       \ s:journal_hnew_window_cmd,
       \ s:journal_vnew_window_cmd,
-      \ s:journal_same_window_cmd
+      \ s:journal_same_window_cmd,
+      \ s:journal_new_tab_cmd
       \ ]
 
 let s:journal_height_window_cmd = '+height='
@@ -149,7 +151,7 @@ fun! s:parse_file_and_options(args, ...) abort "{{{
     if a:0
       let options = copy(a:1)
     else
-      let options = {'position': 'auto', 'new_window': v:true}
+      let options = {'position': 'auto', 'new_window': v:true, 'new_tab': v:false}
     endif
     let file = ''
     for arg in a:args
@@ -162,6 +164,9 @@ fun! s:parse_file_and_options(args, ...) abort "{{{
           let options.position = 'auto'
         elseif arg == s:journal_same_window_cmd
           let options.new_window = v:false
+        elseif arg == s:journal_new_tab_cmd
+          let options.new_window = v:false
+          let options.new_tab = v:true
         endif
       elseif awiwi#str#startswith(arg, s:journal_height_window_cmd) || awiwi#str#startswith(arg, s:journal_width_window_cmd)
         let options.height = str2nr(split(arg, '=')[-1])
@@ -392,7 +397,7 @@ fun! awiwi#cmd#run(...) abort "{{{
   elseif a:1 == s:todo_cmd
     let [_, options] = s:parse_file_and_options(a:000)
     if empty(options)
-      let options = {'new_window': v:true, 'height': 10}
+      let options = {'new_window': v:false, 'new_tab': v:true}
     endif
     call awiwi#edit_todo(options)
   endif

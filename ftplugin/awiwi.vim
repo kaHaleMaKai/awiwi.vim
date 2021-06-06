@@ -25,7 +25,9 @@ command!
 " +                maps                  +
 " ++++++++++++++++++++++++++++++++++++++++
 
-nnoremap <silent> <buffer> gf :call awiwi#open_link()<CR>
+nnoremap <silent> <buffer> gf :call awiwi#open_link({'new_window': v:true})<CR>
+nnoremap <silent> <buffer> <leader>gft :call awiwi#open_link({'new_window': v:false, 'new_tab': v:true})<CR>
+nnoremap <silent> <buffer> <leader>gfn :call awiwi#open_link({'new_window': v:true})<CR>
 nnoremap <silent> <buffer> gC :Awiwi continue<CR>
 nnoremap <silent> <buffer> gT :Awiwi todo<CR>
 nnoremap <silent> <buffer> ge :Awiwi journal today<CR>
