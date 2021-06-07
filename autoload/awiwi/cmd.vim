@@ -87,12 +87,15 @@ let s:todo_inprogress_cmd = 'inprogress'
 let s:todo_backlog_cmd = 'backlog'
 let s:todo_done_cmd = 'done'
 let s:todo_waiting_cmd = 'waiting'
+let s:todo_onhold_cmd = 'onhold'
+let s:todo_meeting_cmd = 'meeting'
 
 let s:todo_subcommands = [
       \ s:todo_inprogress_cmd,
       \ s:todo_backlog_cmd,
       \ s:todo_done_cmd,
-      \ s:todo_waiting_cmd
+      \ s:todo_onhold_cmd,
+      \ s:todo_meeting_cmd
       \ ]
 
 
