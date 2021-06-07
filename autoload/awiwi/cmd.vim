@@ -83,6 +83,33 @@ let s:tasks_subcommands = [
       \ s:tasks_incidents_cmd
       \ ]
 
+let s:todo_inprogress_cmd = 'inprogress'
+let s:todo_backlog_cmd = 'backlog'
+let s:todo_done_cmd = 'done'
+let s:todo_waiting_cmd = 'waiting'
+
+let s:todo_subcommands = [
+      \ s:todo_inprogress_cmd,
+      \ s:todo_backlog_cmd,
+      \ s:todo_done_cmd,
+      \ s:todo_waiting_cmd
+      \ ]
+
+
+fun! s:contains(li, el, ...) abort "{{{
+  if !a:0
+    return index(a:li, a:el) > -1 ? v:true : v:false
+  endif
+
+  let els = [a:el] + a:000
+  for x in a:li
+    if index(els, x) > -1
+      return v:true
+    endif
+  endfor
+  return v:false
+endfun "}}}
+
 
 fun! awiwi#cmd#get_cmd(name) abort "{{{
   let name = printf('%s_cmd', a:name)
@@ -176,7 +203,7 @@ fun! s:parse_file_and_options(args, ...) abort "{{{
       endif
     endfor
     if get(options, 'height') == 0 && awiwi#util#window_split_below()
-      let options.height = 10
+      let options.height = 20
     endif
     if file == ''
       echoerr 'Awiwi journal: missing file to open'
@@ -247,7 +274,7 @@ fun! awiwi#cmd#get_completion(ArgLead, CmdLine, CursorPos) abort "{{{
     endif
     return awiwi#util#match_subcommands(submatches, a:ArgLead)
   elseif args[1] == s:todo_cmd
-    let submatches = []
+    let submatches = copy(s:todo_subcommands)
     call s:insert_win_cmds(submatches, current_arg_pos+1, args[2:])
     return awiwi#util#match_subcommands(submatches, a:ArgLead)
   elseif args[1] == s:server_cmd && current_arg_pos == 2
@@ -357,7 +384,7 @@ fun! awiwi#cmd#run(...) abort "{{{
       return
     endif
   elseif a:1 == s:tasks_cmd
-    call func#apply(funcref('awiwi#show_tasks'), func#spread(a:000[1:]))
+    call func#apply(funcref('awiwi#cmd#show_tasks'), func#spread(a:000[1:]))
   elseif a:1 == s:search_cmd
     call call(funcref('awiwi#fuzzy_search'), a:000[1:])
   elseif a:1 == s:serve_cmd
@@ -394,8 +421,9 @@ fun! awiwi#cmd#run(...) abort "{{{
 
     call fzf#run(fzf#wrap({'source': entries}))
   elseif a:1 == s:todo_cmd
-    let [_, options] = s:parse_file_and_options(a:000, {'new_window': v:false, 'new_tab': v:true})
-    call awiwi#edit_todo(options)
+    let [file, options] = s:parse_file_and_options(a:000, {'new_window': v:false, 'new_tab': v:true})
+    let file = file == s:todo_cmd ? 'inprogress' : file
+    call awiwi#edit_todo(file, options)
   endif
 endfun "}}}
 
@@ -421,7 +449,6 @@ fun! awiwi#cmd#show_tasks(...) abort "{{{
   if s:contains(args, s:tasks_delegate_cmd, s:tasks_all_cmd)
     let delegates = awiwi#get_markers('delegate')
     call add(markers, printf('\(?(%s):?( \S+){0,2}\)?', delegates))
-    "call add(markers, '@@[-a-zA-Z.,+_0-9@]+[a-zA-Z0-9]')
   endif
   if s:contains(args, s:tasks_due_cmd, s:tasks_all_cmd)
     let due = awiwi#get_markers('due')

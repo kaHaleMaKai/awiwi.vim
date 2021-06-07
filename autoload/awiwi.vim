@@ -6,6 +6,7 @@ let g:autoloaded_awiwi = v:true
 " {{{1 variables
 
 let s:journal_subpath = awiwi#path#join(g:awiwi_home, 'journal')
+let s:todos_subpath = awiwi#path#join(g:awiwi_home, 'todos')
 let s:asset_subpath = awiwi#path#join(g:awiwi_home, 'assets')
 let s:recipe_subpath = awiwi#path#join(g:awiwi_home, 'recipes')
 let s:awiwi_data_dir = awiwi#path#join(g:awiwi_home, 'data')
@@ -14,7 +15,7 @@ let s:code_root_dir = expand('<sfile>:p:h:h')
 
 let s:xdg_open_exts = ['ods', 'odt', 'drawio']
 
-for dir in [s:awiwi_data_dir, s:journal_subpath, s:asset_subpath, s:recipe_subpath]
+for dir in [s:awiwi_data_dir, s:journal_subpath, s:asset_subpath, s:recipe_subpath, s:todos_subpath]
   if !filewritable(dir)
     if !mkdir(dir, 'p')
       echoerr printf('cannot create data directory %s', dir)
@@ -194,21 +195,6 @@ fun! awiwi#get_markers(type, ...) abort "{{{
 endfun "}}}
 
 
-fun! s:contains(li, el, ...) abort "{{{
-  if !a:0
-    return index(a:li, a:el) > -1 ? v:true : v:false
-  endif
-
-  let els = [a:el] + a:000
-  for x in a:li
-    if index(els, x) > -1
-      return v:true
-    endif
-  endfor
-  return v:false
-endfun "}}}
-
-
 fun! s:open_fuzzy_match(line) abort "{{{
   let [file, line, col] = split(a:line, ':')[:2]
   exe printf('e +%s %s', line, file)
@@ -326,8 +312,9 @@ fun! awiwi#edit_journal(date, ...) abort "{{{
 endfun "}}}
 
 
-fun! awiwi#edit_todo(options) abort "{{{
-  let file = awiwi#path#join(s:journal_subpath, 'todos.md')
+fun! awiwi#edit_todo(name, options) abort "{{{
+  let filename = printf('%s.md', a:name)
+  let file = awiwi#path#join(s:todos_subpath, filename)
   call awiwi#open_file(file, a:options)
 endfun "}}}
 
@@ -617,7 +604,7 @@ fun! awiwi#open_link(options, ...) abort "{{{
   if link.type == 'browser' || link.type == 'external'
     let cmd = ['xdg-open', link.target]
     call system(cmd)
-  elseif link.type == 'asset' || link.type == 'journal'
+  elseif link.type == 'asset' || link.type == 'journal' || link.type == 'recipe'
     let dest = awiwi#path#canonicalize(awiwi#path#join(expand('%:p:h'), link.target))
     let extension = fnamemodify(dest, ':e')
     if index(s:xdg_open_exts, extension) > -1
@@ -631,6 +618,8 @@ fun! awiwi#open_link(options, ...) abort "{{{
     let file = fnamemodify(link.target, ':t')
     let dest = awiwi#path#join(g:awiwi_home, 'assets', date, file)
     call system(['xdg-open', dest])
+  else
+    echoerr printf('cannot open unknown link type "%s"', link.type)
   endif
 endfun "}}}
 
