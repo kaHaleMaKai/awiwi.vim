@@ -12,7 +12,7 @@ let s:awiwi_data_dir = awiwi#path#join(g:awiwi_home, 'data')
 let s:code_root_dir = expand('<sfile>:p:h:h')
 
 
-let s:xdg_open_exts = ['ods', 'odt']
+let s:xdg_open_exts = ['ods', 'odt', 'drawio']
 
 for dir in [s:awiwi_data_dir, s:journal_subpath, s:asset_subpath, s:recipe_subpath]
   if !filewritable(dir)
@@ -621,8 +621,8 @@ fun! awiwi#open_link(options, ...) abort "{{{
     let dest = awiwi#path#canonicalize(awiwi#path#join(expand('%:p:h'), link.target))
     let extension = fnamemodify(dest, ':e')
     if index(s:xdg_open_exts, extension) > -1
-      let cmd = ['xdg-open', shellescape(dest), '&']
-      call system(join(cmd, ' '))
+      let cmd = ['xdg-open', dest]
+      call jobstart(cmd)
     else
       call awiwi#open_file(dest, a:options)
     endif
