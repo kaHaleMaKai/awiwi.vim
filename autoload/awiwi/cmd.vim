@@ -10,7 +10,6 @@ let s:search_cmd = 'search'
 let s:serve_cmd = 'serve'
 let s:server_cmd = 'server'
 let s:redact_cmd = 'redact'
-let s:show_cmd = 'show'
 let s:tasks_cmd = 'tasks'
 let s:todo_cmd = 'todo'
 
@@ -38,7 +37,6 @@ let s:subcommands = [
       \ s:search_cmd,
       \ s:serve_cmd,
       \ s:server_cmd,
-      \ s:show_cmd,
       \ s:tasks_cmd,
       \ s:todo_cmd,
       \ ]
@@ -158,10 +156,13 @@ fun! s:parse_file_and_options(args, ...) abort "{{{
       if index(s:journal_all_window_cmds, arg) > -1
         if arg == s:journal_hnew_window_cmd
           let options.position = "bottom"
+          let options.new_window = v:true
         elseif arg == s:journal_vnew_window_cmd
           let options.position = "right"
+          let options.new_window = v:true
         elseif arg == s:journal_new_window_cmd
           let options.position = 'auto'
+          let options.new_window = v:true
         elseif arg == s:journal_same_window_cmd
           let options.new_window = v:false
         elseif arg == s:journal_new_tab_cmd
@@ -357,8 +358,6 @@ fun! awiwi#cmd#run(...) abort "{{{
     endif
   elseif a:1 == s:tasks_cmd
     call func#apply(funcref('awiwi#show_tasks'), func#spread(a:000[1:]))
-  elseif a:1 == s:show_cmd
-    echoerr 'Awiwi show: should render markdown in browser, but has not been implemented that'
   elseif a:1 == s:search_cmd
     call call(funcref('awiwi#fuzzy_search'), a:000[1:])
   elseif a:1 == s:serve_cmd
