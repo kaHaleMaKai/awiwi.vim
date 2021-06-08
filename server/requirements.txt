@@ -11,7 +11,7 @@ markdown-blockdiag==0.7.0
 markdown-strikethrough==0.1.2
 MarkupSafe==1.1.1
 nwdiag==2.0.0
-Pillow==8.1.2
+Pillow==8.2.0
 pkg-resources==0.0.0
 seqdiag==2.0.0
 webcolors==1.11.1
