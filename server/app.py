@@ -10,13 +10,23 @@ import mimetypes
 import hashlib
 from typing import Callable, Optional, Union, Tuple
 from pathlib import Path
-from flask import Flask, make_response, request, render_template, redirect, session, abort, Response, jsonify
+from flask import (
+    Flask,
+    make_response,
+    request,
+    render_template,
+    redirect,
+    session,
+    abort,
+    Response,
+    jsonify,
+)
 from functools import lru_cache, wraps
 import itertools
 import markdown
 from markdown.extensions.fenced_code import FencedCodeExtension
 from markdown.extensions.tables import TableExtension
-from markdown.extensions.codehilite import  CodeHiliteExtension
+from markdown.extensions.codehilite import CodeHiliteExtension
 from markdown.extensions.def_list import DefListExtension
 from markdown.extensions.footnotes import FootnoteExtension
 from markdown.extensions.meta import MetaExtension
@@ -43,24 +53,27 @@ sys.path.insert(1, str(checkclock_path))
 from checkclock import ReadOnlyCheckclock, as_time, as_hours_and_minutes
 
 
-checkclock = ReadOnlyCheckclock(Path("~/.config/qtile/checkclock.sqlite").expanduser(), working_days="Tue-Fri")
+checkclock = ReadOnlyCheckclock(
+    Path("~/.config/qtile/checkclock.sqlite").expanduser(), working_days="Tue-Fri"
+)
 
 
 ordinal_pattern = re.compile(r"\b([0-9]{1,2})(st|nd|rd|th)\b")
-md = markdown.Markdown(output_format="html5",
-        extensions=[
-            FencedCodeExtension(),
-            CodeHiliteExtension(css_class="highlight", guess_lang=False),
-            DefListExtension(),
-            FootnoteExtension(),
-            MetaExtension(),
-            Nl2BrExtension(),
-            SaneListExtension(),
-            TocExtension(),
-            StrikethroughExtension(),
-            TableExtension(),
-            AttrListExtension(),
-            ]
+md = markdown.Markdown(
+    output_format="html5",
+    extensions=[
+        FencedCodeExtension(),
+        CodeHiliteExtension(css_class="highlight", guess_lang=False),
+        DefListExtension(),
+        FootnoteExtension(),
+        MetaExtension(),
+        Nl2BrExtension(),
+        SaneListExtension(),
+        TocExtension(),
+        StrikethroughExtension(),
+        TableExtension(),
+        AttrListExtension(),
+    ],
 )
 
 download_extensions = [".ods", ".odt"]
@@ -69,30 +82,30 @@ lexer_map = {"pgsql": "sql"}
 theme_mode_key = "theme-mode"
 default_theme_mode = "light"
 server_root = Path(os.path.abspath(os.path.dirname(__file__)))
-content_root = Path(os.environ.get('FLASK_ROOT', '.'))
+content_root = Path(os.environ.get("FLASK_ROOT", "."))
 listen_address = os.environ.get("FLASK_HOST")
 flask_port = os.environ.get("FLASK_PORT")
-auth_cache_file = content_root/"auth"
-flask_secret_file = content_root/"flask-secret"
+auth_cache_file = content_root / "auth"
+flask_secret_file = content_root / "flask-secret"
 
 
-app = Flask(__name__,
-        root_path=str(content_root),
-        static_url_path=str(server_root/"static"),
-        template_folder=str(server_root/"html"))
+app = Flask(
+    __name__,
+    root_path=str(content_root),
+    static_url_path=str(server_root / "static"),
+    template_folder=str(server_root / "html"),
+)
 app.secret_key = os.urandom(12)
 
 # inotify_thread = threading.Thread(name="inotify-thread")
 
 
 class AuthBackend:
-
     def authenticate(user: str, password: str):
         pass
 
 
 class FileBasedAuthBackend(AuthBackend):
-
     def __init__(self, file: Path, sep: str = ":"):
         self.file = file
         self.mtime = 0  # gets overwritten by self.fill_cache()
@@ -121,7 +134,6 @@ class FileBasedAuthBackend(AuthBackend):
             self.mtime = mtime
             self.cache = cache
 
-
     def authenticate(self, user: str, password: str):
         self.fill_cache()
         if not user in self.cache:
@@ -142,7 +154,7 @@ def hash_line(line: str):
 
 def is_localhost():
     host = request.host.rsplit(":", 1)[0]
-    return host in ('localhost', '127.0.0.1', '::1')
+    return host in ("localhost", "127.0.0.1", "::1")
 
 
 def is_logged_in():
@@ -150,9 +162,7 @@ def is_logged_in():
 
 
 def secured_route(path: str, methods=("GET",)):
-
     def inner(route: Callable):
-
         @app.route(path, methods=methods)
         @wraps(route)
         def f(*args, **kwargs):
@@ -173,7 +183,7 @@ def filter_body(lines: list, offset: int):
     marker_depth = 7
     for line_no, line in enumerate(lines, start=offset):
         if hide:
-            if (m := re.match('^(?P<marker>##+) ', line)):
+            if (m := re.match("^(?P<marker>##+) ", line)) :
                 current_depth = len(m.group("marker"))
                 if current_depth <= marker_depth:
                     hide = False
@@ -182,7 +192,7 @@ def filter_body(lines: list, offset: int):
             else:
                 continue
         elif redaction_pattern in line:
-            if (m := re.match('^(?P<marker>##+) ', line)):
+            if (m := re.match("^(?P<marker>##+) ", line)) :
                 marker_depth = len(m.group("marker"))
                 hide = True
                 line = f"""{m.group("marker")} _…redacted…_"""
@@ -193,12 +203,14 @@ def filter_body(lines: list, offset: int):
                 else:
                     yield " --- redacted --- "
                 continue
-        elif (m := re.match("^(\s*\* )(\[[x ]\])( .*$)", line)):
+        elif (m := re.match("^(\s*\* )(\[[x ]\])( .*$)", line)) :
             hash = hash_line(line)
             box = m.group(2)
             checked = "checked" if "x" in box else ""
-            line = (f'{m.group(1)}<input type="checkbox" id="checkbox-line-{line_no}" {checked} data-line-nr="{line_no}" ' +
-                    f'class="awiwi-checkbox" data-hash="{hash}"> <label for="checkbox-line-{line_no}"><span>{m.group(3)}</span></label>')
+            line = (
+                f'{m.group(1)}<input type="checkbox" id="checkbox-line-{line_no}" {checked} data-line-nr="{line_no}" '
+                + f'class="awiwi-checkbox" data-hash="{hash}"> <label for="checkbox-line-{line_no}"><span>{m.group(3)}</span></label>'
+            )
         yield replace_date_ordinal(line).replace("\n", "")
 
 
@@ -206,15 +218,15 @@ def get_file_for_endpoint(path: str) -> Path:
     if path.startswith("/journal"):
         rem, date = path.rsplit("/", 1)
         year, month, _ = date.split("-")
-        return content_root/f"journal/{year}/{month}/{date}.md"
+        return content_root / f"journal/{year}/{month}/{date}.md"
     elif path.startswith("/todo"):
-        return content_root/"journal/todos.md"
+        return content_root / "journal/todos.md"
     else:
         raise ValueError("not implemented yet")
 
 
 def replace_date_ordinal(text: str):
-    return ordinal_pattern.sub(r'\1<sup>\2</sup>', text)
+    return ordinal_pattern.sub(r"\1<sup>\2</sup>", text)
 
 
 def format_markdown(file, template, add_toc=True, title=None, **kwargs):
@@ -254,24 +266,27 @@ def format_markdown(file, template, add_toc=True, title=None, **kwargs):
         parts.append(html)
 
     return render_template(
-            f"{template}.html.j2",
-            toc="\n".join(toc),
-            content="\n".join(parts),
-            title=title,
-            theme_mode=get_theme_from_cookie(),
-            **kwargs
-            )
+        f"{template}.html.j2",
+        toc="\n".join(toc),
+        content="\n".join(parts),
+        title=title,
+        theme_mode=get_theme_from_cookie(),
+        **kwargs,
+    )
 
 
 def find_min_max_paths(path: Path, max_depth: int):
-
     def fun(p: Path, fn: Callable, max_depth: int, level: int = 0):
         if os.path.isfile(p) or level == max_depth:
             return p
-        predicate = os.path.isdir if level+1 < max_depth else os.path.isfile
-        entries = [f for f in sorted(os.listdir(p)) if not f.startswith(".") and predicate(p/f)]
+        predicate = os.path.isdir if level + 1 < max_depth else os.path.isfile
+        entries = [
+            f
+            for f in sorted(os.listdir(p))
+            if not f.startswith(".") and predicate(p / f)
+        ]
         child = p / fn(entries)
-        return fun(child, fn, max_depth, level+1)
+        return fun(child, fn, max_depth, level + 1)
 
     return fun(path, min, max_depth), fun(path, max, max_depth)
 
@@ -302,7 +317,7 @@ def get_prev_and_next_journal(path: Path) -> Tuple[Optional[str], Optional[str]]
 @secured_route("/static/<type>/<path:path>")
 def statics(type: str, path: str):
     mode = "rb" if type == "img" else "r"
-    with open(server_root/"static"/type/path, mode) as f:
+    with open(server_root / "static" / type / path, mode) as f:
         content = f.read()
     if type == "css":
         mime = "text/css"
@@ -314,7 +329,7 @@ def statics(type: str, path: str):
 
 
 def is_binary(file: Path):
-    textchars = bytearray({7,8,9,10,12,13,27} | set(range(0x20, 0x100)) - {0x7f})
+    textchars = bytearray({7, 8, 9, 10, 12, 13, 27} | set(range(0x20, 0x100)) - {0x7F})
     with open(file, "rb") as f:
         return bool(f.read(1024).translate(None, textchars))
 
@@ -323,13 +338,13 @@ def render_non_journal(file: Path):
     is_secret = re.search("^secrets?-|-secrets?[-.]|-secrets?$", file.stem)
     if is_secret and not is_localhost():
         return render_template(
-                "non-journal.html.j2",
-                breadcrumbs=make_breadcrumbs(file),
-                content="",
-                theme_mode=get_theme_from_cookie(),
-                is_secret=True,
-                is_localhost=False
-                )
+            "non-journal.html.j2",
+            breadcrumbs=make_breadcrumbs(file),
+            content="",
+            theme_mode=get_theme_from_cookie(),
+            is_secret=True,
+            is_localhost=False,
+        )
 
     name, ext = os.path.splitext(file)
     mime_type = mimetypes.guess_type(file)[0]
@@ -339,14 +354,14 @@ def render_non_journal(file: Path):
             return f.read()
     elif ext == ".md":
         return format_markdown(
-                file,
-                title=file.stem,
-                template="non-journal",
-                breadcrumbs=make_breadcrumbs(file),
-                is_secret=is_secret,
-                is_localhost=is_localhost(),
-                highlight_article=is_secret,
-                )
+            file,
+            title=file.stem,
+            template="non-journal",
+            breadcrumbs=make_breadcrumbs(file),
+            is_secret=is_secret,
+            is_localhost=is_localhost(),
+            highlight_article=is_secret,
+        )
     elif mime_type and mime_type.startswith("image"):
         with open(file, "rb") as f:
             img = f.read()
@@ -365,18 +380,20 @@ def render_non_journal(file: Path):
         except ClassNotFound:
             lexer = None
     if lexer:
-        content = highlight(text, lexer, HtmlFormatter(style="solarized-light", cssclass="highlight"))
+        content = highlight(
+            text, lexer, HtmlFormatter(style="solarized-light", cssclass="highlight")
+        )
     else:
         content = "\n".join(text.split("\n"))
     return render_template(
-            "non-journal.html.j2",
-            breadcrumbs=make_breadcrumbs(file),
-            content=content,
-            theme_mode=get_theme_from_cookie(),
-            is_localhost=is_localhost(),
-            is_secret=is_secret,
-            highlight_article=is_secret,
-            )
+        "non-journal.html.j2",
+        breadcrumbs=make_breadcrumbs(file),
+        content=content,
+        theme_mode=get_theme_from_cookie(),
+        is_localhost=is_localhost(),
+        is_secret=is_secret,
+        highlight_article=is_secret,
+    )
 
 
 @secured_route("/./<path:path>")
@@ -401,14 +418,20 @@ def as_downloadable_file(path: Path, mime_type: Optional[str] = None):
     size = os.path.getsize(path)
     with open(path, "rb") as f:
         headers = {
-                "Content-Description": "File Transfer",
-                "Content-Transfer-Encoding": "binary",
-                "Expires": "0",
-                "Cache-Control": "must-revalidate",
-                "Pragma": "public",
-                "Content-Length": str(size),
-                }
-        return Response(f.read(), mimetype=mime_type, content_type="application/octet-stream", direct_passthrough=True, headers=headers)
+            "Content-Description": "File Transfer",
+            "Content-Transfer-Encoding": "binary",
+            "Expires": "0",
+            "Cache-Control": "must-revalidate",
+            "Pragma": "public",
+            "Content-Length": str(size),
+        }
+        return Response(
+            f.read(),
+            mimetype=mime_type,
+            content_type="application/octet-stream",
+            direct_passthrough=True,
+            headers=headers,
+        )
 
 
 @secured_route("/assets/<date>/<file>")
@@ -417,7 +440,7 @@ def asset(date: str, file: str):
         datetime.date.fromisoformat(date)
     except ValueError:
         raise FileNotFoundError(f"not a valid date: '{date}'")
-    path = content_root/f"assets/{date.replace('-', '/')}/{file}"
+    path = content_root / f"assets/{date.replace('-', '/')}/{file}"
     mime_type = mimetypes.guess_type(str(path))[0]
     if mime_type and "application" in mime_type:
         return as_downloadable_file(path, mime_type)
@@ -426,14 +449,20 @@ def asset(date: str, file: str):
 
 @secured_route("/recipes/<path:path>")
 def recipes(path: str):
-    file = content_root/f"recipes/{path}"
+    file = content_root / f"recipes/{path}"
     return render_non_journal(file)
 
 
 @secured_route("/todo")
 def todo():
-    file = content_root/f"journal/todos.md"
-    return format_markdown(file, template="todo", breadcrumbs=make_breadcrumbs(file), add_toc=False, title="TODO")
+    file = content_root / f"journal/todos.md"
+    return format_markdown(
+        file,
+        template="todo",
+        breadcrumbs=make_breadcrumbs(file),
+        add_toc=False,
+        title="TODO",
+    )
 
 
 def make_breadcrumbs(path: Path, include_cur_dir=False):
@@ -441,7 +470,7 @@ def make_breadcrumbs(path: Path, include_cur_dir=False):
     if not include_cur_dir:
         p = p.parent
     breadcrumbs = []
-    while p != Path('.'):
+    while p != Path("."):
         breadcrumbs.append({"name": p.stem, "target": f"/dir/{p}"})
         p = p.parent
     return breadcrumbs[::-1]
@@ -469,7 +498,7 @@ def parse_date(date: str) -> datetime.date:
         return datetime.date.fromisoformat(date)
 
 
-def get_schedule(checkclock, days_back):
+def get_schedule(checkclock: ReadOnlyCheckclock, days_back):
     if not days_back:
         for start, end in checkclock.merge_durations(0):
             diff = end - start
@@ -491,20 +520,25 @@ def journal(date: str):
     prev, next = get_prev_and_next_journal(file)
 
     args = dict(
-            template="journal",
-            breadcrumbs=make_breadcrumbs(file),
-            prev=prev,
-            next=next,
-            is_localhost=is_localhost(),
-            )
+        template="journal",
+        breadcrumbs=make_breadcrumbs(file),
+        prev=prev,
+        next=next,
+        is_localhost=is_localhost(),
+    )
 
     days_back = (datetime.date.today() - parse_date(date)).days
     schedule = list(get_schedule(checkclock, days_back))
     if schedule:
-        balance = checkclock.get_balance(days_back)
-        args["good_balance"] = balance >= 0
-        args["total"] = as_time(int(sum(duration for _, _, duration in schedule))).strftime("%k:%M")
-    args["schedule"] = [(start, end, as_time(duration).strftime("%k:%M")) for start, end, duration in schedule]
+        # balance = checkclock.get_balance(days_back)
+        # args["good_balance"] = balance >= 0
+        args["total"] = as_time(
+            int(sum(duration for _, _, duration in schedule))
+        ).strftime("%k:%M")
+    args["schedule"] = [
+        (start, end, as_time(duration).strftime("%k:%M"))
+        for start, end, duration in schedule
+    ]
 
     return format_markdown(file, **args)
 
@@ -540,16 +574,16 @@ def sidebar(path: Path, include_cur_dir: bool = False):
     breadcrumbs = make_breadcrumbs(path, include_cur_dir)
 
 
-def dir_index(dirs: str = ''):
+def dir_index(dirs: str = ""):
     if dirs.endswith("/"):
         dirs = dirs[:-1]
     splits = dirs.split("/")
     type = splits[0]
-    path = content_root/type
+    path = content_root / type
     if len(splits) > 1:
         path = path.joinpath(*splits[1:])
     paths = sorted(os.listdir(path))
-    breadcrumbs = make_breadcrumbs(content_root/dirs, include_cur_dir=True)
+    breadcrumbs = make_breadcrumbs(content_root / dirs, include_cur_dir=True)
     entries = []
     first_week = None
     for p in paths:
@@ -598,17 +632,16 @@ def dir_index(dirs: str = ''):
             continue
         entries.append(entry)
 
-
     return render_template(
         "dir.html.j2",
         breadcrumbs=breadcrumbs,
         entries=entries,
         theme_mode=get_theme_from_cookie(),
-        )
+    )
 
 
 @secured_route("/dir/<path:dirs>")
-def dir_subdir(dirs: str = ''):
+def dir_subdir(dirs: str = ""):
     return dir_index(dirs)
 
 
@@ -669,7 +702,7 @@ def format_search_hits(fd):
             parts = file.split("/")
             type = parts[0]
             if type == "journal":
-                journal_name = parts[-1].replace('.md', '')
+                journal_name = parts[-1].replace(".md", "")
                 target = f"/journal/{journal_name}"
                 name = f"{journal_name}"
             elif type == "assets":
@@ -683,20 +716,33 @@ def format_search_hits(fd):
                 name = file.replace("/", " – ", 1)
                 type = "recipe"
         yield dict(
-                target=target,
-                name=name,
-                line=int(line_no),
-                col=int(col),
-                type=type,
-                text=text.strip())
+            target=target,
+            name=name,
+            line=int(line_no),
+            col=int(col),
+            type=type,
+            text=text.strip(),
+        )
 
 
 def server_search_content(pattern: str):
-    cmd = ['rg', '-i', '-U', '--multiline-dotall', '--color=never',
-         '--column', '--line-number', '--no-heading',
-         '-g', '!awiwi*', pattern]
+    cmd = [
+        "rg",
+        "-i",
+        "-U",
+        "--multiline-dotall",
+        "--color=never",
+        "--column",
+        "--line-number",
+        "--no-heading",
+        "-g",
+        "!awiwi*",
+        pattern,
+    ]
 
-    proc = subprocess.Popen(args=cmd, stdout=subprocess.PIPE, cwd=content_root, text=True)
+    proc = subprocess.Popen(
+        args=cmd, stdout=subprocess.PIPE, cwd=content_root, text=True
+    )
     try:
         proc.wait(10)
     except subprocess.TimeoutExpired as e:
@@ -717,10 +763,11 @@ def search_content():
         return "no pattern given", 400
     content = server_search_content(pattern)
     return render_template(
-            "search-content.html.j2",
-            title="search content",
-            theme_mode=get_theme_from_cookie(),
-            content=content)
+        "search-content.html.j2",
+        title="search content",
+        theme_mode=get_theme_from_cookie(),
+        content=content,
+    )
 
 
 @app.route("/logout")
@@ -747,7 +794,9 @@ def update_checkbox():
     path = get_file_for_endpoint(endpoint)
 
     if not path.exists():
-        return json_response({"success": False, "msg": f"path {endpoint} does not exist"}, 404)
+        return json_response(
+            {"success": False, "msg": f"path {endpoint} does not exist"}, 404
+        )
     try:
         update_checkbox_in_file(path, line_nr, check, hash)
     except ValueError as e:
@@ -769,7 +818,9 @@ def update_checkbox_in_file(path: Path, line_nr: int, check: bool, hash: str) ->
         m = re.match("(\s*\* \[)([ x])", line)
         is_checked = m.group(2) == "x"
         if is_checked == check:
-            raise ValueError(f"checkbox is already {'un' if not is_checked else ''}checked")
+            raise ValueError(
+                f"checkbox is already {'un' if not is_checked else ''}checked"
+            )
         offset = m.end() - 1
         f.seek(pos + offset)
         f.write(check_char)
