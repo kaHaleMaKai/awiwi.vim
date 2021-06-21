@@ -54,7 +54,7 @@ from checkclock import ReadOnlyCheckclock, as_time, as_hours_and_minutes
 
 
 checkclock = ReadOnlyCheckclock(
-    Path("~/.config/qtile/checkclock.sqlite").expanduser(), working_days="Tue-Fri"
+    Path("~/.config/qtile/checkclock.sqlite").expanduser(), working_days="Mon-Fri"
 )
 
 
