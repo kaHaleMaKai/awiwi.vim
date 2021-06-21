@@ -19,7 +19,7 @@ fun! awiwi#path#join(path, ...) abort
     let p = a:path.a:1
   endif
   let args = [p] + a:000[1:]
-  return func#apply(funcref('awiwi#path#join'), p, func#spread(a:000[1:]))
+  return fn#apply('awiwi#path#join', p, fn#spread(a:000[1:]))
 endfun
 
 fun! awiwi#path#absolute(path) abort "{{{
@@ -80,4 +80,3 @@ fun! awiwi#path#canonicalize(path) abort "{{{
   endfor
   return call('awiwi#path#join', new_parts)
 endfun "}}}
-
