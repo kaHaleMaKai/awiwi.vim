@@ -265,12 +265,15 @@ fun! awiwi#open_file(file, options) abort "{{{
     if position == 'auto'
       let position = awiwi#util#window_split_below() ? 'bottom' : 'right'
     endif
+    let prefix = ''
     if position == 'left'
-      let win_cmd == 'left vnew'
+      let win_cmd == 'vnew'
+      let prefix = 'left'
     elseif position == 'right'
       let win_cmd = 'vnew'
     elseif position == 'top'
-      let win_cmd = 'lefta new'
+      let prefix = 'lefta'
+      let win_cmd = 'new'
     else
       let win_cmd = 'new'
     " bottom is the default case
@@ -278,7 +281,7 @@ fun! awiwi#open_file(file, options) abort "{{{
         echoerr printf('wrong position for awiwi#open_file() specified: "%s"', position)
       endif
     endif
-    let cmd = printf('%s%s', height ? height : '', win_cmd)
+    let cmd = printf('%s %s%s', prefix, height ? height : '', win_cmd)
   elseif get(a:options, 'new_tab', v:false)
     let cmd = 'tabnew'
   else

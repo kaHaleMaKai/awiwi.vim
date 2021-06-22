@@ -304,10 +304,13 @@ fun! awiwi#cmd#run(...) abort "{{{
   endif
   if a:1 == s:journal_cmd || (a:1 == s:link_cmd && get(a:000, 1, '') == s:journal_cmd)
     if a:000[-1] == s:journal_cmd
+      let fzf_opts = fzf#vim#with_preview()
       if a:0 == 1
-        return fzf#vim#files(awiwi#get_journal_subpath())
+        return fzf#vim#files(awiwi#get_journal_subpath(), fzf_opts)
       else
-        return fzf#run(fzf#wrap({'source': awiwi#get_all_journal_files(v:true), 'sink': funcref('awiwi#insert_journal_link')}))
+        let fzf_opts.source = awiwi#get_all_journal_files(v:true)
+        let fzf_opts.sink = funcref('awiwi#insert_journal_link')
+        return fzf#run(fzf#wrap(fzf_opts))
       endif
     endif
     let [date, options] = s:parse_file_and_options(a:000[1:], {'new_window': v:false})
@@ -329,7 +332,7 @@ fun! awiwi#cmd#run(...) abort "{{{
     if a:0 == 1
       "let files = map(awiwi#asset#get_all_asset_files(), {_, v -> printf('%s:%s', v.date, v.name)})
       "return fzf#run(fzf#wrap({'source': files, 'sink': funcref('awiwi#asset#open_asset_sink')}))
-      return fzf#vim#files(awiwi#get_asset_subpath())
+      return fzf#vim#files(awiwi#get_asset_subpath(), fzf#vim#with_preview())
     elseif a:0 >= 2 && a:2 == s:copy_asset_cmd
       let link = awiwi#util#get_link_under_cursor()
       if link.type != 'asset'
@@ -367,10 +370,14 @@ fun! awiwi#cmd#run(...) abort "{{{
 
   elseif a:1 == s:recipe_cmd || (a:1 == s:link_cmd && get(a:000, 1, '') == s:recipe_cmd)
     if a:000[-1] == s:recipe_cmd
+      let fzf_opts = fzf#vim#with_preview()
       if a:0 == 1
-        return fzf#vim#files(awiwi#get_recipe_subpath())
+        let oshell = &shell
+        set shell=/bin/sh
+        return fzf#vim#files(awiwi#get_recipe_subpath(), fzf_opts)
       else
-        call fzf#vim#files(awiwi#get_recipe_subpath(), { 'sink': funcref('awiwi#insert_recipe_link') } )
+        let fzf_opts.sink = funcref('awiwi#insert_recipe_link')
+        call fzf#vim#files(awiwi#get_recipe_subpath(), fzf_opts)
         return
       endif
     endif
@@ -387,7 +394,7 @@ fun! awiwi#cmd#run(...) abort "{{{
       return
     endif
   elseif a:1 == s:tasks_cmd
-    call func#apply(funcref('awiwi#cmd#show_tasks'), func#spread(a:000[1:]))
+    call fn#apply('awiwi#cmd#show_tasks', fn#spread(a:000[1:]))
   elseif a:1 == s:search_cmd
     call call(funcref('awiwi#fuzzy_search'), a:000[1:])
   elseif a:1 == s:serve_cmd
@@ -424,7 +431,13 @@ fun! awiwi#cmd#run(...) abort "{{{
 
     call fzf#run(fzf#wrap({'source': entries}))
   elseif a:1 == s:todo_cmd
-    let [file, options] = s:parse_file_and_options(a:000, {'new_window': v:false, 'new_tab': v:true})
+    let cur_dir = expand('%:p:h:t')
+    if cur_dir == 'todos'
+      let default_opts = {'new_window': v:true, 'position': 'top', 'new_tab': v:false}
+    else
+      let default_opts = {'new_window': v:false, 'new_tab': v:true}
+    endif
+    let [file, options] = s:parse_file_and_options(a:000, default_opts)
     let file = file == s:todo_cmd ? 'inprogress' : file
     call awiwi#edit_todo(file, options)
   endif
