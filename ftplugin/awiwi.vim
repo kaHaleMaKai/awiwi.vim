@@ -222,7 +222,7 @@ augroup END
 
 augroup awiwiDeleteOldTasks
   au!
-  au BufEnter,BufWritePre */journal/todos.md call <sid>delete_old_tasks()
+  au BufEnter,BufWritePre */todos/*.md call <sid>delete_old_tasks()
 augroup END
 
 " inoremap <silent> <buffer> <C-d> <C-r>=strftime('%F')<CR>
