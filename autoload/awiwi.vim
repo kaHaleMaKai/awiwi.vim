@@ -597,7 +597,7 @@ endif
 
 fun! awiwi#open_link(options, ...) abort "{{{
   if a:0
-    let link = awiwei#util#determine_link_type(awiwi#util#as_link(a:1))
+    let link = awiwi#util#determine_link_type(awiwi#util#as_link(a:1))
   else
     let link = awiwi#util#get_link_under_cursor()
   endif
