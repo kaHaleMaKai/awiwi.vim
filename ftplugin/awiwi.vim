@@ -243,3 +243,21 @@ let awiwi_server = get(g:, 'awiwi_autostart_server', '')
 if !empty(awiwi_server) && !awiwi#server#server_is_running()
   call awiwi#server#start_server(awiwi_server)
 endif
+
+
+fun! s:folding(lnum) abort "{{{
+  let line = getline(a:lnum)
+  if line =~ '^\s*$'
+    return '-1'
+  endif
+  let level = strlen(matchstr(line, '^#*'))
+  if level > 0
+    return '>' . string(level - 1)
+  else
+    return '='
+  endif
+endfun "}}}
+
+
+setlocal foldmethod=expr
+exe printf('setlocal foldexpr=%s(v:lnum)', function('s:folding'))
