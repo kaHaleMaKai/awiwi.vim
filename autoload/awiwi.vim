@@ -259,6 +259,12 @@ endfun "}}}
 
 
 fun! awiwi#open_file(file, options) abort "{{{
+  let extension = fnamemodify(a:file, ':e')
+  if index(s:xdg_open_exts, extension) > -1
+    let cmd = ['xdg-open', a:file]
+    call jobstart(cmd)
+    return
+  endif
   if get(a:options, 'new_window', v:false)
     let height = str2nr(get(a:options, 'height', get(a:options, 'width', 0)))
     let position = get(a:options, 'position', 'auto')
@@ -609,13 +615,7 @@ fun! awiwi#open_link(options, ...) abort "{{{
     call system(cmd)
   elseif link.type == 'asset' || link.type == 'journal' || link.type == 'recipe'
     let dest = awiwi#path#canonicalize(awiwi#path#join(expand('%:p:h'), link.target))
-    let extension = fnamemodify(dest, ':e')
-    if index(s:xdg_open_exts, extension) > -1
-      let cmd = ['xdg-open', dest]
-      call jobstart(cmd)
-    else
-      call awiwi#open_file(dest, a:options)
-    endif
+    call awiwi#open_file(dest, a:options)
   elseif link.type == 'image'
     let date = join(split(fnamemodify(link.target, ':h:t'), '-'), '/')
     let file = fnamemodify(link.target, ':t')
