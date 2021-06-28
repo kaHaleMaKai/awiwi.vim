@@ -1,3 +1,36 @@
+if !exists('s:get_random_string_is_defined')
+  let s:get_random_string_is_defined = v:false
+endif
+
+
+fun! s:get_random_string(length) abort "{{{
+  if !s:get_random_string_is_defined
+    pyx << EOF
+def get_random_string(length):
+    import random
+    import base64
+    return base64.encodebytes(random.randbytes(length)).decode()[:length]
+EOF
+  let s:get_random_string_is_defined = v:true
+  return pyxeval(printf('get_random_string(%d)', a:length))
+endfun "}}}
+
+
+fun! s:get_file_template(extension) abort "{{{
+  if a:extension == 'drawio'
+      return [
+      \ '<mxfile host="Electron" type="device">',
+      \    printf('<diagram id="%s" name="Page-1">', s:get_random_string(20)),
+      \      'ddHNEoIgEADgp+GOUk53s7p08tCZkU2YQddBGqmnTwfIGOvE8u3C8kNY2bmz4YO8ogBNciocYUeS51lRZPOwyNPLYb/z0BolQtEKtXpBQBr0oQSMSaFF1FYNKTbY99DYxLgxOKVld9Rp14G3sIG64XqrNyWsjLegq19AtTJ2zmjIdDwWBxglFzh9EasIKw2i9VHnStDL48V38etOf7Kfgxno7Y8Fc7DuPU+SH2LVGw==',
+      \     '</diagram>',
+      \ '</mxfile>'
+      \ ]
+    else
+      return []
+    endif
+endfun "}}}
+
+
 fun! awiwi#asset#create_asset_here_if_not_exists(type, ...) abort "{{{
   let [name, filename, link] = call('awiwi#asset#create_asset_link', a:000)
   let path = s:get_asset_path(awiwi#date#get_own_date(), filename)
@@ -25,7 +58,9 @@ fun! s:create_asset(type, path) abort "{{{
     call mkdir(dir, 'p')
   endif
   if a:type == awiwi#cmd#get_cmd('empty_asset')
-    call writefile([], a:path)
+    let extension = fnamemodify(a:path, ':e')
+    let template = s:get_file_template(extension)
+    call writefile(template, a:path)
   elseif a:type == awiwi#cmd#get_cmd('url_asset')
     let url = awiwi#util#input('url: ')
     if empty(url)
