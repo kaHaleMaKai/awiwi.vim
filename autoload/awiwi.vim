@@ -195,29 +195,29 @@ fun! awiwi#get_markers(type, ...) abort "{{{
 endfun "}}}
 
 
-fun! s:open_fuzzy_match(line) abort "{{{
-  let [file, line, col] = split(a:line, ':')[:2]
-  exe printf('e +%s %s', line, file)
-  exe printf('normal! %s|', col)
-endfun "}}}
-
-
 fun! awiwi#fuzzy_search(...) abort "{{{
   if !a:0
     echoerr 'Awiwi search: no pattern given'
   endif
   let pattern = join(map(copy(a:000), {_, v -> awiwi#util#escape_pattern(v)}), '.*?')
   let rg_cmd = [
-        \ 'rg', '-i', '-U', '--multiline-dotall', '--color=never',
+        \ 'rg', '-i', '-U', '--multiline-dotall', '--color=always',
         \ '--column', '--line-number', '--no-heading',
-        \ '-g', '!awiwi*', pattern
+        \ '-g', shellescape('!awiwi*'), shellescape(pattern)
         \ ]
-  let matches = filter(systemlist(rg_cmd), {_, v -> !awiwi#str#is_empty(v)})
-  if a:0 > 1
-    let start = printf('\<%s\>', awiwi#util#escape_pattern(a:1))
-    let matches = filter(matches, {_, v -> match(v, start) > -1})
-  endif
-  call fzf#run(fzf#wrap({'source': matches, 'sink': funcref('s:open_fuzzy_match')}))
+  try
+    let oshell = &shell
+    set shell=/bin/sh
+    let hide_window_keys = 'ctrl-o'
+    if awiwi#util#window_split_below()
+      let preview_layout = 'down:50%'
+    else
+      let preview_layout = 'right:50%'
+    endif
+    call fzf#vim#grep(join(rg_cmd, ' '), v:false, fzf#vim#with_preview(preview_layout, hide_window_keys), v:false)
+  finally
+    exe printf('set shell=%s', oshell)
+  endtry
 endfun "}}}
 
 
