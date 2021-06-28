@@ -12,6 +12,8 @@ let s:server_cmd = 'server'
 let s:redact_cmd = 'redact'
 let s:tasks_cmd = 'tasks'
 let s:todo_cmd = 'todo'
+let s:store_session_cmd = 'save'
+let s:restore_session_cmd = 'restore'
 
 let s:new_asset_cmd = 'create'
 let s:empty_asset_cmd = 'empty'
@@ -34,6 +36,8 @@ let s:subcommands = [
       \ s:paste_asset_cmd,
       \ s:recipe_cmd,
       \ s:redact_cmd,
+      \ s:restore_session_cmd,
+      \ s:store_session_cmd,
       \ s:search_cmd,
       \ s:serve_cmd,
       \ s:server_cmd,
@@ -63,6 +67,7 @@ let s:journal_all_window_cmds = [
       \ s:journal_same_window_cmd,
       \ s:journal_new_tab_cmd
       \ ]
+let s:create_file_cmd = '+create'
 
 let s:journal_height_window_cmd = '+height='
 let s:journal_width_window_cmd = '+width='
@@ -97,6 +102,19 @@ let s:todo_subcommands = [
       \ s:todo_onhold_cmd,
       \ s:todo_questions_cmd
       \ ]
+
+
+let s:session_file = awiwi#path#join(g:awiwi_home, 'session.vim')
+
+
+fun! awiwi#cmd#store_session() abort "{{{
+  exe printf('mksession! %s', s:session_file)
+endfun "}}}
+
+
+fun! awiwi#cmd#restore_session() abort "{{{
+  exe printf('source %s', s:session_file)
+endfun "}}}
 
 
 fun! s:contains(li, el, ...) abort "{{{
@@ -440,6 +458,10 @@ fun! awiwi#cmd#run(...) abort "{{{
     let [file, options] = s:parse_file_and_options(a:000, default_opts)
     let file = file == s:todo_cmd ? 'inprogress' : file
     call awiwi#edit_todo(file, options)
+  elseif a:1 == s:store_session_cmd
+    return awiwi#cmd#store_session()
+  elseif a:1 == s:restore_session_cmd
+    return awiwi#cmd#restore_session()
   endif
 endfun "}}}
 

@@ -18,24 +18,26 @@ fun! s:get_today() abort "{{{
 endfun "}}}
 
 
-fun! awiwi#date#parse_date(date) abort "{{{
+fun! awiwi#date#parse_date(date, ...) abort "{{{
+  let options = get(a:000, 0, {})
   if a:date == 'today'
     return strftime('%F')
   elseif a:date == 'yesterday'
     let date = s:get_yesterday(strftime('%F'))
   elseif a:date == 'prev' || a:date == 'previous' || a:date == 'previous date' || a:date == 'previous day'
     try
-      let date = s:get_offset_date(awiwi#date#get_own_date(), -1)
+      let date = s:get_offset_date(awiwi#date#get_own_date(), -1, options)
     catch /AwiwiDateError/
-      let date = s:get_offset_date(s:get_today(), -1)
+      let date = s:get_offset_date(s:get_today(), -1, options)
     endtry
   elseif a:date == 'next' || a:date == 'next date' || a:date == 'next day'
     try
-      let date = s:get_offset_date(awiwi#date#get_own_date(), +1)
+      let date = s:get_offset_date(awiwi#date#get_own_date(), +1, options)
     catch /AwiwiDateError/
-      let date = s:get_offset_date(s:get_today(), +1)
+      let date = s:get_offset_date(s:get_today(), +1, options)
     endtry
   else
+    " FIXME check if s:is_date(a:date), or raise exception
     let date = a:date
   endif
   return date
@@ -69,7 +71,7 @@ fun! s:get_yesterday(date) abort "{{{
 endfun "}}}
 
 
-fun! s:get_offset_date(date, offset) abort "{{{
+fun! s:get_offset_date(date, offset, options) abort "{{{
   let files = awiwi#get_all_journal_files()
   let idx = index(files, a:date)
   if idx == -1
@@ -79,8 +81,13 @@ fun! s:get_offset_date(date, offset) abort "{{{
     throw printf('AwiwiError: date %s not found', a:date)
   elseif a:offset <= 0 && idx + a:offset <= 0
     throw printf('AwiwiError: no date found before %s', a:date)
-  elseif a:offset >= 0 && idx + a:offset >= len(files) - 1
-    throw printf('AwiwiError: no date found after %s', a:date)
+  elseif a:offset >= 0 && idx + a:offset >= len(files)
+    if get(a:options, awiwi#cmd#get_cmd('create'), v:false)
+      " FIXME – need to create future date from offset
+      return a:date
+    else
+      throw printf('AwiwiError: no date found after %s', a:date)
+    endif
   endif
   return files[idx + a:offset]
 endfun "}}}
