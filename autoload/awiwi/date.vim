@@ -1,3 +1,8 @@
+if exists('g:autoloaded_awiwi_date')
+  finish
+endif
+let g:autoloaded_awiwi_date = v:true
+
 let s:date_pattern = '^[0-9]\{4}-[0-9]\{2}-[0-9]\{2}$'
 
 
@@ -13,7 +18,7 @@ fun! s:AwiwiDateError(msg, ...) abort "{{{
 endfun "}}}
 
 
-fun! s:get_today() abort "{{{
+fun! awiwi#date#get_today() abort "{{{
   return strftime('%F')
 endfun "}}}
 
@@ -28,16 +33,19 @@ fun! awiwi#date#parse_date(date, ...) abort "{{{
     try
       let date = s:get_offset_date(awiwi#date#get_own_date(), -1, options)
     catch /AwiwiDateError/
-      let date = s:get_offset_date(s:get_today(), -1, options)
+      let date = s:get_offset_date(awiwi#date#get_today(), -1, options)
     endtry
   elseif a:date == 'next' || a:date == 'next date' || a:date == 'next day'
     try
       let date = s:get_offset_date(awiwi#date#get_own_date(), +1, options)
     catch /AwiwiDateError/
-      let date = s:get_offset_date(s:get_today(), +1, options)
+      let date = s:get_offset_date(awiwi#date#get_today(), +1, options)
     endtry
   else
     " FIXME check if s:is_date(a:date), or raise exception
+    if !s:is_date(a:date)
+      throw s:AwiwiDateError('%s is not a valid date', a:date)
+    endif
     let date = a:date
   endif
   return date
@@ -78,15 +86,14 @@ fun! s:get_offset_date(date, offset, options) abort "{{{
     if awiwi#date#parse_date('today') == a:date
       return a:date
     endif
-    throw printf('AwiwiError: date %s not found', a:date)
+    throw s:AwiwiDateError('date %s not found', a:date)
   elseif a:offset <= 0 && idx + a:offset <= 0
-    throw printf('AwiwiError: no date found before %s', a:date)
+    throw s:AwiwiDateError('no date found before %s', a:date)
   elseif a:offset >= 0 && idx + a:offset >= len(files)
-    if get(a:options, awiwi#cmd#get_cmd('create'), v:false)
-      " FIXME – need to create future date from offset
+    if get(a:options, 'create_dirs', v:false)
       return a:date
     else
-      throw printf('AwiwiError: no date found after %s', a:date)
+      throw s:AwiwiDateError('no date found after %s', a:date)
     endif
   endif
   return files[idx + a:offset]

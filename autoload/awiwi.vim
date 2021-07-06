@@ -307,6 +307,9 @@ fun! awiwi#edit_journal(date, ...) abort "{{{
   let options = get(a:000, 0, {})
   let options.last_line = v:true
   let date = awiwi#date#parse_date(a:date)
+  if date == awiwi#date#get_today()
+    let options.create_dirs = v:true
+  endif
   try
     let own_date = awiwi#date#get_own_date()
     if date == own_date
@@ -317,6 +320,10 @@ fun! awiwi#edit_journal(date, ...) abort "{{{
     echo "hello"
   endtry
   let file = awiwi#get_journal_file_by_date(date)
+  if date > awiwi#date#get_today() && !get(options, 'create_dirs', v:false) && filewritable(file) != 1
+    echoerr printf('trying to open file for future date "%s" without +create option', date)
+    return
+  endif
   call awiwi#open_file(file, options)
 endfun "}}}
 

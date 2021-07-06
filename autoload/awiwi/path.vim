@@ -1,7 +1,7 @@
-if exists('g:autoloaded_awiwi_path_vim')
+if exists('g:autoloaded_awiwi_path')
   finish
 endif
-let g:autoloaded_path_vim = v:true
+let g:autoloaded_path = v:true
 
 fun! awiwi#path#join(path, ...) abort
   if !a:0 || a:1 == ""

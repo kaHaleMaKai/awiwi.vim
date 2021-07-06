@@ -1,3 +1,8 @@
+if exists('g:autoloaded_awiwi_server')
+  finish
+endif
+let g:autoloaded_awiwi_server = v:true
+
 let s:server_started = v:false
 let s:server_host = ''
 let s:server_port = ''

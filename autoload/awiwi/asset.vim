@@ -1,3 +1,8 @@
+if exists('g:autoloaded_awiwi_asset')
+  finish
+endif
+let g:autoloaded_awiwi_asset = v:true
+
 if !exists('s:get_random_string_is_defined')
   let s:get_random_string_is_defined = v:false
 endif

@@ -1,3 +1,8 @@
+if exists('g:autoloaded_awiwi_cmd')
+  finish
+endif
+let g:autoloaded_awiwi_cmd = v:true
+
 let s:activate_cmd = 'activate'
 let s:deactivate_cmd = 'deactivate'
 let s:journal_cmd = 'journal'
@@ -55,19 +60,20 @@ let s:tasks_question_cmd = 'question'
 let s:tasks_todo_cmd = 'todo'
 let s:tasks_incidents_cmd = 'incidents'
 
+let s:journal_create_file_cmd = '+create'
 let s:journal_new_window_cmd = '+new'
 let s:journal_hnew_window_cmd = '+hnew'
 let s:journal_vnew_window_cmd = '+vnew'
 let s:journal_same_window_cmd = '-new'
 let s:journal_new_tab_cmd = '+tab'
-let s:journal_all_window_cmds = [
+let s:journal_options_cmd = [
       \ s:journal_new_window_cmd,
       \ s:journal_hnew_window_cmd,
       \ s:journal_vnew_window_cmd,
       \ s:journal_same_window_cmd,
-      \ s:journal_new_tab_cmd
+      \ s:journal_new_tab_cmd,
+      \ s:journal_create_file_cmd
       \ ]
-let s:create_file_cmd = '+create'
 
 let s:journal_height_window_cmd = '+height='
 let s:journal_width_window_cmd = '+width='
@@ -107,6 +113,18 @@ let s:todo_subcommands = [
 let s:session_file = awiwi#path#join(g:awiwi_home, 'session.vim')
 
 
+fun! s:AwiwiCmdError(msg, ...) abort "{{{
+  if a:0
+    let args = [a:msg]
+    call extend(args, a:000)
+    let msg = call('printf', args)
+  else
+    let msg = a:msg
+  endif
+  return 'AwiwiCmdError: ' . msg
+endfun "}}}
+
+
 fun! awiwi#cmd#store_session() abort "{{{
   exe printf('mksession! %s', s:session_file)
 endfun "}}}
@@ -135,7 +153,7 @@ endfun "}}}
 fun! awiwi#cmd#get_cmd(name) abort "{{{
   let name = printf('%s_cmd', a:name)
   if !has_key(s:, name)
-    throw s:AwiwiError('command %s does not exist', name)
+    throw s:AwiwiCmdError('command %s does not exist', name)
   endif
   return get(s:, name)
 endfun "}}}
@@ -164,7 +182,7 @@ endfun "}}}
 
 
 fun! s:has_new_win_cmd(args) abort "{{{
-  return len(filter(copy(a:args), {_, v -> index(s:journal_all_window_cmds, v) > -1})) > 0
+  return len(filter(copy(a:args), {_, v -> index(s:journal_options_cmd, v) > -1})) > 0
         \ ? v:true : v:false
 endfun "}}}
 
@@ -181,7 +199,7 @@ fun! s:insert_win_cmds(li, current_arg_pos, args) abort "{{{
   if a:current_arg_pos == 2
     return a:li
   elseif !s:has_new_win_cmd(a:args)
-    call extend(a:li, s:journal_all_window_cmds)
+    call extend(a:li, s:journal_options_cmd)
     return
   elseif !s:has_win_height_cmd(a:args)
     call insert(a:li, s:journal_all_dim_window_cmds)
@@ -197,11 +215,13 @@ fun! s:parse_file_and_options(args, ...) abort "{{{
     if a:0
       let options = copy(a:1)
     else
-      let options = {'position': 'auto', 'new_window': v:true, 'new_tab': v:false}
+      let options = {'position': 'auto', 'new_window': v:true, 'new_tab': v:false, 'create_dirs': v:false}
     endif
     let file = ''
     for arg in a:args
-      if index(s:journal_all_window_cmds, arg) > -1
+      if arg == s:journal_create_file_cmd
+        let options.create_dirs = v:true
+      elseif index(s:journal_options_cmd, arg) > -1
         if arg == s:journal_hnew_window_cmd
           let options.position = "bottom"
           let options.new_window = v:true
@@ -318,7 +338,7 @@ endfun "}}}
 
 fun! awiwi#cmd#run(...) abort "{{{
   if !a:0
-    throw 'AwiwiError: Awiwi expects 1+ arguments'
+    throw s:AwiwiCmdError('Awiwi expects 1+ arguments')
   endif
   if a:1 == s:journal_cmd || (a:1 == s:link_cmd && get(a:000, 1, '') == s:journal_cmd)
     if a:000[-1] == s:journal_cmd
@@ -504,7 +524,7 @@ fun! awiwi#cmd#show_tasks(...) abort "{{{
   endif
   if args[0] == s:tasks_filter_cmd
     if a:0 == 1
-      throw 'AwiwiError: missing argument for "Awiwi tasks filter"'
+      throw s:AwiwiCmdError('missing argument for "Awiwi tasks filter"')
     endif
     call extend(markers, a:000[1:])
   endif

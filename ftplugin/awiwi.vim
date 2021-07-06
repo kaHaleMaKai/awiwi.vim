@@ -41,76 +41,119 @@ if awiwi#str#contains(expand('%:h'), '/assets/')
 endif
 
 
-fun! s:handle_enter_on_insert(mode, above) abort "{{{
+fun! s:get_line_start(prefix_space, list_char, infix_space, is_checklist) abort "{{{
+  let line = [a:prefix_space, a:list_char]
+  if a:is_checklist
+    call extend(line, [a:infix_space, '[ ]'])
+  endif
+  if !empty(a:list_char)
+    call add(line, ' ')
+  endif
+  return join(line, '')
+endfun "}}}
+
+
+fun! s:pad(length, ...) abort "{{{
+  let content = a:0 ? a:1 : ''
+  return printf('%' . a:length . 's%s', '', content)
+endfun "}}}
+
+
+fun! s:handle_enter_on_insert(mode, above, continue_paragraph) abort "{{{
   let line = getline('.')
-  " is this any kind of list?
-  let m = matchlist(line, '^\([[:space:]]*\)\([-*]\)\([[:space:]]\+\)\(\[[ x]\+\]\)\?')
+  let m = matchlist(line, '^\([[:space:]]*\)\(\([-*]\)\([[:space:]]\+\)\)\?\(\(\[[ x]\+\]\)\([[:space:]]*\)\)\?\([^[:space:]].*$\)\?')
   let o_cmd = printf('normal! %s', a:above ? 'O' : 'o')
-  if empty(m)
+  let pos = getcurpos()[-1]
+  let is_trailing_cursor = pos > strlen(line)
+
+  let prefix_space = m[1]
+  let [list_char, infix_space] = m[3:4]
+  let [checkbox, postfix_space, actual_content] = m[6:8]
+  let is_checklist = !empty(checkbox)
+  let is_list = !empty(list_char)
+
+  " handle regular insert. this is no list, check-list etc.
+  if !len(line)
     if a:mode == 'n'
       exe o_cmd
     else
-      let pos = getcurpos()[-1]
-      if pos > strlen(line)
-        exe 'normal! o'
-      else
-        exe "normal! i\n"
-      endif
-    endif
-    starti
-    return
-  endif
-  let find_spaces = matchlist(line, '^\([[:space:]]*\)\([-*]\)\([[:space:]]\+\)\(\[[ x]\+\][[:space:]]*\)\?$')
-  if !empty(find_spaces)
-    let spaces = find_spaces[1]
-    if !empty(spaces)
-      call setline('.', line[2:])
-    else
-      call setline('.', spaces)
+      exe "normal! i\n"
     endif
     starti
     return
   endif
 
-  " FIXME use m from above
-  let append = v:true
-  if empty(m)
-    let text = ''
-    let pos = 0
-  elseif empty(m[4])
-    if match(line, '[[:space:]][^[:space:]]') == -1
+  " this is some kind of list, but apart from the list indicator, it has no
+  " content
+  if empty(actual_content)
+    " we want to de-indent by 2 chars when on a line like
+    " *
+    "   *
+    " * [ ]
+    "   * [ ]
+    if !empty(prefix_space)
+      call setline('.', line[2:])
+    " if we don't have anything to de-indent, then we'll use
+    " a blank line instead
+    else
       call setline('.', '')
-      exe o_cmd
-      starti
-      return
     endif
-    let text = m[1].m[2].m[3]
-    let pos = strlen(text)
-  else
-    if match(line, '\][[:space:]]*[^[:space:]]') == -1
-          \ || match(line, '^[-*][[:space:]]\+\[[x ]\][[:space:]]\+(from [-0-9]\+)[[:space:]]*$') > -1
-      call setline('.', '')
-      exe o_cmd
-      starti
-      return
-    endif
-    let marker = m[1] . m[2] . ' [ ] '
-    let pos = strlen(marker) + 1
+    starti
+    return
+  endif
+
+  " we will define 4 vars in each block:
+  "   this_text: text for the current line
+  "   next_next: text for the next line
+  "   new_pos:   position to start on in next line
+  "   append:    whether to append at the end of the line
+
+  " when at the end of a line, we can simply start a new list item
+  " in the next line
+  let marker = s:get_line_start(prefix_space, list_char, infix_space, is_checklist)
+  if is_trailing_cursor || a:mode == 'n'
     if awiwi#str#endswith(&ft, '.todo')
-      let text = marker.printf(' (from %s)', strftime('%F'))
+      let this_text = line
+      let next_text = printf('%s(from %s)', marker, strftime('%F'))
+      let new_pos = strlen(marker)
       let append = v:false
     else
-      let text = marker
+      let this_text = line
+      let next_text = a:continue_paragraph ? s:pad(strlen(marker)) : marker
+      let new_pos = strlen(next_text)
+      let append = v:true
     endif
+
+  " now we need to handle the case of breaking a line into the next
+  " first, we deal with lists
+  elseif is_list
+    let this_text = line[:pos-2]
+    let marker_len = strlen(marker)
+    let next_text = s:pad(marker_len, line[pos-1:])
+    let new_pos = marker_len + 1
+    let append = v:false
+  " now with just text
+  else
+    let this_pos = getcurpos()[2]
+    let this_text = line[:this_pos-2]
+    let marker_len = strlen(marker)
+    let next_text = s:pad(marker_len, line[this_pos-1:])
+    let new_pos = marker_len + 1
+    let append = v:false
   endif
+
+  if this_text != line
+    call setline('.', this_text)
+  endif
+
   let cursor = getcurpos()
-  let cursor[2] = pos
+  let cursor[2] = new_pos
   let line_nr = cursor[1]
   if a:above
-    call append(line_nr - 1, text)
+    call append(line_nr - 1, next_text)
   else
     let cursor[1] += 1
-    call append(line_nr, text)
+    call append(line_nr, next_text)
   endif
   call setpos('.', cursor)
   if append
@@ -210,9 +253,10 @@ EOF
 endfun "}}}
 
 
-nnoremap <silent> <buffer> O :call <sid>handle_enter_on_insert('n', v:true)<CR>
-nnoremap <silent> <buffer> o :call <sid>handle_enter_on_insert('n', v:false)<CR>
-inoremap <silent> <buffer> <Enter> <C-o>:call <sid>handle_enter_on_insert('i', v:false)<CR>
+nnoremap <silent> <buffer> O :call <sid>handle_enter_on_insert('n', v:true, v:false)<CR>
+nnoremap <silent> <buffer> o :call <sid>handle_enter_on_insert('n', v:false, v:false)<CR>
+inoremap <silent> <buffer> <Enter> <C-o>:call <sid>handle_enter_on_insert('i', v:false, v:false)<CR>
+inoremap <silent> <buffer> <C-j>   <C-o>:call <sid>handle_enter_on_insert('i', v:false, v:true)<CR>
 nnoremap <silent> <buffer> <Enter> :call <sid>handle_enter()<CR>
 
 augroup awiwiAutosave

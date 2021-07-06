@@ -1,7 +1,7 @@
-" if exists('g:autoloaded_awiwi_task')
-"   finish
-" endif
-" let g:autoloaded_awiwi_task = v:true
+if exists('g:autoloaded_awiwi_task')
+  finish
+endif
+let g:autoloaded_awiwi_task = v:true
 
 let s:ids = {}
 let s:tables = ['urgency', 'tag', 'task', 'task_tags', 'setting', 'task_log', 'project']

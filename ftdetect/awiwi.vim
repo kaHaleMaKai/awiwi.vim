@@ -22,9 +22,11 @@ endfun "}}}
 augroup awiwiFtDetect
   au!
   au BufRead *.md call s:add_code_block_textobject()
-  exe printf('au BufWinEnter %s/journal/**/*.md  call <sid>add_awiwi_filetype("awiwi")', g:awiwi_home)
-  exe printf('au BufWinEnter %s/assets/**/*      call <sid>add_awiwi_filetype("awiwi.asset",  "markdown")', g:awiwi_home)
-  exe printf('au BufWinEnter %s/recipes/*        call <sid>add_awiwi_filetype("awiwi-recipe", "markdown")', g:awiwi_home)
-  exe printf('au BufWinEnter %s/recipes/**/*     call <sid>add_awiwi_filetype("awiwi-recipe", "markdown")', g:awiwi_home)
-  exe printf('au BufWinEnter %s/todos/*.md       call <sid>add_awiwi_filetype("awiwi.todo")', g:awiwi_home)
+  for event in ['BufNewFile', 'BufReadPost', 'BufWinEnter']
+    exe printf('au %s %s/journal/**/*.md  call <sid>add_awiwi_filetype("awiwi")', event, g:awiwi_home)
+    exe printf('au %s %s/assets/**/*      call <sid>add_awiwi_filetype("awiwi.asset",  "markdown")', event, g:awiwi_home)
+    exe printf('au %s %s/recipes/*        call <sid>add_awiwi_filetype("awiwi-recipe", "markdown")', event, g:awiwi_home)
+    exe printf('au %s %s/recipes/**/*     call <sid>add_awiwi_filetype("awiwi-recipe", "markdown")', event, g:awiwi_home)
+    exe printf('au %s %s/todos/*.md       call <sid>add_awiwi_filetype("awiwi.todo")', event, g:awiwi_home)
+  endfor
 augroup END

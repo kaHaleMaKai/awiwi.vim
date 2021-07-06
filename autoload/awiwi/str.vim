@@ -1,7 +1,7 @@
-if exists('g:autoloaded_awiwi_str_vim')
+if exists('g:autoloaded_awiwi_str')
   finish
 endif
-let g:autoloaded_str_vim = v:true
+let g:autoloaded_awiwi_str = v:true
 
 fun! awiwi#str#startswith(str, prefix) abort
   if a:str == "" && a:prefix == ""
@@ -31,4 +31,3 @@ endfun "}}}
 fun! awiwi#str#is_empty(str) abort "{{{
   return strlen(trim(a:str)) == 0
 endfun "}}}
-
