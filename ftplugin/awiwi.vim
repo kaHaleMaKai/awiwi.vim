@@ -310,3 +310,6 @@ endfun "}}}
 
 setlocal foldmethod=expr
 exe printf('setlocal foldexpr=%s(v:lnum)', function('s:folding'))
+
+
+doautocmd User AwiwiInitPost
