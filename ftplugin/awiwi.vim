@@ -269,6 +269,11 @@ augroup awiwiDeleteOldTasks
   au BufEnter,BufWritePre */todos/*.md call <sid>delete_old_tasks()
 augroup END
 
+augroup awiwiStart
+  au!
+  au User ObsessionInitPost windo e!
+augroup END
+
 " inoremap <silent> <buffer> <C-d> <C-r>=strftime('%F')<CR>
 inoremap <silent> <buffer> <C-f> <C-r>=strftime('%H:%M')<CR>
 nnoremap <silent> <buffer> <C-q> :Awiwi redact<CR>
