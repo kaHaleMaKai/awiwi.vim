@@ -61,10 +61,12 @@ endfun "}}}
 
 fun! s:handle_enter_on_insert(mode, above, continue_paragraph) abort "{{{
   let line = getline('.')
+  let cursor = getcurpos()
+  let line_nr = cursor[1]
+  let pos = cursor[2]
   let m = matchlist(line, '^\([[:space:]]*\)\(\([-*]\)\([[:space:]]\+\)\)\?\(\(\[[ x]\+\]\)\([[:space:]]*\)\)\?\([^[:space:]].*$\)\?')
   let o_cmd = printf('normal! %s', a:above ? 'O' : 'o')
-  let pos = getcurpos()[-1]
-  let is_trailing_cursor = pos > strlen(line)
+  let is_trailing_cursor = cursor[-1] > strlen(line)
 
   let prefix_space = m[1]
   let [list_char, infix_space] = m[3:4]
@@ -76,10 +78,13 @@ fun! s:handle_enter_on_insert(mode, above, continue_paragraph) abort "{{{
   if !len(line)
     if a:mode == 'n'
       exe o_cmd
+    elseif a:above
+      call append(line_nr - 1, '')
     else
-      exe "normal! i\n"
+      call append(line_nr, '')
+      let cursor[1] += 1
+      call setpos('.', cursor)
     endif
-    starti
     return
   endif
 
@@ -112,6 +117,7 @@ fun! s:handle_enter_on_insert(mode, above, continue_paragraph) abort "{{{
   " in the next line
   let marker = s:get_line_start(prefix_space, list_char, infix_space, is_checklist)
   if is_trailing_cursor || a:mode == 'n'
+    " for todo-entries, we want to append a date
     if awiwi#str#endswith(&ft, '.todo')
       let this_text = line
       let next_text = printf('%s(from %s)', marker, strftime('%F'))
@@ -126,29 +132,33 @@ fun! s:handle_enter_on_insert(mode, above, continue_paragraph) abort "{{{
 
   " now we need to handle the case of breaking a line into the next
   " first, we deal with lists
-  elseif is_list
-    let this_text = line[:pos-2]
-    let marker_len = strlen(marker)
-    let next_text = s:pad(marker_len, line[pos-1:])
-    let new_pos = marker_len + 1
-    let append = v:false
-  " now with just text
   else
-    let this_pos = getcurpos()[2]
-    let this_text = line[:this_pos-2]
-    let marker_len = strlen(marker)
-    let next_text = s:pad(marker_len, line[this_pos-1:])
-    let new_pos = marker_len + 1
+    " when at the start of a line (pos==1), then we want to paste the complete
+    " content to the next line. this is hardly possible w/o branching, since
+    " vim slices are end-inclusive
+    if pos == 1
+      let this_text = ''
+      let marker_len = 0
+    else
+      let this_text = line[:pos-2]
+      let marker_len = strlen(marker)
+    endif
+    let start_pos = max([0, pos - 1])
+    let next_text = s:pad(marker_len, line[start_pos:])
+    if get(g:, 'awiwi_jump_to_end', v:false)
+      let new_pos = strlen(next_text) + 1
+    else
+      let new_pos = marker_len + 1
+    endif
     let append = v:false
   endif
 
+  " for performance reason: don't re-set the text, if it's the same
   if this_text != line
     call setline('.', this_text)
   endif
 
-  let cursor = getcurpos()
   let cursor[2] = new_pos
-  let line_nr = cursor[1]
   if a:above
     call append(line_nr - 1, next_text)
   else
@@ -162,6 +172,7 @@ fun! s:handle_enter_on_insert(mode, above, continue_paragraph) abort "{{{
     starti
   endif
 endfun "}}}
+
 
 
 fun! s:handle_enter() abort "{{{
@@ -255,9 +266,10 @@ endfun "}}}
 
 nnoremap <silent> <buffer> O :call <sid>handle_enter_on_insert('n', v:true, v:false)<CR>
 nnoremap <silent> <buffer> o :call <sid>handle_enter_on_insert('n', v:false, v:false)<CR>
-inoremap <silent> <buffer> <Enter> <C-o>:call <sid>handle_enter_on_insert('i', v:false, v:false)<CR>
-inoremap <silent> <buffer> <C-j>   <C-o>:call <sid>handle_enter_on_insert('i', v:false, v:true)<CR>
+inoremap <silent> <buffer> <Enter> <Cmd>call <sid>handle_enter_on_insert('i', v:false, v:false)<CR>
+inoremap <silent> <buffer> <C-j>   <Cmd>call <sid>handle_enter_on_insert('i', v:false, v:true)<CR>
 nnoremap <silent> <buffer> <Enter> :call <sid>handle_enter()<CR>
+
 
 augroup awiwiAutosave
   au!
@@ -269,10 +281,6 @@ augroup awiwiDeleteOldTasks
   au BufEnter,BufWritePre */todos/*.md call <sid>delete_old_tasks()
 augroup END
 
-augroup awiwiStart
-  au!
-  au User ObsessionInitPost windo e!
-augroup END
 
 " inoremap <silent> <buffer> <C-d> <C-r>=strftime('%F')<CR>
 inoremap <silent> <buffer> <C-f> <C-r>=strftime('%H:%M')<CR>
