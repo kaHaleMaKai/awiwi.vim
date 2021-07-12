@@ -121,7 +121,7 @@ fun! s:handle_enter_on_insert(mode, above, continue_paragraph) abort "{{{
     if awiwi#str#endswith(&ft, '.todo')
       let this_text = line
       let next_text = printf('%s(from %s)', marker, strftime('%F'))
-      let new_pos = strlen(marker)
+      let new_pos = strlen(marker) + 1
       let append = v:false
     else
       let this_text = line
