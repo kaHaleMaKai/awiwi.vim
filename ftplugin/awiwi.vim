@@ -269,6 +269,7 @@ nnoremap <silent> <buffer> o :call <sid>handle_enter_on_insert('n', v:false, v:f
 inoremap <silent> <buffer> <Enter> <Cmd>call <sid>handle_enter_on_insert('i', v:false, v:false)<CR>
 inoremap <silent> <buffer> <C-j>   <Cmd>call <sid>handle_enter_on_insert('i', v:false, v:true)<CR>
 nnoremap <silent> <buffer> <Enter> :call <sid>handle_enter()<CR>
+exe 'inoremap <silent> <buffer> <C-y> * [ ] '
 
 
 augroup awiwiAutosave
