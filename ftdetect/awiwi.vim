@@ -25,8 +25,8 @@ augroup awiwiFtDetect
   for event in ['BufNewFile', 'BufReadPost', 'BufWinEnter']
     exe printf('au %s %s/journal/**/*.md  call <sid>add_awiwi_filetype("awiwi")', event, g:awiwi_home)
     exe printf('au %s %s/assets/**/*      call <sid>add_awiwi_filetype("awiwi.asset",  "markdown")', event, g:awiwi_home)
-    exe printf('au %s %s/recipes/*        call <sid>add_awiwi_filetype("awiwi-recipe", "markdown")', event, g:awiwi_home)
-    exe printf('au %s %s/recipes/**/*     call <sid>add_awiwi_filetype("awiwi-recipe", "markdown")', event, g:awiwi_home)
+    exe printf('au %s %s/recipes/*        call <sid>add_awiwi_filetype("awiwi.recipe", "markdown")', event, g:awiwi_home)
+    exe printf('au %s %s/recipes/**/*     call <sid>add_awiwi_filetype("awiwi.recipe", "markdown")', event, g:awiwi_home)
     exe printf('au %s %s/todos/*.md       call <sid>add_awiwi_filetype("awiwi.todo")', event, g:awiwi_home)
   endfor
 augroup END
