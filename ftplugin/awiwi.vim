@@ -145,7 +145,7 @@ fun! s:handle_enter_on_insert(mode, above, continue_paragraph) abort "{{{
     endif
     let start_pos = max([0, pos - 1])
     let next_text = s:pad(marker_len, line[start_pos:])
-    if get(g:, 'awiwi_jump_to_end', v:false)
+    if is_list && get(g:, 'awiwi_jump_to_end', v:false)
       let new_pos = strlen(next_text) + 1
     else
       let new_pos = marker_len + 1
