@@ -617,7 +617,7 @@ fun! awiwi#open_link(options, ...) abort "{{{
   if empty(link.type)
     echoerr printf('cannot open link: "%s"', link.target)
   endif
-  if link.type == 'browser' || link.type == 'external'
+  if link.type == 'browser' || link.type == 'external' || link.type == 'mail'
     let cmd = ['xdg-open', link.target]
     call system(cmd)
   elseif link.type == 'asset' || link.type == 'journal' || link.type == 'recipe'

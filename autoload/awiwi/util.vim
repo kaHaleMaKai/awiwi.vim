@@ -222,6 +222,8 @@ fun! awiwi#util#determine_link_type(link) abort "{{{
     return link
   elseif match(link.target, '^https\?://') > -1
     let link.type = 'browser'
+  elseif link.target =~# '^mailto:'
+    let link.type = 'mail'
   elseif match(link.target, '^[a-z]\+://') > -1
     let link.type = 'external'
   elseif match(link.target, '\..*/recipes/.*') > -1
