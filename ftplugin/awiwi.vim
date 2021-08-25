@@ -313,6 +313,8 @@ fun! s:folding(lnum) abort "{{{
 endfun "}}}
 
 
+" don't put too much pressure on the machine
+set updatetime=4000
 setlocal foldmethod=expr
 setlocal nowrap
 exe printf('setlocal foldexpr=%s(v:lnum)', function('s:folding'))
