@@ -1,14 +1,12 @@
+" if exists("b:did_ftplugin")
+"   finish
+" endif
+" let b:did_ftplugin = 1
+
 " assert plugins being available
 if !exists('g:awiwi_home')
   echoerr 'g:awiwi_home is not defined'
   finish
-endif
-
-" don't put too much pressure on the machine
-set updatetime=4000
-if exists('g:gitgutter_enabled')
-  let g:gitgutter_enabled = v:false
-  GitGutterDisable
 endif
 
 " ++++++++++++++++++++++++++++++++++++++++
@@ -34,11 +32,6 @@ nnoremap <silent> <buffer> ge :Awiwi journal today<CR>
 nnoremap <silent> <buffer> <F12> :Awiwi tasks<CR>
 nnoremap <silent> <buffer> gn :Awiwi journal next<CR>
 nnoremap <silent> <buffer> gp :Awiwi journal previous<CR>
-
-
-if awiwi#str#contains(expand('%:h'), '/assets/')
-  nnoremap <silent> <buffer> gj :exe printf('e %s', awiwi#asset#get_journal_for_current_asset())<CR>
-endif
 
 
 fun! s:get_line_start(prefix_space, list_char, infix_space, is_checklist) abort "{{{
