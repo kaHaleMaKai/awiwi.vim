@@ -705,6 +705,6 @@ fun! awiwi#handle_paste_in_insert_mode() abort "{{{
     normal! "+p
   else
     call awiwi#asset#create_asset_here_if_not_exists(awiwi#cmd#get_cmd('paste_asset'))
-    normal! f)la
+    normal! f)l
   endif
 endfun "}}}
