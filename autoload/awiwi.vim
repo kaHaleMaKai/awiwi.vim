@@ -11,11 +11,12 @@ let s:asset_subpath = awiwi#path#join(g:awiwi_home, 'assets')
 let s:recipe_subpath = awiwi#path#join(g:awiwi_home, 'recipes')
 let s:awiwi_data_dir = awiwi#path#join(g:awiwi_home, 'data')
 let s:code_root_dir = expand('<sfile>:p:h:h')
+let s:cache_dir = awiwi#path#join(g:awiwi_home, 'cache')
 
 
 let s:xdg_open_exts = ['ods', 'odt', 'drawio']
 
-for dir in [s:awiwi_data_dir, s:journal_subpath, s:asset_subpath, s:recipe_subpath, s:todos_subpath]
+for dir in [s:awiwi_data_dir, s:journal_subpath, s:asset_subpath, s:recipe_subpath, s:todos_subpath, s:cache_dir]
   if !filewritable(dir)
     if !mkdir(dir, 'p')
       echoerr printf('cannot create data directory %s', dir)
@@ -97,6 +98,11 @@ endfun "}}}
 
 fun! awiwi#get_recipe_subpath() abort "{{{
   return s:recipe_subpath
+endfun "}}}
+
+
+fun! awiwi#get_cache_subpath() abort "{{{
+  return s:cache_subpath
 endfun "}}}
 
 
