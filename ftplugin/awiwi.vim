@@ -90,12 +90,15 @@ fun! s:handle_enter_on_insert(mode, above, continue_paragraph) abort "{{{
     " * [ ]
     "   * [ ]
     if !empty(prefix_space)
-      call setline('.', line[2:])
+      let new_line = line[2:]
     " if we don't have anything to de-indent, then we'll use
     " a blank line instead
+    elseif is_list
+      let new_line = ' ' . line[1:]
     else
-      call setline('.', '')
+      let new_line = ''
     endif
+    call setline('.', new_line)
     starti
     return
   endif
