@@ -283,7 +283,7 @@ augroup END
 inoremap <silent> <buffer> <C-f> <C-r>=strftime('%H:%M')<CR>
 nnoremap <silent> <buffer> <C-q> :Awiwi redact<CR>
 inoremap <silent> <buffer> <C-q> <C-o>:Awiwi redact<CR>
-inoremap <silent> <buffer> <C-v> <C-o>:call awiwi#handle_paste_in_insert_mode()<CR>
+inoremap <silent> <buffer> <C-v> <Cmd>:call awiwi#handle_paste_in_insert_mode()<CR>
 
 exe 'inoremap <buffer> <C-s> <C-o>:Awiwi link '
 exe 'inoremap <buffer> <C-b> <C-o>:Awiwi asset create<CR>'
