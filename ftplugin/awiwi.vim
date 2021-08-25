@@ -314,6 +314,7 @@ endfun "}}}
 
 
 setlocal foldmethod=expr
+setlocal nowrap
 exe printf('setlocal foldexpr=%s(v:lnum)', function('s:folding'))
 
 
