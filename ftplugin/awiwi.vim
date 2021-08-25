@@ -320,4 +320,24 @@ setlocal nowrap
 exe printf('setlocal foldexpr=%s(v:lnum)', function('s:folding'))
 
 
+fun! s:split_screen(direction) abort "{{{
+  if getcmdtype() != ':'
+    return
+  endif
+  let words = split(getcmdline())
+  if match(words[0], '^Aw\%[iwi]$') == 1
+    return
+  endif
+  let args = words[1:]
+  if a:direction == 'h'
+    let cmd = '+hnew'
+  else
+    let cmd = '+vnew'
+  endif
+  return ' ' . cmd
+endfun "}}}
+
+cnoremap <silent> <C-x> <C-r>=<sid>split_screen('h')<CR><CR>
+cnoremap <silent> <C-v> <C-r>=<sid>split_screen('v')<CR><CR>
+
 doautocmd User AwiwiInitPost
