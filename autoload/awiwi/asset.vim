@@ -37,7 +37,11 @@ endfun "}}}
 
 
 fun! awiwi#asset#create_asset_here_if_not_exists(type, ...) abort "{{{
-  let [name, filename, link] = call('awiwi#asset#create_asset_link', a:000)
+  let opts = get(a:000, 0, {})
+  if a:type == awiwi#cmd#get_cmd('paste_asset')
+    let opts.suffix = '.jpg'
+  endif
+  let [name, filename, link] = call('awiwi#asset#create_asset_link', [opts])
   let path = s:get_asset_path(awiwi#date#get_own_date(), filename)
   if !filereadable(path)
     let ret = s:create_asset(a:type, path)
@@ -80,15 +84,17 @@ endfun "}}}
 
 
 fun! awiwi#asset#create_asset_link(...) abort "{{{
-  let name = join(a:000, ' ')
-  if name == ''
+  let opts = get(a:000, 0, {})
+  let name = get(opts, 'name', '')
+  if empty(name)
     let name = awiwi#util#input('asset name: ')
   endif
-  if name == ''
+  if empty(name)
     echo '[INFO] no asset created'
     return ['', '', '']
   endif
 
+  let default_suffix = get(opts, 'suffix', '')
   let default_filename =
         \ substitute(
         \   substitute(
@@ -100,7 +106,7 @@ fun! awiwi#asset#create_asset_link(...) abort "{{{
         \   '', 'g'
         \ )
 
-  let filename = awiwi#util#input('asset file: ', {'default': default_filename})
+  let filename = awiwi#util#input('asset file: ', {'default': default_filename . default_suffix})
   if filename == ''
     echo '[INFO] no asset created'
     return ['', '', '']
