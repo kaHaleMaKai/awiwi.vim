@@ -252,6 +252,10 @@ img.img-80 {
   width: 80%;
 }
 
+img.img-100 {
+  width: 100%;
+}
+
 h1, h2, h3, h4, h5, h6 {
   line-height: 125%;
   margin-top: 1.4em;
@@ -1161,4 +1165,12 @@ img.arrow-img.active {
   background: var(--hi-blue-bg);
   color:  var(--hi-blue);
   font-weight: bold;
+}
+
+.smaller {
+  font-size: 66%;
+}
+
+.bigger {
+  font-size: 200%;
 }

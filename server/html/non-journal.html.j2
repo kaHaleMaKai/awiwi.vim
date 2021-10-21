@@ -1,5 +1,6 @@
 {% extends "base.html.j2" %}
 
+{% block title %}{{ title|replace("-", " ") }}{% endblock %}
 {% block content %}
 
 {% if is_secret %}

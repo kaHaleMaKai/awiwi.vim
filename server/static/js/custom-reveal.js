@@ -97,14 +97,18 @@ const addFragmentClasses = () => {
 
   const addFragmentClassOnSubElements = (section) => {
     const id = section.id;
+
+    // auto-fragment some elements
+
     ["table", "li", "img", "dl"].forEach(type => {
       __(`#${id} ${type}`)
         .filter_(el => !el.classList.contains("no-fragment"))
-        .filter_(el => !el.parentElement.classList.contains("fragment") || el.parentElement.childElementCount > 1)
+        .filter_(el => !el.parentElement.classList.contains("fragment"))
+        .filter_(el => el.parentElement.childElementCount > 1)
         .addClasses("fragment");
     });
 
-    ["p", "div", "blockquote"].forEach(type => {
+    ["p", "div", "blockquote", "span"].forEach(type => {
       __(`#${id} > ${type}`)
         .filter_(el => !el.classList.contains("no-fragment"))
         .filter_(el => asCustomArray(...el.children).all(child => !child.classList.contains("no-fragment")))
@@ -119,7 +123,7 @@ const addFragmentClasses = () => {
     }
   });
 
-  __("p.fragment, div.fragment, table.fragment, li.fragment, img.fragment", "blockquote.fragment").addClasses("hide-fragment");
+  __("p.fragment, div.fragment, table.fragment, li.fragment, img.fragment", "blockquote.fragment", "span.fragment").addClasses("hide-fragment");
 }
 
 
@@ -240,11 +244,17 @@ const togglePresentation = () => {
 
 
 const getPageNumber = (el) => {
+  if (el === null) {
+    return null;
+  }
   return Number(el.getAttribute("data-page"));
 }
 
 
 const getSubPageNumber = (el) => {
+  if (el === null) {
+    return null;
+  }
   return Number(el.getAttribute("data-sub-page"));
 }
 
@@ -279,6 +289,9 @@ const getCurrentItem = () => {
 
 const getNextPage = (direction) => {
   const page = getPageNumber(_("section.current-page"));
+  if (page === null) {
+    return null;
+  }
   const subPage = getSubPageNumber(_("section.current-page"));
   if (page > 0 && direction === "left") {
     return state.sectionIndex[page-1][0];

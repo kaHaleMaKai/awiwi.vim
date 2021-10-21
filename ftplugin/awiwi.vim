@@ -320,6 +320,25 @@ setlocal nowrap
 exe printf('setlocal foldexpr=%s(v:lnum)', function('s:folding'))
 
 
+fun! s:send_todo(file) abort "{{{
+  let current_dir = expand('%:p:h')
+  let file = awiwi#path#join(current_dir, fnamemodify(a:file, ':p:t'))
+  if !filewritable(file)
+    echoerr printf('[ERROR] cannot write to file "%s"', a:file)
+    return
+  endif
+
+  let line = getline('.')
+  del
+  call writefile([line], file, 'a')
+endfun "}}}
+
+
+if stridx(&ft, 'awiwi.asset') > -1
+  nnoremap <silent> <buffer> gj :exe printf('e %s', awiwi#asset#get_journal_for_current_asset())<CR>
+endif
+
+
 fun! s:split_screen(direction) abort "{{{
   if getcmdtype() != ':'
     return

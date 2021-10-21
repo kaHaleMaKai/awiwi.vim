@@ -4,6 +4,7 @@ endif
 let g:autoloaded_awiwi_cmd = v:true
 
 let s:activate_cmd = 'activate'
+let s:bookmark_cmd = '!bookmark'
 let s:deactivate_cmd = 'deactivate'
 let s:journal_cmd = 'journal'
 let s:continuation_cmd = 'continue'
@@ -32,6 +33,7 @@ let s:server_logs_cmd = 'logs'
 
 let s:subcommands = [
       \ s:activate_cmd,
+      \ s:bookmark_cmd,
       \ s:continuation_cmd,
       \ s:deactivate_cmd,
       \ s:journal_cmd,
@@ -72,7 +74,8 @@ let s:journal_options_cmd = [
       \ s:journal_vnew_window_cmd,
       \ s:journal_same_window_cmd,
       \ s:journal_new_tab_cmd,
-      \ s:journal_create_file_cmd
+      \ s:journal_create_file_cmd,
+      \ s:bookmark_cmd
       \ ]
 
 let s:journal_height_window_cmd = '+height='
@@ -215,7 +218,7 @@ fun! s:parse_file_and_options(args, ...) abort "{{{
     if a:0
       let options = copy(a:1)
     else
-      let options = {'position': 'auto', 'new_window': v:true, 'new_tab': v:false, 'create_dirs': v:false}
+      let options = {'position': 'auto', 'new_window': v:true, 'new_tab': v:false, 'create_dirs': v:false, 'bookmark': v:false}
     endif
     let file = ''
     for arg in a:args
@@ -236,6 +239,8 @@ fun! s:parse_file_and_options(args, ...) abort "{{{
         elseif arg == s:journal_new_tab_cmd
           let options.new_window = v:false
           let options.new_tab = v:true
+        elseif arg == s:bookmark_cmd
+          let options.bookmark = v:true
         endif
       elseif awiwi#str#startswith(arg, s:journal_height_window_cmd) || awiwi#str#startswith(arg, s:journal_width_window_cmd)
         let options.height = str2nr(split(arg, '=')[-1])
@@ -354,6 +359,8 @@ fun! awiwi#cmd#run(...) abort "{{{
     let [date, options] = s:parse_file_and_options(a:000[1:], {'new_window': v:false})
     if a:1 == s:link_cmd
       return awiwi#insert_journal_link(date)
+    " elseif options.bookmark
+
     else
       call awiwi#edit_journal(date, options)
     endif

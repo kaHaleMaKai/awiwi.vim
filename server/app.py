@@ -362,11 +362,18 @@ def render_non_journal(file: Path):
             is_localhost=is_localhost(),
             highlight_article=is_secret,
         )
-    elif mime_type and mime_type.startswith("image"):
-        with open(file, "rb") as f:
+    elif ext == ".drawio":
+        mt = "application/vnd.jgraph.mxfile"
+        with open(file, "r") as f:
             img = f.read()
-        resp = Response(img, mimetype=mime_type)
+        resp = Response(img, mimetype=mt)
         return resp
+    elif mime_type:
+        if mime_type.startswith("image"):
+            with open(file, "rb") as f:
+                img = f.read()
+            resp = Response(img, mimetype=mime_type)
+            return resp
     with open(file, "r") as f:
         text = f.read()
 
