@@ -392,7 +392,7 @@ fun! awiwi#cmd#run(...) abort "{{{
       elseif get(a:000, 2, '') == s:paste_asset_cmd
         return awiwi#asset#create_asset_here_if_not_exists(s:paste_asset_cmd)
       else
-        let args = [s:empty_asset_cmd]
+        let args = [s:empty_asset_cmd, {'suffix': '.md'}]
         call extend(args, a:000[2:])
         let filename = call('awiwi#asset#create_asset_here_if_not_exists', args)
         return awiwi#asset#open_asset(filename, {'new_window': v:true})

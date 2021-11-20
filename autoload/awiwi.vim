@@ -625,7 +625,7 @@ fun! awiwi#open_link(options, ...) abort "{{{
   endif
   if link.type == 'browser' || link.type == 'external' || link.type == 'mail'
     let cmd = ['xdg-open', link.target]
-    call system(cmd)
+    call jobstart(cmd)
   elseif link.type == 'asset' || link.type == 'journal' || link.type == 'recipe'
     let dest = awiwi#path#canonicalize(awiwi#path#join(expand('%:p:h'), link.target))
     call awiwi#open_file(dest, a:options)
@@ -633,7 +633,7 @@ fun! awiwi#open_link(options, ...) abort "{{{
     let date = join(split(fnamemodify(link.target, ':h:t'), '-'), '/')
     let file = fnamemodify(link.target, ':t')
     let dest = awiwi#path#join(g:awiwi_home, 'assets', date, file)
-    call system(['xdg-open', dest])
+    call jobstart(['xdg-open', dest])
   else
     echoerr printf('cannot open unknown link type "%s"', link.type)
   endif

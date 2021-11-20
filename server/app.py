@@ -76,24 +76,25 @@ md = markdown.Markdown(
     ],
 )
 
-download_extensions = [".ods", ".odt"]
-lexer_map = {"pgsql": "sql"}
+DOWNLOAD_EXTENSIONS = [".ods", ".odt"]
+LEXER_MAP = {"pgsql": "sql"}
 
-theme_mode_key = "theme-mode"
-default_theme_mode = "light"
-server_root = Path(os.path.abspath(os.path.dirname(__file__)))
-content_root = Path(os.environ.get("FLASK_ROOT", "."))
-listen_address = os.environ.get("FLASK_HOST")
-flask_port = os.environ.get("FLASK_PORT")
-auth_cache_file = content_root / "auth"
-flask_secret_file = content_root / "flask-secret"
+THEME_MODE_KEY = "theme-mode"
+DEFAULT_THEME_MODE = "light"
+SERVER_ROOT = Path(os.path.abspath(os.path.dirname(__file__)))
+CONTENT_ROOT = Path(os.environ.get("FLASK_ROOT", "."))
+ASSET_ROOT = CONTENT_ROOT / "assets"
+LISTEN_ADDRESS = os.environ.get("FLASK_HOST")
+FLASK_PORT = os.environ.get("FLASK_PORT")
+AUTH_CACHE_FILE = CONTENT_ROOT / "auth"
+FLASK_SECRET_FILE = CONTENT_ROOT / "flask-secret"
 
 
 app = Flask(
     __name__,
-    root_path=str(content_root),
-    static_url_path=str(server_root / "static"),
-    template_folder=str(server_root / "html"),
+    root_path=str(CONTENT_ROOT),
+    static_url_path=str(SERVER_ROOT / "static"),
+    template_folder=str(SERVER_ROOT / "html"),
 )
 app.secret_key = os.urandom(12)
 
@@ -141,10 +142,10 @@ class FileBasedAuthBackend(AuthBackend):
         return sha512_crypt.verify(password, self.cache[user])
 
 
-file_auth = FileBasedAuthBackend(auth_cache_file)
+file_auth = FileBasedAuthBackend(AUTH_CACHE_FILE)
 
 
-def hash_line(line: str):
+def hash_line(line: str) -> str:
     if re.match("\s*\* \[[x ]\] ", line):
         line = re.sub("\[[ x]\]", "", line, 1)
     if line[-1] == "\n":
@@ -152,12 +153,12 @@ def hash_line(line: str):
     return hashlib.md5(line.encode()).hexdigest()
 
 
-def is_localhost():
+def is_localhost() -> bool:
     host = request.host.rsplit(":", 1)[0]
     return host in ("localhost", "127.0.0.1", "::1")
 
 
-def is_logged_in():
+def is_logged_in() -> bool:
     return session.get("logged_in", False)
 
 
@@ -218,9 +219,9 @@ def get_file_for_endpoint(path: str) -> Path:
     if path.startswith("/journal"):
         rem, date = path.rsplit("/", 1)
         year, month, _ = date.split("-")
-        return content_root / f"journal/{year}/{month}/{date}.md"
+        return CONTENT_ROOT / f"journal/{year}/{month}/{date}.md"
     elif path.startswith("/todo"):
-        return content_root / "journal/todos.md"
+        return CONTENT_ROOT / "journal/todos.md"
     else:
         raise ValueError("not implemented yet")
 
@@ -292,7 +293,7 @@ def find_min_max_paths(path: Path, max_depth: int):
 
 
 def get_adjacent_journal_file(current_date: datetime.date, diff: int):
-    journal_root = Path(content_root, "journal")
+    journal_root = Path(CONTENT_ROOT, "journal")
     sign = 1 if diff > 0 else -1
     for i in range(1, abs(diff) + 1):
         d = current_date + datetime.timedelta(days=sign * i)
@@ -304,7 +305,7 @@ def get_adjacent_journal_file(current_date: datetime.date, diff: int):
 
 
 def get_prev_and_next_journal(path: Path) -> Tuple[Optional[str], Optional[str]]:
-    journal_root = Path(content_root, "journal")
+    journal_root = Path(CONTENT_ROOT, "journal")
     paths = find_min_max_paths(journal_root, 3)
     min_, max_ = [datetime.date.fromisoformat(d.stem.replace(".md", "")) for d in paths]
     current_date = datetime.date.fromisoformat(path.stem.replace(".md", ""))
@@ -317,7 +318,7 @@ def get_prev_and_next_journal(path: Path) -> Tuple[Optional[str], Optional[str]]
 @secured_route("/static/<type>/<path:path>")
 def statics(type: str, path: str):
     mode = "rb" if type == "img" else "r"
-    with open(server_root / "static" / type / path, mode) as f:
+    with open(SERVER_ROOT / "static" / type / path, mode) as f:
         content = f.read()
     if type == "css":
         mime = "text/css"
@@ -334,8 +335,17 @@ def is_binary(file: Path):
         return bool(f.read(1024).translate(None, textchars))
 
 
+def get_asset_date(file: Path) -> tuple[str, str, str]:
+    return file.parent.relative_to(ASSET_ROOT).parts
+
+
 def render_non_journal(file: Path):
-    is_secret = re.search("^secrets?-|-secrets?[-.]|-secrets?$", file.stem)
+    is_secret = re.search(r"\b(secret|credential)s?\b$", file.stem)
+    journal_date: Optional[str]
+    if file.is_relative_to(ASSET_ROOT):
+        journal_date = "-".join(get_asset_date(file))
+    else:
+        journal_date = None
     if is_secret and not is_localhost():
         return render_template(
             "non-journal.html.j2",
@@ -344,6 +354,7 @@ def render_non_journal(file: Path):
             theme_mode=get_theme_from_cookie(),
             is_secret=True,
             is_localhost=False,
+            journal_date=journal_date,
         )
 
     name, ext = os.path.splitext(file)
@@ -361,6 +372,7 @@ def render_non_journal(file: Path):
             is_secret=is_secret,
             is_localhost=is_localhost(),
             highlight_article=is_secret,
+            journal_date=journal_date,
         )
     elif ext == ".drawio":
         mt = "application/vnd.jgraph.mxfile"
@@ -380,7 +392,7 @@ def render_non_journal(file: Path):
     m = re.search(r"(?:vim: ft=)(\S+?)([\s.])", text)
     if m:
         lexer_name = m.group(1)
-        lexer = get_lexer_by_name(lexer_map.get(lexer_name, lexer_name))
+        lexer = get_lexer_by_name(LEXER_MAP.get(lexer_name, lexer_name))
     else:
         try:
             lexer = get_lexer_for_filename(file)
@@ -400,6 +412,7 @@ def render_non_journal(file: Path):
         is_localhost=is_localhost(),
         is_secret=is_secret,
         highlight_article=is_secret,
+        journal_date=journal_date,
     )
 
 
@@ -447,7 +460,7 @@ def asset(date: str, file: str):
         datetime.date.fromisoformat(date)
     except ValueError:
         raise FileNotFoundError(f"not a valid date: '{date}'")
-    path = content_root / f"assets/{date.replace('-', '/')}/{file}"
+    path = ASSET_ROOT / f"{date.replace('-', '/')}/{file}"
     mime_type = mimetypes.guess_type(str(path))[0]
     if mime_type and "application" in mime_type:
         return as_downloadable_file(path, mime_type)
@@ -456,13 +469,13 @@ def asset(date: str, file: str):
 
 @secured_route("/recipes/<path:path>")
 def recipes(path: str):
-    file = content_root / f"recipes/{path}"
+    file = CONTENT_ROOT / f"recipes/{path}"
     return render_non_journal(file)
 
 
 @secured_route("/todo")
 def todo():
-    file = content_root / f"journal/todos.md"
+    file = CONTENT_ROOT / f"journal/todos.md"
     return format_markdown(
         file,
         template="todo",
@@ -473,7 +486,7 @@ def todo():
 
 
 def make_breadcrumbs(path: Path, include_cur_dir=False):
-    p = path.relative_to(content_root)
+    p = path.relative_to(CONTENT_ROOT)
     if not include_cur_dir:
         p = p.parent
     breadcrumbs = []
@@ -498,7 +511,7 @@ def parse_date(date: str) -> datetime.date:
         today = datetime.date.today()
         year_month = today.strftime("%Y/%m")
         iso_date = today.strftime("%Y-%m-%d")
-        file = Path(f"{content_root}/journal/{year_month}/{iso_date}.md")
+        file = Path(f"{CONTENT_ROOT}/journal/{year_month}/{iso_date}.md")
         prev, _ = get_prev_and_next_journal(file)
         return datetime.date.fromisoformat(prev)
     else:
@@ -522,7 +535,7 @@ def journal(date: str):
         return redirect(f"/journal/{date.replace('.md', '')}")
     date = parse_date(date).isoformat()
     year, month, _ = date.split("-")
-    file = Path(f"{content_root}/journal/{year}/{month}/{date}.md")
+    file = Path(f"{CONTENT_ROOT}/journal/{year}/{month}/{date}.md")
 
     prev, next = get_prev_and_next_journal(file)
 
@@ -586,18 +599,18 @@ def dir_index(dirs: str = ""):
         dirs = dirs[:-1]
     splits = dirs.split("/")
     type = splits[0]
-    path = content_root / type
+    path = CONTENT_ROOT / type
     if len(splits) > 1:
         path = path.joinpath(*splits[1:])
     paths = sorted(os.listdir(path))
-    breadcrumbs = make_breadcrumbs(content_root / dirs, include_cur_dir=True)
+    breadcrumbs = make_breadcrumbs(CONTENT_ROOT / dirs, include_cur_dir=True)
     entries = []
     first_week = None
     for p in paths:
         if p.startswith("."):
             continue
         entry = {}
-        if content_root.joinpath(dirs, p).is_dir():
+        if CONTENT_ROOT.joinpath(dirs, p).is_dir():
             entry["target"] = f"/dir/{dirs}/{p}"
             if type in ("journal", "assets"):
                 if len(splits) <= 1:
@@ -664,7 +677,7 @@ def page_not_found(error):
 
 
 def get_theme_from_cookie():
-    mode = request.cookies.get(theme_mode_key)
+    mode = request.cookies.get(THEME_MODE_KEY)
     if not mode or mode == "light":
         return "light"
     return "dark"
@@ -678,7 +691,7 @@ def change_mode():
     else:
         target = "/"
     resp = make_response(redirect(target))
-    resp.set_cookie(key=theme_mode_key, value=mode, max_age=9999999999)
+    resp.set_cookie(key=THEME_MODE_KEY, value=mode, max_age=9999999999)
     return resp
 
 
@@ -748,7 +761,7 @@ def server_search_content(pattern: str):
     ]
 
     proc = subprocess.Popen(
-        args=cmd, stdout=subprocess.PIPE, cwd=content_root, text=True
+        args=cmd, stdout=subprocess.PIPE, cwd=CONTENT_ROOT, text=True
     )
     try:
         proc.wait(10)
@@ -834,4 +847,4 @@ def update_checkbox_in_file(path: Path, line_nr: int, check: bool, hash: str) ->
 
 
 if __name__ == "__main__":
-    app.run(host=listen_address, port=flask_port, debug=True)
+    app.run(host=LISTEN_ADDRESS, port=FLASK_PORT, debug=True)

@@ -23,6 +23,20 @@
 
 {% endblock %}
 
+{% block footer %}
+
+  <hr id="footer-separator">
+  <div class="prevnext large">
+
+  {% if journal_date is defined %}
+    <div class="breadcrumbs">
+      <a class="breadcrumbs-link" href="/journal/{{ journal_date }}">» journal</a>
+    </div>
+  {% endif %}
+
+  </div>
+
+{% endblock %}
 <!---
 vim: ft=html.j2
 -->
