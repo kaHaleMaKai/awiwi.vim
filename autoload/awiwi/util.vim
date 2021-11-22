@@ -175,6 +175,12 @@ endfun "}}}
 
 
 fun! awiwi#util#get_link_under_cursor() abort "{{{
+  let issue = matchstr(expand('<cWORD>'), '#\zs[0-9]\{5,}')
+  if ! empty(issue)
+    let link = awiwi#util#as_link(printf('https://redmine.pmd5.org/issues/%d', issue))
+    return awiwi#util#determine_link_type(link)
+  endif
+
   let link = awiwi#util#as_link('')
   let line = getline('.')
   let col = col('.') - 1
