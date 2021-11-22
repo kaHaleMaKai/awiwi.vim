@@ -95,14 +95,14 @@ hi awiwiTaskListOpen1 cterm=bold ctermfg=3
 hi awiwiTaskListOpen2 cterm=bold ctermfg=31
 
 if awiwi#str#endswith(&ft, '.todo')
-  syn match awiwiTaskListDone /\C\(^[[:space:]]*\)\zs[-*] \[x\].*$/
   syn match awiwiTaskDate /\C \zs(from:\? [-0-9]\+)$/
   hi awiwiTaskDate cterm=italic ctermfg=240
-  hi awiwiTaskListDone ctermfg=241 cterm=strikethrough
-else
-  syn match awiwiTaskListDone /\C\(^[[:space:]]*\)\zs[-*] \[x\]/
-  hi awiwiTaskListDone ctermfg=241
+" else
+"   syn match awiwiTaskListDone /\C\(^[[:space:]]*\)\zs[-*] \[x\]/
+"   hi awiwiTaskListDone ctermfg=241
 end
+hi awiwiTaskListDone ctermfg=241 cterm=strikethrough
+syn match awiwiTaskListDone /\C\(^[[:space:]]*\)\zs[-*] \[x\].*$/
 
 if get(g:, 'awiwi_highlight_links', v:true)
   syn region awiwiLink
@@ -150,6 +150,7 @@ if get(g:, 'awiwi_highlight_links', v:true)
   let conceal_start_char = get(g:, 'awiwi_conceal_link_start_char', '▶')
   let conceal_end_char = get(g:, 'awiwi_conceal_link_start_char', ' ')
   let conceal_target_char = get(g:, 'awiwi_conceal_link_target_char', '')
+  let conceal_internal_target_char = get(g:, 'awiwi_conceal_link_internal_target_char', '…')
 
   let domain_color = get(g:, 'awiwi_domain_color', 244)
   let link_color = get(g:, 'awiwi_link_color', 142)
@@ -159,7 +160,7 @@ if get(g:, 'awiwi_highlight_links', v:true)
   syn match awiwiLinkName /\C[^[\]]\+/ containedin=awiwiLinkNameBlock contained nextgroup=awiwiLinkNameEnd
   exe printf('syn match awiwiLinkNameEnd    /\C]/  contained containedin=awiwiLinkNameBlock %s nextgroup=awiwiLinkUrlBlock', s:conceal(conceal_end_char))
 
-  syn match awiwiLinkUrlStart /(/ contained containedin=awiwiLinkUrlBlock nextgroup=awiwiLinkProtocol,awiwiLinkInternalTarget
+  syn match awiwiLinkUrlStart /(/ contained containedin=awiwiLinkUrlBlock nextgroup=awiwiLinkInternalTarget,awiwiLinkProtocol
 
   if conceal
     syn match awiwiLinkProtocol _\Chttps\?://\(www\.\)\?_ contained conceal containedin=awiwiLinkUrlBlock nextgroup=awiwiLinkDomain
@@ -169,9 +170,12 @@ if get(g:, 'awiwi_highlight_links', v:true)
   endif
   syn match awiwiLinkDomain _[^/)]\+_ contained nextgroup=awiwiLinkUrlEnd,awiwiLinkPath
   exe printf('syn match awiwiLinkPath  _/[^)]*_ contained containedin=awiwiLinkUrlBlock %s nextgroup=awiwiLinkUrlEnd', s:conceal(conceal_target_char))
-  exe printf('syn match awiwiLinkInternalTarget  _/[^)]\+_ contained containedin=awiwiLinkUrlBlock %s nextgroup=awiwiLinkUrlEnd', s:conceal(conceal_target_char))
+  exe printf('syn match awiwiLinkInternalTarget  _[./][^)]\+_  contained containedin=awiwiLink %s nextgroup=awiwiLinkUrlEnd', s:conceal(conceal_internal_target_char))
 
   syn match awiwiLinkUrlEnd          /)/                                          contained containedin=awiwiLinkUrlBlock
+
+  syn match awiwiRedmineIssue /\(^\|\s\)\zs#[0-9]\{5,}/ containedin=markdownH1,markdownH2,markdownH3,markdownH4,markdownH5,markdownH6,awiwiList1,awiwiList2,awiwiTaskListOpen1,awiwiTaskListOpen2,markdownList,markdownListMarker
+  exe printf('hi awiwiRedmineIssue cterm=bold ctermfg=%s', link_color)
 
   for group in ['Name', 'Start', 'End']
     exe printf('hi awiwiLink%s cterm=%s ctermfg=%d', group, link_style, link_color)
