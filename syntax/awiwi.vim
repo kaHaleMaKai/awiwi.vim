@@ -95,14 +95,13 @@ hi awiwiTaskListOpen1 cterm=bold ctermfg=3
 hi awiwiTaskListOpen2 cterm=bold ctermfg=31
 
 if awiwi#str#endswith(&ft, '.todo')
-  syn match awiwiTaskDate /\C \zs(from:\? [-0-9]\+)$/
-  hi awiwiTaskDate cterm=italic ctermfg=240
-" else
-"   syn match awiwiTaskListDone /\C\(^[[:space:]]*\)\zs[-*] \[x\]/
-"   hi awiwiTaskListDone ctermfg=241
+  syn match awiwiTaskDate /\s\+{"[^}]\+}$/ conceal
+  hi awiwiCreatedDate   ctermfg=240 cterm=italic
+  hi awiwiFutureDueDate ctermfg=76  cterm=bold
+  hi awiwiNearDueDate   ctermfg=190 cterm=bold   ctermbg=52
 end
 hi awiwiTaskListDone ctermfg=241 cterm=strikethrough
-syn match awiwiTaskListDone /\C\(^[[:space:]]*\)\zs[-*] \[x\].*$/
+syn match awiwiTaskListDone /\C\(^[[:space:]]*\)\zs[-*] \[x\].\{-}\ze\s\+\({\|$\)/
 
 if get(g:, 'awiwi_highlight_links', v:true)
   syn region awiwiLink

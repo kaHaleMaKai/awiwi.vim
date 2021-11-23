@@ -116,7 +116,7 @@ fun! s:handle_enter_on_insert(mode, above, continue_paragraph) abort "{{{
     " for todo-entries, we want to append a date
     if awiwi#str#endswith(&ft, '.todo')
       let this_text = line
-      let next_text = printf('%s (from %s)', marker, strftime('%F'))
+      let next_text = printf('%s {"from": "%s"}', marker, strftime('%F'))
       let new_pos = strlen(marker) + 1
       let append = v:false
     else
@@ -240,6 +240,7 @@ fun! s:delete_old_tasks() abort "{{{
 py3 << EOF
 import re
 import datetime
+import json
 
 
 today = datetime.date.today()
@@ -249,10 +250,11 @@ for line_nr in range(max_line_nr - 1, -1, -1):
     line: str = vim.eval(f"getline('{line_nr}')")
     if line.startswith("* [ ]"):
         continue
-    match = re.search("(?:[(]from )([-0-9]{10})(?:[)])", line)
+    match = re.search("{[^}]+}$", line)
     if not match:
         continue
-    date = datetime.date.fromisoformat(match.group(1))
+    meta = json.loads(match.group(0))
+    date = datetime.date.fromisoformat(meta["created"])
     if (today - date).days <= 30:
         continue
     vim.command(f"{line_nr}d")
@@ -276,6 +278,11 @@ augroup END
 augroup awiwiDeleteOldTasks
   au!
   au BufEnter,BufWritePre */todos/*.md call <sid>delete_old_tasks()
+augroup END
+
+augroup awiwiTodoDueDates
+  au!
+  au BufEnter,BufLeave,TextChanged,TextChangedI */todos/*.md call awiwi#hi#redraw_due_dates()
 augroup END
 
 

@@ -23,6 +23,16 @@ fun! awiwi#date#get_today() abort "{{{
 endfun "}}}
 
 
+fun! awiwi#date#to_tuple(date) abort "{{{
+  return map(split(a:date, '-'), {_,v -> str2nr(v)})
+endfun "}}}
+
+
+fun! s:is_leap_year(year) abort "{{{
+  return a:year % 400 == 0 || (a:year % 4 == 0 && a:year % 100 != 0)
+endfun "}}}
+
+
 fun! awiwi#date#parse_date(date, ...) abort "{{{
   let options = get(a:000, 0, {})
   if a:date == 'today'
@@ -53,7 +63,7 @@ endfun "}}}
 
 
 fun! s:get_yesterday(date) abort "{{{
-  let [year, month, day] = map(split(a:date, '-'), {_, v -> str2nr(v)})
+  let [year, month, day] = awiwi#date#to_tuple(a:date)
   " not 1st of month
   if str2nr(day) > 1
     return s:ints_to_date(year, month, day - 1)
@@ -66,7 +76,7 @@ fun! s:get_yesterday(date) abort "{{{
   " switch to Feb.
   elseif month == 3
     " check for leap year
-    if year % 400 == 0 || (year % 4 == 0 && year % 100 != 0)
+    if s:is_leap_year(year)
       let day = 29
     else
       let day = 28
