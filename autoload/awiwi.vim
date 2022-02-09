@@ -234,11 +234,11 @@ fun! s:format_search_result(start, ...) abort "{{{
   let max_len = 80
   let total_len = start_len + end_len
   if total_len <= max_len
-    let line = prinft('%s...%s', start.content, end)
+    let line = printf('%s...%s', start.content, end)
   elseif start_len >= max_len/2 && end_len >= max_len/2
-    let line = prinft('%s...%s', start.content[:max_len/2-1], end[-(max_len/2-1):])
+    let line = printf('%s...%s', start.content[:max_len/2-1], end[-(max_len/2-1):])
   elseif start_len < max_len/2
-    let line = prinft('%s...%s', start.content, end[-(max_len/2-1):])
+    let line = printf('%s...%s', start.content, end[-(max_len/2-1):])
 endfun "}}}
 
 
@@ -341,40 +341,46 @@ fun! awiwi#edit_todo(name, options) abort "{{{
 endfun "}}}
 
 
-fun! s:get_title_and_tags(title) abort "{{{
-  let result = {'title': a:title, 'bare_title': '', 'tags': {}}
-  if a:title == ''
-    return result
-  endif
-
-  let splits = split(a:title, ' (cont. ', v:false)
-  if len(splits) == 1
-    let result.bare_title = a:title
-  else
-    let result.bare_title = splits[0]
-    let result.tags.cont = '(cont. ' . splits[1]
-  endif
-  return result
+fun! s:format_tags(rem) abort "{{{
+  let cont = ''
+  let tags = []
+  let matches = map(split(a:rem, '\s\+[(@]\@='), {_,v -> trim(v)})
+  for tag in matches
+    if tag =~# '^(cont\..*)$'
+      let cont = tag
+    else
+      call add(tags, tag)
+    endif
+  endfor
+  return [cont, tags]
 endfun "}}}
 
 
-fun! s:get_current_task(only_main) abort "{{{
-  let result = {'marker': '', 'title': '', 'tags': {}, 'bare_title': ''}
-  let title = ''
-  let task_marker = a:only_main ? '2' : '2,4'
+fun! awiwi#get_current_task(only_main) abort "{{{
+  let pattern = join([
+        \ printf('^\(#\{%s}\)', a:only_main ? '2' : '2,4'),
+        \ '[[:space:]]\+',
+        \ '\([^[:space:]].\{-}\)',
+        \ '\(',
+        \     '@[a-zA-Z]\+',
+        \   '\|',
+        \     '(cont\. from.*',
+        \ '\)\?',
+        \ '$'
+        \ ],
+        \ '')
+
   for line_nr in range(line('.'), 1, -1)
     let line = getline(line_nr)
-     let matches = matchlist(line, printf('^\(#\{%s}\)[[:space:]]\+\([^[:space:]].*\)', task_marker))
-     if matches != []
-       let [marker, title] = matches[1:2]
-       let result = {'marker': marker, 'title': title, 'tags': {}, 'bare_title': ''}
-       break
+     let matches = matchlist(line, pattern)
+     if empty(matches)
+       continue
      endif
+     let [marker, title, rem] = matches[1:3]
+     let [cont, tags] = s:format_tags(rem)
+     return {'marker': marker, 'title': trim(title), 'tags': tags, 'cont': cont}
   endfor
-
-  let values = s:get_title_and_tags(title)
-  call extend(result, values)
-  return result
+  return {'marker': '', 'title': '', 'tags': [], 'cont'. ''}
 endfun "}}}
 
 
@@ -386,7 +392,7 @@ fun! awiwi#insert_and_open_continuation() abort "{{{
   endif
   let today_file = awiwi#get_journal_file_by_date(today)
   let link = s:add_link(printf('continued on %s', today), today_file)
-  let current_task = s:get_current_task(v:true)
+  let current_task = awiwi#get_current_task(v:true)
   " get the task name
   if current_task.title == ''
     throw 'AwiwiError: could not find task title'
@@ -395,9 +401,7 @@ fun! awiwi#insert_and_open_continuation() abort "{{{
   let own_file = awiwi#get_journal_file_by_date(own_date)
   let back_link = s:add_link(printf('started on %s', own_date), own_file, today_file)
 
-  call append(line('.'), link)
-  " move to the next line
-  +
+  call append(line('.'), [link, ''])
   w
   call awiwi#edit_journal(today, {'new_window': v:true, 'position': 'top'})
   let lines = [
@@ -520,14 +524,14 @@ endfun "}}}
 
 
 fun! awiwi#activate_current_task() abort "{{{
-  let current_task = s:get_current_task(v:true)
-  if current_task.bare_title == ''
+  let current_task = awiwi#get_current_task(v:true)
+  if current_task.title == ''
     echoerr 'not in a task section'
     return
   endif
   let active_task = s:get_active_task()
   if active_task.state == 'active'
-    if active_task.title == current_task.bare_title
+    if active_task.title == current_task.title
       echo 'task is already active'
       return
     else
@@ -537,14 +541,14 @@ fun! awiwi#activate_current_task() abort "{{{
   endif
 
   let recent_task = s:get_most_recent_task_from_file()
-  if recent_task.title == current_task.bare_title
+  if recent_task.title == current_task.title
     let task = recent_task
   else
-    let task = s:get_most_recent_task_activty(current_task.bare_title)
+    let task = s:get_most_recent_task_activty(current_task.title)
   endif
 
   if task.title == ''
-    let task.title = current_task.bare_title
+    let task.title = current_task.title
     let task.marker = current_task.marker
   endif
   let ts = s:get_epoch()
@@ -707,4 +711,77 @@ fun! awiwi#handle_paste_in_insert_mode() abort "{{{
     call awiwi#asset#create_asset_here_if_not_exists(awiwi#cmd#get_cmd('paste_asset'))
     normal! f)l
   endif
+endfun "}}}
+
+
+fun! awiwi#edit_meta_info(...) abort "{{{
+  let opts = extend(get(a:000, 0, {}), {'delete': v:false, 'column': '', 'text': ''}, 'keep')
+  let lineno = line('.')
+  let line = getline(lineno)
+  if empty(trim(line))
+    return
+  endif
+  let matches = matchlist(line, '\(\s*\)\({[^}]\+}\)$')
+
+  if empty(matches) && opts.delete
+    return
+  endif
+
+  if empty(matches)
+    let [spaces, str] = ['', '']
+    let default = '{}'
+  else
+    let [spaces, str] = matches[1:2]
+    let default = str
+  endif
+  let start = max([0, strlen(line) - strlen(spaces) - strlen(str) - 1])
+  if opts.delete
+    let new_line = line[:start]
+    call setline(lineno, new_line)
+    call awiwi#hi#redraw_due_dates(v:true)
+    return
+  endif
+
+  if !empty(opts.column)
+    let json = json_decode(default)
+    let default = get(json, opts.column, '')
+    if !empty(opts.args)
+      let val = opts.args->join(' ')
+    else
+      let val = trim(awiwi#util#input(printf('meta info: %s=', opts.column), {'default': ''}))
+    endif
+    if empty(val)
+      echo 'no meta info specified. exiting'
+      return
+    endif
+    if opts.column == 'due'
+      let json[opts.column]  = awiwi#date#to_iso_date(val)
+    else
+      let json[opts.column] = val
+    endif
+    let meta = json_encode(json)
+  else
+    let meta = trim(awiwi#util#input('meta info: ', {'default': default}))
+    try
+      let d = json_decode(meta)
+      if has_key(d, 'due')
+        let d.due = awiwi#date#to_iso_date(d.due)
+        let meta = json_encode(d)
+      endif
+    catch /E474/
+      echoerr printf('meta info includes an error: %s', v:exception)
+      return
+    endtry
+  endif
+  if empty(meta)
+    echo 'no meta info specified. exiting'
+    return
+  endif
+
+  if str == meta
+    return
+  endif
+  let new_line = printf('%s %s', line[:start], meta)
+  call setline(lineno, new_line)
+  call awiwi#hi#redraw_due_dates(v:true)
 endfun "}}}

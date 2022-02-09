@@ -3,6 +3,7 @@
 " endif
 " let b:did_ftplugin = 1
 
+setlocal concealcursor=nciv
 " assert plugins being available
 if !exists('g:awiwi_home')
   echoerr 'g:awiwi_home is not defined'
@@ -52,6 +53,11 @@ fun! s:pad(length, ...) abort "{{{
 endfun "}}}
 
 
+fun! s:redr(_) abort "{{{
+  call awiwi#hi#redraw_due_dates()
+endfun "}}}
+
+
 fun! s:handle_enter_on_insert(mode, above, continue_paragraph) abort "{{{
   let line = getline('.')
   let cursor = getcurpos()
@@ -59,7 +65,7 @@ fun! s:handle_enter_on_insert(mode, above, continue_paragraph) abort "{{{
   let pos = cursor[2]
   let m = matchlist(line, '^\([[:space:]]*\)\(\([-*]\)\([[:space:]]\+\)\)\?\(\(\[[ x]\+\]\)\([[:space:]]*\)\)\?\([^[:space:]].*$\)\?')
   let o_cmd = printf('normal! %s', a:above ? 'O' : 'o')
-  let is_trailing_cursor = cursor[-1] > strlen(line)
+  let is_trailing_cursor = cursor[-1] > strchars(line)
 
   let prefix_space = m[1]
   let [list_char, infix_space] = m[3:4]
@@ -116,7 +122,7 @@ fun! s:handle_enter_on_insert(mode, above, continue_paragraph) abort "{{{
     " for todo-entries, we want to append a date
     if awiwi#str#endswith(&ft, '.todo')
       let this_text = line
-      let next_text = printf('%s {"from": "%s"}', marker, strftime('%F'))
+      let next_text = printf('%s {"created": "%s"}', marker, strftime('%F'))
       let new_pos = strlen(marker) + 1
       let append = v:false
     else
@@ -168,7 +174,6 @@ fun! s:handle_enter_on_insert(mode, above, continue_paragraph) abort "{{{
     starti
   endif
 endfun "}}}
-
 
 
 fun! s:handle_enter() abort "{{{
@@ -254,19 +259,20 @@ for line_nr in range(max_line_nr - 1, -1, -1):
     if not match:
         continue
     meta = json.loads(match.group(0))
-    date = datetime.date.fromisoformat(meta["created"])
-    if (today - date).days <= 30:
-        continue
-    vim.command(f"{line_nr}d")
+    if "created" in meta:
+      date = datetime.date.fromisoformat(meta["created"])
+      if (today - date).days <= 15:
+          continue
+      vim.command(f"{line_nr}d")
 EOF
 endfun "}}}
 
 
-nnoremap <silent> <buffer> O :call <sid>handle_enter_on_insert('n', v:true, v:false)<CR>
-nnoremap <silent> <buffer> o :call <sid>handle_enter_on_insert('n', v:false, v:false)<CR>
-inoremap <silent> <buffer> <Enter> <Cmd>call <sid>handle_enter_on_insert('i', v:false, v:false)<CR>
-inoremap <silent> <buffer> <C-j>   <Cmd>call <sid>handle_enter_on_insert('i', v:false, v:true)<CR>
-nnoremap <silent> <buffer> <Enter> :call <sid>handle_enter()<CR>
+nnoremap <silent> <buffer> O :call <sid>handle_enter_on_insert('n', v:true, v:false) <bar> call awiwi#hi#redraw_due_dates()<CR>
+nnoremap <silent> <buffer> o :call <sid>handle_enter_on_insert('n', v:false, v:false) <bar> call awiwi#hi#redraw_due_dates()<CR>
+inoremap <silent> <buffer> <Enter> <Cmd>call <sid>handle_enter_on_insert('i', v:false, v:false) <bar> call awiwi#hi#redraw_due_dates()<CR>
+inoremap <silent> <buffer> <C-j>   <Cmd>call <sid>handle_enter_on_insert('i', v:false, v:true) <bar> call awiwi#hi#redraw_due_dates()<CR>
+nnoremap <silent> <buffer> <Enter> :call <sid>handle_enter() <bar> call awiwi#hi#redraw_due_dates()<CR>
 exe 'inoremap <silent> <buffer> <C-y> * [ ] '
 
 
@@ -282,7 +288,7 @@ augroup END
 
 augroup awiwiTodoDueDates
   au!
-  au BufEnter,BufLeave,TextChanged,TextChangedI */todos/*.md call awiwi#hi#redraw_due_dates()
+  au BufEnter,BufLeave,InsertEnter,InsertLeave */todos/*.md call awiwi#hi#redraw_due_dates()
 augroup END
 
 

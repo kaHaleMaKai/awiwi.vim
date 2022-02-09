@@ -37,8 +37,6 @@ fun! awiwi#date#parse_date(date, ...) abort "{{{
   let options = get(a:000, 0, {})
   if a:date == 'today'
     return strftime('%F')
-  elseif a:date == 'yesterday'
-    let date = s:get_yesterday(strftime('%F'))
   elseif a:date == 'prev' || a:date == 'previous' || a:date == 'previous date' || a:date == 'previous day'
     try
       let date = s:get_offset_date(awiwi#date#get_own_date(), -1, options)
@@ -53,12 +51,31 @@ fun! awiwi#date#parse_date(date, ...) abort "{{{
     endtry
   else
     " FIXME check if s:is_date(a:date), or raise exception
-    if !s:is_date(a:date)
-      throw s:AwiwiDateError('%s is not a valid date', a:date)
+    let date = awiwi#date#to_iso_date(a:date)
+    if !s:is_date(date)
+      throw s:AwiwiDateError('%s is not a valid date', date)
     endif
-    let date = a:date
   endif
   return date
+endfun "}}}
+
+
+fun! awiwi#date#to_iso_date(date) abort "{{{
+  if a:date =~# '^[0-9]\{4}-[0-9]\{2}-[0-9]\{2}$'
+    return a:date
+  elseif a:date =~# '^[0-9]\{2}\.[0-9]\{2}\.\?$'
+    let [day, month] = a:date->split('\.')[0:1]
+    let year = strftime('%Y')
+    return printf('%s-%s-%s', year, month, day)
+  else
+    let pattern = '\<in\ze[[:space:]0-9]'
+    if a:date =~# pattern
+      let date = substitute(a:date, pattern, ' + ', '')
+    else
+      let date = a:date
+    endif
+    return systemlist(['date', '--date', date, '+%F'])[0]
+  endif
 endfun "}}}
 
 

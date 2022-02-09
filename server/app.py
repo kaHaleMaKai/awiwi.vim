@@ -146,8 +146,8 @@ file_auth = FileBasedAuthBackend(AUTH_CACHE_FILE)
 
 
 def hash_line(line: str) -> str:
-    if re.match("\s*\* \[[x ]\] ", line):
-        line = re.sub("\[[ x]\]", "", line, 1)
+    if re.match(r"\s*\* \[[x ]\] ", line):
+        line = re.sub(r"\[[ x]\]", "", line, 1)
     if line[-1] == "\n":
         line = line[:-1]
     return hashlib.md5(line.encode()).hexdigest()
@@ -184,7 +184,7 @@ def filter_body(lines: list, offset: int):
     marker_depth = 7
     for line_no, line in enumerate(lines, start=offset):
         if hide:
-            if (m := re.match("^(?P<marker>##+) ", line)) :
+            if m := re.match("^(?P<marker>##+) ", line):
                 current_depth = len(m.group("marker"))
                 if current_depth <= marker_depth:
                     hide = False
@@ -193,7 +193,7 @@ def filter_body(lines: list, offset: int):
             else:
                 continue
         elif redaction_pattern in line:
-            if (m := re.match("^(?P<marker>##+) ", line)) :
+            if m := re.match("^(?P<marker>##+) ", line):
                 marker_depth = len(m.group("marker"))
                 hide = True
                 line = f"""{m.group("marker")} _…redacted…_"""
@@ -204,7 +204,7 @@ def filter_body(lines: list, offset: int):
                 else:
                     yield " --- redacted --- "
                 continue
-        elif (m := re.match("^(\s*\* )(\[[x ]\])( .*$)", line)) :
+        elif m := re.match(r"^(\s*\* )(\[[x ]\])( .*$)", line):
             hash = hash_line(line)
             box = m.group(2)
             checked = "checked" if "x" in box else ""
@@ -236,7 +236,7 @@ def format_markdown(file, template, add_toc=True, title=None, **kwargs):
     parts = []
     start = 0
     if not title and lines[0].startswith("# "):
-        title = heading = re.sub(r"^[#\s]+", "", lines[0]).strip()
+        title = re.sub(r"^[#\s]+", "", lines[0]).strip()
         try:
             date = datetime.date.fromisoformat(title)
             title = date
@@ -346,6 +346,7 @@ def render_non_journal(file: Path):
         journal_date = "-".join(get_asset_date(file))
     else:
         journal_date = None
+
     if is_secret and not is_localhost():
         return render_template(
             "non-journal.html.j2",
@@ -462,7 +463,8 @@ def asset(date: str, file: str):
         raise FileNotFoundError(f"not a valid date: '{date}'")
     path = ASSET_ROOT / f"{date.replace('-', '/')}/{file}"
     mime_type = mimetypes.guess_type(str(path))[0]
-    if mime_type and "application" in mime_type:
+
+    if mime_type and "application" in mime_type and "sql" not in mime_type:
         return as_downloadable_file(path, mime_type)
     return render_non_journal(path)
 

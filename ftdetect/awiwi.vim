@@ -1,3 +1,6 @@
+let s:todo_dirs = [g:awiwi_home . '/todos']
+call extend(s:todo_dirs, get(g:, 'awiwi_external_todo_dirs', []))
+
 fun! s:add_code_block_textobject() abort "{{{
   vnoremap <buffer> aP :<C-u>call awiwi#util#select_code_block(v:true)<CR>
   vnoremap <buffer> iP :<C-u>call awiwi#util#select_code_block(v:false)<CR>
@@ -27,6 +30,8 @@ augroup awiwiFtDetect
     exe printf('au %s %s/assets/**/*      call <sid>add_awiwi_filetype("awiwi.asset",  "markdown")', event, g:awiwi_home)
     exe printf('au %s %s/recipes/*        call <sid>add_awiwi_filetype("awiwi.recipe", "markdown")', event, g:awiwi_home)
     exe printf('au %s %s/recipes/**/*     call <sid>add_awiwi_filetype("awiwi.recipe", "markdown")', event, g:awiwi_home)
-    exe printf('au %s %s/todos/*.md       call <sid>add_awiwi_filetype("awiwi.todo")', event, g:awiwi_home)
+    for dir in s:todo_dirs
+      exe printf('au %s %s/*.md       call <sid>add_awiwi_filetype("awiwi.todo")', event, expand(dir))
+    endfor
   endfor
 augroup END

@@ -20,6 +20,8 @@ let s:tasks_cmd = 'tasks'
 let s:todo_cmd = 'todo'
 let s:store_session_cmd = 'save'
 let s:restore_session_cmd = 'restore'
+let s:meta_cmd = 'meta'
+let s:due_cmd = 'due'
 
 let s:new_asset_cmd = 'create'
 let s:empty_asset_cmd = 'empty'
@@ -31,10 +33,14 @@ let s:server_start_cmd = 'start'
 let s:server_stop_cmd = 'stop'
 let s:server_logs_cmd = 'logs'
 
+let s:meta_edit_cmd = 'edit'
+let s:meta_delete_cmd = 'delete'
+
 let s:subcommands = [
       \ s:activate_cmd,
       \ s:bookmark_cmd,
       \ s:continuation_cmd,
+      \ s:due_cmd,
       \ s:deactivate_cmd,
       \ s:journal_cmd,
       \ s:entry_cmd,
@@ -43,6 +49,7 @@ let s:subcommands = [
       \ s:paste_asset_cmd,
       \ s:recipe_cmd,
       \ s:redact_cmd,
+      \ s:meta_cmd,
       \ s:restore_session_cmd,
       \ s:store_session_cmd,
       \ s:search_cmd,
@@ -323,6 +330,14 @@ fun! awiwi#cmd#get_completion(ArgLead, CmdLine, CursorPos) abort "{{{
     let submatches = copy(s:todo_subcommands)
     call s:insert_win_cmds(submatches, current_arg_pos+1, args[2:])
     return awiwi#util#match_subcommands(submatches, a:ArgLead)
+  elseif args[1] == s:meta_cmd
+    if current_arg_pos == 2
+      let submatches = [s:meta_edit_cmd, s:meta_delete_cmd]
+      return awiwi#util#match_subcommands(submatches, a:ArgLead)
+    elseif current_arg_pos == 3 && args[2] == s:meta_edit_cmd
+      let submatches = ['created', 'due']
+      return awiwi#util#match_subcommands(submatches, a:ArgLead)
+    endif
   elseif args[1] == s:server_cmd && current_arg_pos == 2
     let submatches = [awiwi#server#server_is_running() ? s:server_stop_cmd : s:server_start_cmd, s:server_logs_cmd]
     return awiwi#util#match_subcommands(submatches, a:ArgLead)
@@ -460,6 +475,23 @@ fun! awiwi#cmd#run(...) abort "{{{
     endif
   elseif a:1 == s:redact_cmd
     call awiwi#redact()
+  elseif a:1 == s:due_cmd
+    call awiwi#edit_meta_info({'delete': v:false, 'column': 'due', 'args': copy(a:000[1:])})
+    return
+  elseif a:1 == s:meta_cmd
+    let meta_opts = {}
+    if a:2 == s:meta_delete_cmd
+      let meta_opts.delete = v:true
+    elseif a:2 == s:meta_edit_cmd
+      if a:0 >= 3
+        let meta_opts.column = a:3
+      endif
+    else
+      echo printf('error: got unknown command: "Awiwi meta %s"', a:2)
+      return
+    endif
+    call awiwi#edit_meta_info(meta_opts)
+    return
   elseif a:1 == s:entry_cmd
     let pattern = '^#{2,}[[:space:]]+.*$'
     let rg_cmd = [
