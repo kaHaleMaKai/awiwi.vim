@@ -1,5 +1,5 @@
 let s:todo_dirs = [g:awiwi_home . '/todos']
-call extend(s:todo_dirs, get(g:, 'awiwi_external_todo_dirs', []))
+call extend(s:todo_dirs, get(g:, 'awiwi_external_todo_dirs', {})->values())
 
 fun! s:add_code_block_textobject() abort "{{{
   vnoremap <buffer> aP :<C-u>call awiwi#util#select_code_block(v:true)<CR>
