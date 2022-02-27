@@ -1,3 +1,12 @@
+if get(b:, 'current_syntax', '') ==# 'awiwi'
+  finish
+endif
+
+unlet! b:current_syntax
+runtime! syntax/markdown.vim
+
+let b:current_syntax = 'awiwi'
+
 hi  awiwiUrgent                      guifg=#d7ff00  guibg=#807000 gui=bold
 hi  awiwiDelegate                    guifg=#20e020                gui=italic
 hi  awiwiDue                         guifg=#d7ff00                gui=bold
@@ -95,6 +104,7 @@ exe printf('syn match awiwiDue /\C\<%s\>/ contains=markdownCode,markdownCodeBloc
 syn clear markdownListMarker
 syn match awiwiList1 /\C^[-*] /
 syn match awiwiList2 /\C\(^[[:space:]]\{2}\)\zs[-*] /
+syn match awiwiCanceledList /\C\(^[[:space:]]\{0,2}\)\zs[-*] \~\~.*/ contains=markdownStrike,markdownStrikeDelimiter
 
 syn match awiwiListBadSpaces /\C\(^[[:space:]]*[-*] \(\[[ x]\] \)\?\)\zs \+/
 syn match awiwiListBadSpacesAfterCheckbox /\C\(^[[:space:]]*[-*][[:space:]]\+\[[ x]\] \)\zs \+/
@@ -108,7 +118,8 @@ if awiwi#str#endswith(&ft, '.todo')
   hi awiwiFutureDueDate guifg=#5fd700 gui=bold
   hi awiwiNearDueDate   guifg=#d7ff00 gui=bold   guibg=#5f0000
 end
-hi awiwiTaskListDone guifg=#626262 gui=strikethrough
+hi link awiwiTaskListDone htmlStrike
+hi link awiwiCanceledList htmlStrike
 syn match awiwiTaskListDone /\C\(^[[:space:]]*\)\zs[-*] \[x\].\{-} \?\ze\s*\({\|$\)/
 
 if get(g:, 'awiwi_highlight_links', v:true)

@@ -14,7 +14,7 @@ fun! s:add_awiwi_filetype(type, ...) abort "{{{
   if empty(&ft)
     let ft = a:0 ? printf('%s.%s', a:1, suffix) : suffix
   elseif &ft == 'markdown'
-    let ft = printf('%s.%s', &ft, suffix)
+    let ft = suffix
   else
     return
   endif
@@ -27,9 +27,9 @@ augroup awiwiFtDetect
   au BufRead *.md call s:add_code_block_textobject()
   for event in ['BufNewFile', 'BufReadPost', 'BufWinEnter']
     exe printf('au %s %s/journal/**/*.md  call <sid>add_awiwi_filetype("awiwi")', event, g:awiwi_home)
-    exe printf('au %s %s/assets/**/*      call <sid>add_awiwi_filetype("awiwi.asset",  "markdown")', event, g:awiwi_home)
-    exe printf('au %s %s/recipes/*        call <sid>add_awiwi_filetype("awiwi.recipe", "markdown")', event, g:awiwi_home)
-    exe printf('au %s %s/recipes/**/*     call <sid>add_awiwi_filetype("awiwi.recipe", "markdown")', event, g:awiwi_home)
+    exe printf('au %s %s/assets/**/*      call <sid>add_awiwi_filetype("awiwi.asset")', event, g:awiwi_home)
+    exe printf('au %s %s/recipes/*        call <sid>add_awiwi_filetype("awiwi.recipe")', event, g:awiwi_home)
+    exe printf('au %s %s/recipes/**/*     call <sid>add_awiwi_filetype("awiwi.recipe")', event, g:awiwi_home)
     for dir in s:todo_dirs
       exe printf('au %s %s/*.md       call <sid>add_awiwi_filetype("awiwi.todo")', event, expand(dir))
     endfor

@@ -1,14 +1,18 @@
-" if exists("b:did_ftplugin")
-"   finish
-" endif
-" let b:did_ftplugin = 1
+if exists("b:did_ftplugin")
+  finish
+endif
 
-setlocal concealcursor=nciv
-" assert plugins being available
 if !exists('g:awiwi_home')
   echoerr 'g:awiwi_home is not defined'
   finish
 endif
+
+runtime! ftplugin/markdown.vim
+
+let b:did_ftplugin = 1
+
+setlocal concealcursor=nciv
+" assert plugins being available
 
 " ++++++++++++++++++++++++++++++++++++++++
 " +              commands                +
