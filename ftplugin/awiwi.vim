@@ -377,3 +377,25 @@ cnoremap <silent> <C-x> <C-r>=<sid>split_screen('h')<CR><CR>
 cnoremap <silent> <C-v> <C-r>=<sid>split_screen('v')<CR><CR>
 
 doautocmd User AwiwiInitPost
+
+fun! s:append_to_line() abort "{{{
+  let line = getline('.')
+  let [meta, start, end] = awiwi#hi#get_meta_and_pos(line)
+  if empty(meta)
+    call starti!
+  endif
+  let cursor = getcurpos()
+  if start > 0 && line[start - 1] != ' '
+    let line = line[:start - 1] . ' ' . line[start:]
+    call setline(cursor[1], line)
+    let start += 1
+  endif
+  let cursor[2] = start
+  call setpos('.', cursor)
+  starti
+endfun "}}}
+
+
+if &ft ==# 'awiwi.todo'
+  nnoremap <silent> <buffer> A   <Cmd>call <sid>append_to_line() <bar> call awiwi#hi#redraw_due_dates()<CR>
+endif

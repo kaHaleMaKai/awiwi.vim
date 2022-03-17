@@ -127,15 +127,16 @@ if get(g:, 'awiwi_highlight_links', v:true)
         \ start=/\C\[\([ x]*\]\)\@!/
         \ end=/\C[^)]\zs)/
         \ keepend
+        \ oneline
         \ contains=awiwiLinkNameBlock
         \ containedin=markdownH1,markdownH2,markdownH3,markdownH4,markdownH5,markdownH6,awiwiList1,awiwiList2,awiwiTaskListOpen1,awiwiTaskListOpen2,markdownList,markdownListMarker
 
   syn region awiwiLinkNameBlock
         \ start=/\C\[/
-        \ end=/\C\](\?/
+        \ end=/\C\](\@=/
         \ keepend
         \ contained
-        \ containedin=awiwiLink
+        \ oneline
         \ contains=awiwiLinkNameStart
         \ nextgroup=awiwiLinkUrlBlock
 
@@ -144,7 +145,7 @@ if get(g:, 'awiwi_highlight_links', v:true)
         \ end=/\C)/
         \ keepend
         \ contained
-        \ containedin=awiwiLink
+        \ oneline
         \ contains=awiwiLinkUrlStart
 
   let conceal = get(g:, 'awiwi_conceal_links', v:true)
@@ -174,25 +175,25 @@ if get(g:, 'awiwi_highlight_links', v:true)
   let link_color = get(g:, 'awiwi_link_color', '#afaf00')
   let link_style = get(g:, 'awiwi_link_style', 'underline')
 
-  exe printf('syn match awiwiLinkNameStart /\C\[/ nextgroup=awiwiLinkName contained containedin=awiwiLinkNameBlock %s', s:conceal(conceal_start_char))
-  syn match awiwiLinkName /\C[^[\]]\+/ containedin=awiwiLinkNameBlock contained nextgroup=awiwiLinkNameEnd
-  exe printf('syn match awiwiLinkNameEnd    /\C]/  contained containedin=awiwiLinkNameBlock %s nextgroup=awiwiLinkUrlBlock', s:conceal(conceal_end_char))
+  exe printf('syn match awiwiLinkNameStart /\C\[/ nextgroup=awiwiLinkName oneline contained containedin=awiwiLinkNameBlock %s', s:conceal(conceal_start_char))
+  syn match awiwiLinkName /\C[^[\]]\+/ oneline containedin=awiwiLinkNameBlock contained nextgroup=awiwiLinkNameEnd
+  exe printf('syn match awiwiLinkNameEnd    /\C]/  oneline contained containedin=awiwiLinkNameBlock %s nextgroup=awiwiLinkUrlBlock', s:conceal(conceal_end_char))
 
-  syn match awiwiLinkUrlStart /(/ contained containedin=awiwiLinkUrlBlock nextgroup=awiwiLinkInternalTarget,awiwiLinkProtocol
+  syn match awiwiLinkUrlStart /(/ oneline contained containedin=awiwiLinkUrlBlock nextgroup=awiwiLinkInternalTarget,awiwiLinkProtocol
 
   if conceal
-    syn match awiwiLinkProtocol _\Chttps\?://\(www\.\)\?_ contained conceal containedin=awiwiLinkUrlBlock nextgroup=awiwiLinkDomain
+    syn match awiwiLinkProtocol _\Chttps\?://\(www\.\)\?_ oneline contained conceal containedin=awiwiLinkUrlBlock nextgroup=awiwiLinkDomain
   else
     syn match awiwiLinkProtocol _\Chttps\?://\(www\.\)\?_ contained containedin=awiwiLinkUrlBlock nextgroup=awiwiLinkDomain
     exe printd('hi awiwiLinkProtocol guifg=%s', domain_color)
   endif
-  syn match awiwiLinkDomain _[^/)]\+_ contained nextgroup=awiwiLinkUrlEnd,awiwiLinkPath
-  exe printf('syn match awiwiLinkPath  _/[^)]*_ contained containedin=awiwiLinkUrlBlock %s nextgroup=awiwiLinkUrlEnd', s:conceal(conceal_target_char))
-  exe printf('syn match awiwiLinkInternalTarget  _[./][^)]\+_  contained containedin=awiwiLink %s nextgroup=awiwiLinkUrlEnd', s:conceal(conceal_internal_target_char))
+  syn match awiwiLinkDomain _[^/)]\+_ oneline contained nextgroup=awiwiLinkUrlEnd,awiwiLinkPath
+  exe printf('syn match awiwiLinkPath  _/[^)]*_ oneline contained containedin=awiwiLinkUrlBlock %s nextgroup=awiwiLinkUrlEnd', s:conceal(conceal_target_char))
+  exe printf('syn match awiwiLinkInternalTarget  _[./][^)]\+_  oneline contained containedin=awiwiLink %s nextgroup=awiwiLinkUrlEnd', s:conceal(conceal_internal_target_char))
 
-  syn match awiwiLinkUrlEnd          /)/                                          contained containedin=awiwiLinkUrlBlock
+  syn match awiwiLinkUrlEnd          /)/                                          oneline contained containedin=awiwiLinkUrlBlock
 
-  syn match awiwiRedmineIssue /\(^\|\s\)\zs#[0-9]\{5,}/ containedin=markdownH1,markdownH2,markdownH3,markdownH4,markdownH5,markdownH6,awiwiList1,awiwiList2,awiwiTaskListOpen1,awiwiTaskListOpen2,markdownList,markdownListMarker
+  syn match awiwiRedmineIssue /\(^\|\s\)\zs#[0-9]\{5,}/ oneline containedin=markdownH1,markdownH2,markdownH3,markdownH4,markdownH5,markdownH6,awiwiList1,awiwiList2,awiwiTaskListOpen1,awiwiTaskListOpen2,markdownList,markdownListMarker
   exe printf('hi awiwiRedmineIssue gui=bold guifg=%s', link_color)
 
   for group in ['Name', 'Start', 'End']

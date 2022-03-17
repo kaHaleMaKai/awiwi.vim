@@ -39,19 +39,28 @@ fun! s:format_days(days) abort "{{{
 endfun "}}}
 
 
+fun! awiwi#hi#get_meta_and_pos(line) abort "{{{
+  let [m, start, end] = matchstrpos(a:line, '{[^{]\+}$')
+  if empty(m) || match(a:line, '^\s*\* \[ \] ') == -1
+    return [{}, -1, -1]
+  endif
+  try
+    return [json_decode(m), start, end]
+  catch /E474/
+    return [{}, -1, -1]
+  endtry
+endfun "}}}
+
+
+
 fun! awiwi#hi#draw_due_dates() abort "{{{
   let today = strftime('%Y-%m-%d')
   for lineno in range(0, line('$') - 1)
     let line = getline(lineno + 1)
-    let m = matchstr(line, '{[^{]\+}$')
-    if empty(m) || match(line, '^\s*\* \[ \] ') == -1
+    let meta = awiwi#hi#get_meta_and_pos(line)[0]
+    if empty(meta)
       continue
     endif
-    try
-      let meta = json_decode(m)
-    catch /E474/
-      continue
-    endtry
     let text = []
 
     if has_key(meta, 'due')

@@ -755,7 +755,10 @@ fun! awiwi#edit_meta_info(...) abort "{{{
       return
     endif
     if opts.column == 'due'
-      let json[opts.column]  = awiwi#date#to_iso_date(val)
+      if val =~# '^to\%[mmorow]\+$'
+        let val = 'tomorrow'
+      endif
+      let json[opts.column] = awiwi#date#to_iso_date(val)
     else
       let json[opts.column] = val
     endif
