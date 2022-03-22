@@ -1,6 +1,10 @@
-if ! exists('s:ns')
-  let s:ns = nvim_create_namespace('awiwi-todo-dates')
+if exists('g:autoloaded_awiwi_hi')
+  finish
 endif
+let g:autoloaded_awiwi_hi = v:true
+
+let s:ns_todo_dates = nvim_create_namespace('awiwi-todo-dates')
+let s:ns_hlines = nvim_create_namespace('awiwi-horizontal-lines')
 
 fun! s:get_date_diff(date1, date2) abort "{{{
   if a:date1 == a:date2
@@ -74,13 +78,13 @@ fun! awiwi#hi#draw_due_dates() abort "{{{
     elseif has_key(meta, 'created')
       let text = [[meta.created, 'awiwiCreatedDate']]
     endif
-    call nvim_buf_set_virtual_text(0, s:ns, lineno, text, {})
+    call nvim_buf_set_virtual_text(0, s:ns_todo_dates, lineno, text, {})
   endfor
 endfun "}}}
 
 
 fun! awiwi#hi#clear_due_dates() abort "{{{
-  call nvim_buf_clear_namespace(0, s:ns, 0, -1)
+  call nvim_buf_clear_namespace(0, s:ns_todo_dates, 0, -1)
 endfun "}}}
 
 
@@ -91,4 +95,29 @@ fun! awiwi#hi#redraw_due_dates(...) abort "{{{
     call awiwi#hi#draw_due_dates()
     let w:last_redraw = str2nr(strftime('%s'))
   endif
+endfun "}}}
+
+
+fun! awiwi#hi#draw_horizontal_lines() abort "{{{
+  let is_code_block = v:false
+  let width = nvim_win_get_width(0)
+  call nvim_buf_clear_namespace(0, s:ns_hlines, 0, -1)
+  for lineno in range(1, line('$'))
+    let line = getline(lineno)
+    if line =~# '^```'
+      let is_code_block = !is_code_block
+      continue
+    elseif is_code_block
+      continue
+    elseif line =~# '^#\+\s'
+      let rem = width - strlen(line) - 2
+      if rem <= 0
+        continue
+      endif
+      let level = strlen(split(line, '\s')[0])
+      let hline = ' ' . map(range(rem), {_,v -> '─'})->join('')
+      let hi = printf('markdownH%d', level)
+      call nvim_buf_set_virtual_text(0, s:ns_hlines, lineno - 1, [[hline, hi]], {})
+    endif
+  endfor
 endfun "}}}

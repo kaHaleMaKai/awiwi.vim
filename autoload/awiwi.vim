@@ -205,7 +205,8 @@ fun! awiwi#fuzzy_search(...) abort "{{{
   if !a:0
     echoerr 'Awiwi search: no pattern given'
   endif
-  let pattern = join(map(copy(a:000), {_, v -> awiwi#util#escape_pattern(v)}), '.*?')
+  " let pattern = join(map(copy(a:000), {_, v -> awiwi#util#escape_pattern(v)}), '.*?')
+  let pattern = a:000->join(' ')
   let rg_cmd = [
         \ 'rg', '-i', '-U', '--multiline-dotall', '--color=always',
         \ '--column', '--line-number', '--no-heading',

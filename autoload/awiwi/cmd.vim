@@ -119,6 +119,18 @@ let s:todo_subcommands = [
       \ s:todo_questions_cmd
       \ ]
 
+let s:week_days = [
+      \ 'Mon',
+      \ 'Tue',
+      \ 'Wed',
+      \ 'Thu',
+      \ 'Fri',
+      \ 'Sat',
+      \ 'Sun'
+      \ ]
+
+let s:due_suggestions = [
+      \ ]
 
 let s:session_file = awiwi#path#join(g:awiwi_home, 'session.vim')
 
@@ -335,7 +347,30 @@ fun! awiwi#cmd#get_completion(ArgLead, CmdLine, CursorPos) abort "{{{
       let submatches = [s:meta_edit_cmd, s:meta_delete_cmd]
       return awiwi#util#match_subcommands(submatches, a:ArgLead)
     elseif current_arg_pos == 3 && args[2] == s:meta_edit_cmd
-      let submatches = ['created', 'due']
+      let submatches = ['created', s:due_cmd]
+      return awiwi#util#match_subcommands(submatches, a:ArgLead)
+    endif
+  elseif args[1] == s:due_cmd || args[2:3] == [s:meta_edit_cmd, s:due_cmd]
+    let start = args[1] == s:due_cmd ? 2 : 4
+    if current_arg_pos == start
+      let submatches = [
+            \ 'today',
+            \ 'tomorrow',
+            \ 'next',
+            \ 'in',
+            \ '+'
+            \ ]
+      call extend(submatches, s:week_days)
+      return awiwi#util#match_subcommands(submatches, a:ArgLead)
+    elseif args[start] == 'next' && current_arg_pos == start + 1
+      let submatches = copy(s:week_days)
+      call extend(submatches, ['day', 'week', 'month', 'year'])
+      return awiwi#util#match_subcommands(submatches, a:ArgLead)
+    elseif (args[start] == 'in' || args[start] == '+') && current_arg_pos == start + 2
+      let submatches = ['day', 'week', 'month', 'year']
+      if args[start + 1] != '1'
+        let submatches = submatches->copy()->map({_,v -> v . 's'})
+      endif
       return awiwi#util#match_subcommands(submatches, a:ArgLead)
     endif
   elseif args[1] == s:server_cmd && current_arg_pos == 2

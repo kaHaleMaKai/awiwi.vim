@@ -295,6 +295,11 @@ augroup awiwiTodoDueDates
   au BufEnter,BufLeave,InsertEnter,InsertLeave */todos/*.md call awiwi#hi#redraw_due_dates()
 augroup END
 
+augroup awiwiHorizontalLines
+  au!
+  au BufEnter,BufWritePost *.md call awiwi#hi#draw_horizontal_lines()
+augroup END
+
 
 " inoremap <silent> <buffer> <C-d> <C-r>=strftime('%F')<CR>
 inoremap <silent> <buffer> <C-f> <C-r>=strftime('%H:%M')<CR>
