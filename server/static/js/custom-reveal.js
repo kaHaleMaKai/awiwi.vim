@@ -6,7 +6,7 @@ const state = {
   "subpageHeader": "h2"
 }
 const settings = {
-  fragmentAll: false
+  fragmentAll: true
 }
 
 const arrowSymbols = {
@@ -23,14 +23,24 @@ const loadSettings = () => {
   }
   state.settingsLoaded = true;
   const div = document.querySelector("#awiwi-settings");
-  if (div === null) {
-    return;
-  }
-  else {
+  if (div !== null) {
     const s = JSON.parse(div.textContent);
     for (const k in s) {
       settings[k] = s[k];
     }
+  }
+  const params = getSettingsFromQueryString();
+  if (params.fragmentAll !== null) {
+    settings.fragmentAll = params.fragmentAll;
+  }
+}
+
+const getSettingsFromQueryString= () => {
+  const proxy = new Proxy(new URLSearchParams(window.location.search),
+    { get: (searchParams, prop) => searchParams.get(prop), }
+  );
+  return {
+    "fragmentAll": JSON.parse(proxy["fragment-all"])
   }
 }
 
