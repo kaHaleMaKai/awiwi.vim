@@ -115,9 +115,33 @@ fun! awiwi#hi#draw_horizontal_lines() abort "{{{
         continue
       endif
       let level = strlen(split(line, '\s')[0])
-      let hline = ' ' . map(range(rem), {_,v -> '─'})->join('')
+      let char = level <= 2 ? '━' :  '─'
+      let hline = ' ' . range(rem)->map({_,v -> char})->join('')
       let hi = printf('markdownH%d', level)
       call nvim_buf_set_virtual_text(0, s:ns_hlines, lineno - 1, [[hline, hi]], {})
     endif
   endfor
+endfun "}}}
+
+
+fun! awiwi#hi#get_recipe_title() abort "{{{
+  let title = expand('%:p')
+  let rel_path = awiwi#path#relativize(expand('%:p'), awiwi#get_recipe_subpath())
+  return rel_path->awiwi#path#split()[1:]->join('/')[:-4]
+endfun "}}}
+
+
+fun! awiwi#hi#get_asset_title() abort "{{{
+  let title = expand('%:p')->awiwi#path#split()[-4:]
+  let date = title[:2]->join('-')
+  let name = title[-1]
+  if name->awiwi#str#endswith('.md')
+    let name = name[:-4]
+  endif
+  return printf('%s/%s', date, name)
+endfun "}}}
+
+
+fun! awiwi#hi#get_journal_title() abort "{{{
+  return awiwi#date#to_nice_date(awiwi#date#get_own_date())
 endfun "}}}
