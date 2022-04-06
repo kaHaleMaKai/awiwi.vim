@@ -208,3 +208,5 @@ endif
 syn match awiwiFileTypeBlock  /\C^[^a-zA-Z0-9_]*vim: ft=[a-z].*$/ contains=awiwiFileTypePrefix,awiwiFileType
 syn match awiwiFileTypePrefix /\C\(^[^a-zA-Z0-9_]*\)\zsvim: ft?\( [a-z].*\)\@=/  contained
 syn match awiwiFileType       /\C\(^[^a-zA-Z0-9_]*vim: ft=\)\zs[a-z].*$/        contained
+
+exe printf('hi awiwiDateOverlay guifg=%s', link_color)
