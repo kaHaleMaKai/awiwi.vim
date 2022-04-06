@@ -144,6 +144,23 @@ fun! awiwi#date#get_own_date() abort "{{{
 endfun "}}}
 
 
+fun! awiwi#date#to_nice_date(date) abort "{{{
+  let [y, m, d] = a:date->split('-')
+  let digit = str2nr(d) % 10
+  if digit == 1
+    let ord = 'st'
+  elseif digit == 2
+    let ord = 'nd'
+  elseif digit == 3
+    let ord = 'rd'
+  else
+    let ord = 'th'
+  endif
+  let format = '+%a, %b %d' . ord . ' %Y'
+  return systemlist(['date', '--date', a:date, format])[0]
+endfun "}}}
+
+
 fun! s:is_date(expr) abort "{{{
   return match(a:expr, s:date_pattern) > -1
 endfun "}}}
