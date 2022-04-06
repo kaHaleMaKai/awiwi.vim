@@ -297,9 +297,9 @@ augroup END
 
 augroup awiwiHorizontalLines
   au!
-  au BufEnter,BufWritePost *.md call awiwi#hi#draw_horizontal_lines()
+  au BufEnter *.md call awiwi#hi#draw_horizontal_lines()
+  au BufModifiedSet *.md if !&modified | call awiwi#hi#draw_horizontal_lines() | endif
 augroup END
-
 
 " inoremap <silent> <buffer> <C-d> <C-r>=strftime('%F')<CR>
 inoremap <silent> <buffer> <C-f> <C-r>=strftime('%H:%M')<CR>
@@ -403,4 +403,49 @@ endfun "}}}
 
 if &ft ==# 'awiwi.todo'
   nnoremap <silent> <buffer> A   <Cmd>call <sid>append_to_line() <bar> call awiwi#hi#redraw_due_dates()<CR>
+endif
+
+
+if get(g:, 'awiwi_use_entitlement', v:true) && &rtp =~# 'entitlement.nvim'
+  let s:ent_opts = get(g:, 'awiwi_use_entitlement_opts', {})
+
+  let s:entitlement_journal_opts = get(s:ent_opts, 'journal', {
+        \ 'fn': function('awiwi#hi#get_journal_title'),
+        \ 'hl_group': 'markdownH1'
+        \ })
+
+  let s:entitlement_asset_opts = get(s:ent_opts, 'assets', {
+        \ 'fn': function('awiwi#hi#get_asset_title'),
+        \ 'hl_group': 'markdownH1'
+        \ })
+
+  let s:entitlement_recipe_opts = get(s:ent_opts, 'recipes', {
+        \ 'fn': function('awiwi#hi#get_recipe_title'),
+        \ 'hl_group': 'markdownH1'
+        \ })
+
+  let s:entitlement_todo_opts = get(s:ent_opts, 'todos', {
+        \ 'fn_args': [{'ext': v:false, 'mode': 'tail'}],
+        \ 'hl_group': 'markdownH1'
+        \ })
+
+  augroup awiwiEntitlement
+    au!
+    au! WinScrolled,BufEnter,BufWinEnter,CursorHold
+          \ */journal/*.md
+          \ call entitlement#add_title(s:entitlement_journal_opts)
+    au! WinScrolled,BufEnter,BufWinEnter,CursorHold
+          \ */assets/*
+          \ call entitlement#add_title(s:entitlement_asset_opts)
+    au! WinScrolled,BufEnter,BufWinEnter,CursorHold
+          \ */recipes/*
+          \ call entitlement#add_title(s:entitlement_recipe_opts)
+    au! WinScrolled,BufEnter,BufWinEnter,CursorHold
+          \ */todos/*
+          \ call entitlement#add_title(s:entitlement_todo_opts)
+    au! WinScrolled,InsertEnter
+          \ */*ansible*/*,*/*playbook*/*
+          \ call entitlement#remove_title()
+  augroup END
+
 endif
