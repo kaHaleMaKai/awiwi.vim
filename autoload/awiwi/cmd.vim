@@ -22,6 +22,7 @@ let s:store_session_cmd = 'save'
 let s:restore_session_cmd = 'restore'
 let s:meta_cmd = 'meta'
 let s:due_cmd = 'due'
+let s:toc_cmd = 'toc'
 
 let s:new_asset_cmd = 'create'
 let s:empty_asset_cmd = 'empty'
@@ -56,6 +57,7 @@ let s:subcommands = [
       \ s:serve_cmd,
       \ s:server_cmd,
       \ s:tasks_cmd,
+      \ s:toc_cmd,
       \ s:todo_cmd,
       \ ]
 
@@ -127,9 +129,6 @@ let s:week_days = [
       \ 'Fri',
       \ 'Sat',
       \ 'Sun'
-      \ ]
-
-let s:due_suggestions = [
       \ ]
 
 let s:session_file = awiwi#path#join(g:awiwi_home, 'session.vim')
@@ -401,7 +400,7 @@ fun! awiwi#cmd#run(...) abort "{{{
       if a:0 == 1
         return fzf#vim#files(awiwi#get_journal_subpath(), fzf_opts)
       else
-        let fzf_opts.source = awiwi#get_all_journal_files(v:true)
+        let fzf_opts.source = awiwi#get_all_journal_files({'include_literals': v:true})
         let fzf_opts.sink = funcref('awiwi#insert_journal_link')
         return fzf#run(fzf#wrap(fzf_opts))
       endif
@@ -556,6 +555,15 @@ fun! awiwi#cmd#run(...) abort "{{{
     return awiwi#cmd#store_session()
   elseif a:1 == s:restore_session_cmd
     return awiwi#cmd#restore_session()
+  elseif a:1 == s:toc_cmd
+    if a:0 == 1
+      let date = awiwi#date#get_own_date()
+    else
+      let date = a:000[1:]
+            \->map({_,v -> v->split('-')})
+            \->reduce({acc, v -> acc +v}, [])[:1]->join('-')
+    endif
+    call awiwi#show_toc_in_qlist({'date': date})
   endif
 endfun "}}}
 

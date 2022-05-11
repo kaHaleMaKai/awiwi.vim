@@ -138,7 +138,7 @@ fun! awiwi#hi#get_asset_title() abort "{{{
   if name->awiwi#str#endswith('.md')
     let name = name[:-4]
   endif
-  return printf('%s/%s', date, name)
+  return printf('%s [%s]', name, date)
 endfun "}}}
 
 

@@ -449,3 +449,19 @@ if get(g:, 'awiwi_use_entitlement', v:true) && &rtp =~# 'entitlement.nvim'
   augroup END
 
 endif
+
+
+fun! MarkdownToPdfPreConverter(lines, ...) abort "{{{
+  let lines = []
+  let pattern = '(\zs/assets\/\([0-9]\+\)-\([0-9]\+\)-\([0-9]\+\)'
+  let sub = printf('%s/assets/\1/\2/\3', g:awiwi_home)
+  for line in a:lines
+    if stridx(line, '(/assets/') > -1
+      let li = line->substitute(pattern, sub, 'g')
+      call add(lines, li)
+    else
+      call add(lines, line)
+    endif
+  endfor
+  return lines
+endfun "}}}

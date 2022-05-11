@@ -417,10 +417,16 @@ endfun "}}}
 
 
 fun! awiwi#get_all_journal_files(...) abort "{{{
-  let files =sort(map(
-        \ split(glob(awiwi#path#join(g:awiwi_home, 'journal', '**', '*.md'))),
-        \ {_, v -> fnamemodify(v, ':t:r')}))
-  if get(a:000, 0, v:false)
+  let opts = get(a:000, 0, {})
+  let pattern = [awiwi#get_journal_subpath()] +
+        \ opts->get('date', '')->split('-') +
+        \ ['**', '*.md']
+  let files = glob(call('awiwi#path#join', pattern), v:false, v:true)
+  if !(opts->get('full_path', v:false))
+    let files = files->map({_, v -> fnamemodify(v, ':t:r')})
+  endif
+  let files = files->sort()
+  if opts->get('include_literals', v:false)
     call extend(files, ['previous day', 'next day', 'yesterday', 'today'])
   endif
   return files
@@ -788,4 +794,116 @@ fun! awiwi#edit_meta_info(...) abort "{{{
   let new_line = printf('%s %s', line[:start], meta)
   call setline(lineno, new_line)
   call awiwi#hi#redraw_due_dates(v:true)
+endfun "}}}
+
+
+fun! s:generate_toc(file, max_level) abort "{{{
+  let date = a:file->fnamemodify(':t:r')
+  let lines = []
+  let is_codeblock = v:false
+  let i = 0
+  for line in readfile(a:file)
+    let i += 1
+    if line =~# printf('^# %s$', date)
+      continue
+    endif
+    if is_codeblock
+      if line =~# '^```'
+        let is_codeblock = v:false
+      endif
+      continue
+    endif
+
+    let m = line->matchlist('^\(#\+\) \+\(\S.*\)$')
+    if !empty(m)
+      let [marker, title] = m[1:2]
+      let level = marker->strlen() - 2
+      if level > a:max_level
+        continue
+      endif
+      let padding = s:chars(' ', 3 - string(i)->strlen())
+      let indent = s:chars('..', level)
+      let entry = {'filename': a:file, 'lnum': i, 'text': indent . title, 'module': date . padding}
+      call add(lines, entry)
+    endif
+  endfor
+  return lines
+endfun "}}}
+
+
+fun! s:chars(char, num) abort "{{{
+  return range(a:num)->map({_ -> a:char})->join('')
+endfun "}}}
+
+
+fun! s:get_toc_title(year, month) abort "{{{
+  let date = printf('%04d-%02d-01', a:year, a:month)
+  return strftime('%B %Y', strptime('%F', date))
+endfun "}}}
+
+
+fun! awiwi#show_toc_in_qlist(...) abort "{{{
+  let opts = a:000->get(0, {})
+  let max_level = opts->get('max_level', 6)
+  let date = opts->get('date', '')
+  let is_single_date = awiwi#date#is_date(date)
+  if is_single_date
+    let files = [awiwi#get_journal_file_by_date(date)]
+  else
+    let files = awiwi#get_all_journal_files({'date': date, 'full_path': v:true})
+  endif
+    let topics = files
+      \->map({_, f -> s:generate_toc(f, max_level)})
+      \->filter({_, v -> !empty(v)})
+      \->reduce({acc, val -> acc + val}, [])
+  call setqflist(topics)
+
+  let parts = date->split('-')
+  if empty(parts)
+    let title = 'topics'
+  elseif parts->len() == 1
+    let title = printf('topics %s', parts[0])
+  elseif is_single_date
+    let title = printf('topics %s', awiwi#date#to_nice_date(date))
+  else
+    let title = s:get_toc_title(parts[0], parts[1])
+  endif
+
+  call setqflist([], 'a', {'title': title})
+  if opts->get('show', v:true)
+    let buffer = bufnr()
+    copen
+    if is_single_date
+      call s:add_toc_aucmd(buffer, date)
+    endif
+  endif
+endfun "}}}
+
+
+fun! s:add_toc_aucmd(buffer, date) abort "{{{
+  let augroup = 'AwiwiTocUpdate'
+  exe printf('augroup %s', augroup)
+  au!
+  exe printf('au BufWritePost <buffer=%d> call <sid>update_toc("%s", "%s")', a:buffer, augroup, a:date)
+  exe printf('au BufHidden <buffer> call <sid>delete_toc_aucmds("%s")', augroup)
+  augroup END
+endfun "}}}
+
+
+fun! s:update_toc(augroup, date) abort "{{{
+  let buf = nvim_list_bufs()
+        \->map({_,b -> [b, nvim_buf_get_option(b, 'buftype')]})
+        \->filter({_,v -> v[1] == 'quickfix' && buflisted(v[0])})
+        \->map({_,v -> v[0]})
+  if empty(buf)
+    call s:delete_toc_aucmds(a:augroup)
+  else
+    call awiwi#show_toc_in_qlist({'date': a:date, 'show': v:false})
+  endif
+endfun "}}}
+
+
+fun! s:delete_toc_aucmds(augroup) abort "{{{
+    exe printf('au! %s', a:augroup)
+    exe printf('augroup! %s', a:augroup)
 endfun "}}}

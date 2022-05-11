@@ -50,9 +50,9 @@ fun! awiwi#date#parse_date(date, ...) abort "{{{
       let date = s:get_offset_date(awiwi#date#get_today(), +1, options)
     endtry
   else
-    " FIXME check if s:is_date(a:date), or raise exception
+    " FIXME check if awiwi#date#is_date(a:date), or raise exception
     let date = awiwi#date#to_iso_date(a:date)
-    if !s:is_date(date)
+    if !awiwi#date#is_date(date)
       throw s:AwiwiDateError('%s is not a valid date', date)
     endif
   endif
@@ -134,9 +134,9 @@ endfun "}}}
 
 fun! awiwi#date#get_own_date() abort "{{{
   let name = expand('%:t:r')
-  if !s:is_date(name)
+  if !awiwi#date#is_date(name)
     let name = join(awiwi#path#split(expand('%:p'))[-4:-2], '-')
-    if !s:is_date(name)
+    if !awiwi#date#is_date(name)
       throw s:AwiwiDateError('not on journal or asset page')
     endif
   endif
@@ -147,7 +147,9 @@ endfun "}}}
 fun! awiwi#date#to_nice_date(date) abort "{{{
   let [y, m, d] = a:date->split('-')
   let digit = str2nr(d) % 10
-  if digit == 1
+  if d == '11'
+    let ord = 'th'
+  elseif digit == 1
     let ord = 'st'
   elseif digit == 2
     let ord = 'nd'
@@ -161,6 +163,6 @@ fun! awiwi#date#to_nice_date(date) abort "{{{
 endfun "}}}
 
 
-fun! s:is_date(expr) abort "{{{
+fun! awiwi#date#is_date(expr) abort "{{{
   return match(a:expr, s:date_pattern) > -1
 endfun "}}}
