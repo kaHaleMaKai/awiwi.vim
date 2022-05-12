@@ -874,23 +874,26 @@ fun! awiwi#show_toc_in_qlist(...) abort "{{{
     let buffer = bufnr()
     copen
     if is_single_date
-      call s:add_toc_aucmd(buffer, date)
+      call s:add_toc_aucmd(buffer)
     endif
   endif
 endfun "}}}
 
 
-fun! s:add_toc_aucmd(buffer, date) abort "{{{
+fun! s:add_toc_aucmd(buffer) abort "{{{
   let augroup = 'AwiwiTocUpdate'
   exe printf('augroup %s', augroup)
   au!
-  exe printf('au BufWritePost <buffer=%d> call <sid>update_toc("%s", "%s")', a:buffer, augroup, a:date)
+  exe printf('au BufWritePost <buffer=%d> call <sid>update_toc("%s")', a:buffer, augroup)
+  exe printf('au BufWinEnter */journal/*.md if bufwinnr("%") == %d | call <sid>update_toc("%s") | endif',
+        \    bufwinnr(a:buffer), augroup)
   exe printf('au BufHidden <buffer> call <sid>delete_toc_aucmds("%s")', augroup)
   augroup END
 endfun "}}}
 
 
-fun! s:update_toc(augroup, date) abort "{{{
+fun! s:update_toc(augroup) abort "{{{
+  let date = awiwi#date#get_own_date()
   let buf = nvim_list_bufs()
         \->map({_,b -> [b, nvim_buf_get_option(b, 'buftype')]})
         \->filter({_,v -> v[1] == 'quickfix' && buflisted(v[0])})
@@ -898,7 +901,7 @@ fun! s:update_toc(augroup, date) abort "{{{
   if empty(buf)
     call s:delete_toc_aucmds(a:augroup)
   else
-    call awiwi#show_toc_in_qlist({'date': a:date, 'show': v:false})
+    call awiwi#show_toc_in_qlist({'date': date, 'show': v:false})
   endif
 endfun "}}}
 
