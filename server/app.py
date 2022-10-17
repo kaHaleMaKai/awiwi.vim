@@ -48,6 +48,7 @@ from threading import Lock
 import subprocess
 
 
+sys.path.append("/home/lars/.config/qtile/.venv/lib/python3.10/site-packages")
 checkclock_path = Path("~/.config/qtile/widgets").expanduser().absolute()
 sys.path.insert(1, str(checkclock_path))
 from checkclock import ReadOnlyCheckclock, as_time, as_hours_and_minutes
