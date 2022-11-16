@@ -60,35 +60,37 @@ let createCookie = (name, value) => {
     return name + "=" + value + expires + "; path=/";
 }
 
-if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-    html.classList.add('color-theme-in-transition');
-    window.setTimeout(() => {
-      document.documentElement.classList.remove('color-theme-in-transition')
-    }, 1000);
-    html.setAttribute('data-theme', 'dark');
-    document.cookie = createCookie('theme-mode', 'dark');
-    document.getElementById('mode-switcher-input').checked = true;
-}
+const activateColorSwitching = () => {
+  let modeSwitcher = document.getElementById('mode-switcher-input');
 
-let el = document.getElementById('mode-switcher-input');
+  if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      html.classList.add('color-theme-in-transition');
+      window.setTimeout(() => {
+        document.documentElement.classList.remove('color-theme-in-transition')
+      }, 1000);
+      html.setAttribute('data-theme', 'dark');
+      document.cookie = createCookie('theme-mode', 'dark');
+      modeSwitcher.checked = true;
+  }
 
-window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
-    html.classList.add('color-theme-in-transition');
-    window.setTimeout(() => {
-      document.documentElement.classList.remove('color-theme-in-transition')
-    }, 1000);
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+      html.classList.add('color-theme-in-transition');
+      window.setTimeout(() => {
+        document.documentElement.classList.remove('color-theme-in-transition')
+      }, 1000);
 
-    if (e.matches) {
-        html.setAttribute('data-theme', 'dark');
-        document.cookie = createCookie('theme-mode', 'dark');
-        el.checked = true;
-    }
-    else {
-        html.setAttribute('data-theme', 'light');
-        document.cookie = createCookie('theme-mode', 'light');
-        el.checked = false;
-    }
-});
+      if (e.matches) {
+          html.setAttribute('data-theme', 'dark');
+          document.cookie = createCookie('theme-mode', 'dark');
+          modeSwitcher.checked = true;
+      }
+      else {
+          html.setAttribute('data-theme', 'light');
+          document.cookie = createCookie('theme-mode', 'light');
+          modeSwitcher.checked = false;
+      }
+  });
+};
 
 
 let themeChanger = () => {
@@ -155,6 +157,7 @@ const addParentClasses = () => {
 }
 
 const onloadHandler = () => {
+  activateColorSwitching();
   attachCheckboxes();
   addParentClasses();
 }

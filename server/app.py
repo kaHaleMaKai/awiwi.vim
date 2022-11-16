@@ -48,10 +48,11 @@ from threading import Lock
 import subprocess
 
 
-sys.path.append("/home/lars/.config/qtile/.venv/lib/python3.10/site-packages")
-checkclock_path = Path("~/.config/qtile/widgets").expanduser().absolute()
-sys.path.insert(1, str(checkclock_path))
-from checkclock import ReadOnlyCheckclock, as_time, as_hours_and_minutes
+sys.path.append("/home/lars/venvs/qtile/lib/python3.10/site-packages")
+sys.path.append("/home/lars/.config/qtile")
+# checkclock_path = Path("~/.config/qtile/widgets").expanduser().absolute()
+# sys.path.insert(1, str(checkclock_path))
+from qutely.widgets.checkclock import ReadOnlyCheckclock, as_time, as_hours_and_minutes
 
 
 checkclock = ReadOnlyCheckclock(
@@ -416,6 +417,16 @@ def render_non_journal(file: Path):
         highlight_article=is_secret,
         journal_date=journal_date,
     )
+
+
+@secured_route("/<date>.md")
+def redirect_journal1(date: str):
+    return redirect(f"/journal/{date}")
+
+
+@secured_route("/<int:month>/<date>.md")
+def redirect_journal2(month: int, date: str):
+    return redirect(f"/journal/{date}")
 
 
 @secured_route("/./<path:path>")
