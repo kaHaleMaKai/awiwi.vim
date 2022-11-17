@@ -655,8 +655,8 @@ fun! awiwi#redact() abort "{{{
   let line = getline('.')
   let pos = getcurpos()
   " go to the end of the line, definitely
-  let pos[2] = 2000
-  let pos[-1] = 2000
+  " let pos[2] = 2000
+  " let pos[-1] = 2000
   if match(line, '!!redacted') == -1
     let space = empty(line) || awiwi#str#endswith(line, ' ')
           \ ? '' : ' '
