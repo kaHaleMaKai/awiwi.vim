@@ -87,7 +87,8 @@ syn match awiwiRedactedTag /\C\!!redacted/ containedin=awiwiRedacted contained
 syn match awiwiRedactedCause /[[:space:]]\+.*/ containedin=awiwiRedacted contained
 
 call s:tagInHeader('awiwiIncident', '@incident', 'awiwiUrgent')
-call s:tagInHeader('awiwiIncident', '@incident', 'awiwiUrgent')
+call s:tagInHeader('awiwiIssue', '@issue', 'awiwiUrgent')
+call s:tagInHeader('awiwiBug', '@bug', 'awiwiUrgent')
 call s:inHeaderWithSimpleMarkers('awiwiTodo', 'todo', 'gui=bold guifg=#808000')
 call s:inHeaderWithSimpleMarkers('awiwiQuestionn', 'question', 'gui=bold guifg=#808000')
 call s:inHeaderWithSimpleMarkers('awiwiOnHole', 'onhold', 'gui=bold guifg=#808000')
