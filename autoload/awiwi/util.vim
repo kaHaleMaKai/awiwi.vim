@@ -176,7 +176,7 @@ endfun "}}}
 
 fun! awiwi#util#get_link_under_cursor() abort "{{{
   let issue = matchstr(expand('<cWORD>'), '#\zs[0-9]\{5,}')
-  if ! empty(issue)
+  if !empty(issue)
     let link = awiwi#util#as_link(printf('https://redmine.pmd5.org/issues/%d', issue))
     return awiwi#util#determine_link_type(link)
   endif
@@ -210,6 +210,7 @@ fun! awiwi#util#get_link_under_cursor() abort "{{{
     let link.type = 'image'
   endif
   let link.target = line[closing_bracket+2:closing_parens-1]
+  let [link.target, link.anchor] = s:split_link_and_anchor(link.target)
   return awiwi#util#determine_link_type(link)
 endfun "}}}
 
@@ -218,7 +219,16 @@ fun! awiwi#util#as_link(link) abort "{{{
   if type(a:link) == v:t_dict
     return copy(a:link)
   endif
-  return {'target': a:link, 'type': ''}
+  let [link, anchor] = s:split_link_and_anchor(a:link)
+  return {'target': link, 'type': '', 'anchor': anchor}
+endfun "}}}
+
+
+fun! s:split_link_and_anchor(link) abort "{{{
+  if a:link =~# '#'
+    return a:link->split('#')
+  endif
+  return [a:link, '']
 endfun "}}}
 
 
@@ -239,7 +249,26 @@ fun! awiwi#util#determine_link_type(link) abort "{{{
   elseif match(link.target, '/\(journal/\)\?\([0-9]\{4}/\)\?\([0-9]\{2}/\)\?\d\{4}-\d\{2}-\d\{2}.md$')
     let link.type = 'journal'
   endif
+  if !empty(link.anchor)
+    if index(['browser', 'mail', 'external'], link.type) > -1 && !empty(link.anchor)
+      let link.target = printf('%s#%s', link.target, link.anchor)
+    else
+      let link.anchor = '^#\\+\\s\\+' .. substitute('-', '.', '', 'g')
+    endif
+  endif
   return link
+endfun "}}}
+
+
+fun! awiwi#util#join_nonempty(first, last, char) abort "{{{
+  let args = []
+  if !empty(a:first)
+    call add(args, a:first)
+  endif
+  if !empty(a:last)
+    call add(args, a:last)
+  endif
+  return args->join(a:char)
 endfun "}}}
 
 

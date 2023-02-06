@@ -61,6 +61,8 @@ let s:delegate_markers = ['@@']
 let s:question_markers = ['QUESTION', 'q?', 'Q?']
 let s:due_markers = ['DUE', 'DUE TO', 'UNTIL', '@until', '@due']
 let s:incident_markers = ['@incident']
+let s:issue_markers = ['@issue']
+let s:bug_markers = ['@bug']
 
 " 1}}}
 
@@ -304,8 +306,15 @@ fun! awiwi#open_file(file, options) abort "{{{
     let dir = fnamemodify(a:file, ':p:h')
     call mkdir(dir, 'p')
   endif
-  let jump_mod = get(a:options, 'last_line', v:false)
-        \ ? '+' : ''
+  let anchor = a:options->get('anchor', '')
+  let jump_to_last_line = a:options->get('last_line', v:false)
+  if !empty(anchor)
+    let jump_mod = printf('+/%s', anchor)
+  elseif jump_to_last_line
+    let jump_mod = '+'
+  else
+    let jump_mod = ''
+  endif
   exe printf('%s %s %s', cmd, jump_mod, a:file)
 endfun "}}}
 
@@ -639,6 +648,9 @@ fun! awiwi#open_link(options, ...) abort "{{{
     call jobstart(cmd)
   elseif link.type == 'asset' || link.type == 'journal' || link.type == 'recipe'
     let dest = awiwi#path#canonicalize(awiwi#path#join(expand('%:p:h'), link.target))
+    if !empty(link.anchor)
+      let a:options['anchor'] = link.anchor
+    endif
     call awiwi#open_file(dest, a:options)
   elseif link.type == 'image'
     let date = join(split(fnamemodify(link.target, ':h:t'), '-'), '/')
@@ -683,7 +695,8 @@ fun! awiwi#copy_file(path) abort "{{{
 endfun "}}}
 
 
-fun! awiwi#insert_recipe_link(recipe) abort "{{{
+fun! awiwi#insert_recipe_link(recipe, ...) abort "{{{
+  let options = get(a:000, 0, {})
   let recipe_file = awiwi#path#join(s:recipe_subpath, a:recipe)
   let parts = split(recipe_file, '/')
   for i in range(len(parts)-1, 0, -1)
@@ -695,15 +708,26 @@ fun! awiwi#insert_recipe_link(recipe) abort "{{{
 
   let file_name = call('awiwi#path#join', parts[start:])
   let path = awiwi#util#relativize(recipe_file)
-  let link = printf('[recipe %s](%s)', file_name, path)
+  let anchor = options->get('anchor', '')
+  if empty(anchor)
+    let link = printf('[recipe %s](%s)', file_name, path)
+  else
+    let link = printf('[recipe %s: %s](%s#%s)', file_name, anchor, path, anchor)
+  endif
   call awiwi#insert_link_here(link)
 endfun "}}}
 
 
-fun! awiwi#insert_journal_link(date) abort "{{{
+fun! awiwi#insert_journal_link(date, ...) abort "{{{
+  let options = get(a:000, 0, {})
+  let anchor = options->get('anchor', '')
   let date = awiwi#date#parse_date(a:date)
   let file = awiwi#util#relativize(awiwi#get_journal_file_by_date(date))
-  let link = printf('[journal for %s](%s)', date, file)
+  if empty(anchor)
+    let link = printf('[journal for %s](%s)', date, file)
+  else
+    let link = printf('[journal for %s: %s)](%s#%s)', date, anchor, file, anchor)
+  endif
   call awiwi#insert_link_here(link)
 endfun "}}}
 

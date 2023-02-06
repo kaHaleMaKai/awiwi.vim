@@ -429,6 +429,11 @@ def redirect_journal2(month: int, date: str):
     return redirect(f"/journal/{date}")
 
 
+@secured_route("/<int:year>/<int:month>/<date>.md")
+def redirect_journal3(year: int, month: int, date: str):
+    return redirect(f"/journal/{date}")
+
+
 @secured_route("/./<path:path>")
 def remove_current_dir(path: str):
     return redirect(f"/{path}")

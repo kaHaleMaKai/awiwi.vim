@@ -2,11 +2,13 @@ const state = {
   "sectionIndex": [],
   "isPresenting": false,
   "settingsLoaded": false,
-  "pageHeader": "h1",
-  "subpageHeader": "h2"
 }
 const settings = {
-  fragmentAll: true
+  fragmentAll: true,
+  pageHeader: "h1",
+  subpageHeader: "h2",
+  pageLevel: 1,
+  subpageLevel: 2
 }
 
 const arrowSymbols = {
@@ -16,6 +18,11 @@ const arrowSymbols = {
   "down": "⬇"
 }
 
+const getPageHeaders = () => range(settings.pageLevel, settings.subpageLevel + 1).map(level => `h${level}`)
+
+const getHeadingLevel = (tag) => parseInt(tag[1]);
+
+const needsMainPage = (tag) => getHeadingLevel(tag) < settings.subpageLevel;
 
 const loadSettings = () => {
   if (state.settingsLoaded) {
@@ -30,9 +37,14 @@ const loadSettings = () => {
     }
   }
   const params = getSettingsFromQueryString();
-  if (params.fragmentAll !== null) {
-    settings.fragmentAll = params.fragmentAll;
+  for (const k in params) {
+    const val = params[k];
+    if (val !== null) {
+      settings[k] = val;
+    }
   }
+  settings.pageLevel = getHeadingLevel(settings.pageHeader);
+  settings.subpageLevel = getHeadingLevel(settings.subpageHeader);
 }
 
 const getSettingsFromQueryString= () => {
@@ -40,7 +52,8 @@ const getSettingsFromQueryString= () => {
     { get: (searchParams, prop) => searchParams.get(prop), }
   );
   return {
-    "fragmentAll": JSON.parse(proxy["fragment-all"])
+    "fragmentAll": JSON.parse(proxy["fragmentAll"]),
+    "subpageHeader": JSON.parse(proxy["subpageHeader"])
   }
 }
 
@@ -83,13 +96,14 @@ const wrapChildren = (el, wrapper) => {
 
 
 const wrapInSection = (start) => {
-  const cls = start.tagName === state.pageHeader.toUpperCase() ? "page" : "subpage";
+  const cls = needsMainPage(start.tagName) ? "page" : "subpage";
   const nodeExpr = `section.${cls}`;
   const section = createNode(nodeExpr);
   const nodes = [];
   nodes.push(start);
   let sib = start.nextElementSibling;
-  const pattern = `^${state.pageHeader}|${state.subpageHeader}$`.toUpperCase();
+  const hs = getPageHeaders().join("|");
+  const pattern = `^${hs}$`.toUpperCase();
   while (sib !== null) {
     if (sib.tagName.match(pattern)) {
       break;
@@ -146,7 +160,8 @@ const wrapInSections = () => {
   if (_("section") !== null) {
     return;
   }
-    __(`div.article > ${state.pageHeader}, div.article > ${state.subpageHeader}`).forEach(h => wrapInSection(h));
+  const nestedHeaders = getPageHeaders().map(h => `div.article > ${h}`).join(", ");
+    __(nestedHeaders).forEach(h => wrapInSection(h));
   const index = [];
   let numPages = 0;
   __("section.page").forEach(s => {
@@ -234,10 +249,28 @@ const togglePresentation = () => {
     removeFragmentClasses();
   }
   else {
-    _("div.article").setAttribute("data-page-header", state.pageHeader);
+    const regex = /col-[a-z]+-\d/;
+    const [imgs, colImgs] = __("img")
+      .partition(el => asCustomArray(...el.classList).all(c => c.match(regex) === null));
+
+    _("div.article").setAttribute("data-page-header", settings.pageHeader);
     __(".arrow-indicator.hidden").removeClasses("hidden");
     hideSurrounding();
-    __("body", "img", "h1", "h2", "h3", "h4", "h5", "h6").addClasses("presenting");
+    __("body", "h1", "h2", "h3", "h4", "h5", "h6").addClasses("presenting");
+    imgs.addClasses("presenting");
+
+    colImgs.forEach(el => {
+      const p = el.parentElement;
+      if (p.tagName !== "P") {
+        return;
+      }
+      const div1 = createNode("div.container-fluid");
+      const div2 = createNode("div.row");
+      asCustomArray(...p.childNodes).forEach(sib => div2.appendChild(sib));
+      div1.appendChild(div2);
+      p.replaceWith(div1);
+    });
+
     _("section").classList.add("current-page");
 
     __("section")

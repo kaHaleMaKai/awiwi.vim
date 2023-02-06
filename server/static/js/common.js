@@ -6,6 +6,9 @@ const _ = (expr) => {
 }
 
 
+const range = (start, end) => (new Array(end - start)).fill(undefined).map((_, i) => i + start);
+
+
 const asCustomArray = (...arr) => {
   const ret = [...arr];
   ret.except = (expr) => asCustomArray(...ret.filter(el => el !== expr));
@@ -20,6 +23,19 @@ const asCustomArray = (...arr) => {
   }
   ret.all = (fn) => ret.filter(fn).length === ret.length;
   ret.any = (fn) => ret.filter(fn).length > 0;
+  ret.partition = (fn) => {
+    const good = asCustomArray(...[]);
+    const bad =asCustomArray(...[]);
+    ret.forEach(el => {
+      if (fn(el)) {
+        good.push(el)
+      }
+      else {
+        bad.push(el);
+      }
+    })
+    return asCustomArray(...[good, bad]);
+  }
   return ret;
 }
 

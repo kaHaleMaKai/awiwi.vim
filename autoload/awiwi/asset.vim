@@ -42,7 +42,7 @@ fun! awiwi#asset#create_asset_here_if_not_exists(type, ...) abort "{{{
     let opts.suffix = '.jpg'
   endif
   let [name, filename, link] = call('awiwi#asset#create_asset_link', [opts])
-  let path = s:get_asset_path(awiwi#date#get_own_date(), filename)
+  let path = awiwi#asset#get_asset_path(awiwi#date#get_own_date(), filename)
   if !filereadable(path)
     let ret = s:create_asset(a:type, path)
     if ret
@@ -113,7 +113,7 @@ fun! awiwi#asset#create_asset_link(...) abort "{{{
   endif
 
   let date = awiwi#date#get_own_date()
-  let asset_file = s:get_asset_path(date, filename)
+  let asset_file = awiwi#asset#get_asset_path(date, filename)
   let rel_path = awiwi#util#relativize(asset_file, expand('%:p'))
 
   let link_text = printf('[%s](%s)',
@@ -130,14 +130,20 @@ fun! awiwi#asset#get_journal_for_current_asset() abort "{{{
 endfun "}}}
 
 
-fun! awiwi#asset#insert_asset_link(date, name) abort "{{{
-  let path = awiwi#util#relativize(s:get_asset_path(a:date, a:name))
-  let link = printf('[asset %s, %s](%s)', a:name, a:date, path)
+fun! awiwi#asset#insert_asset_link(date, name, ...) abort "{{{
+  let options = a:000->get(0, {})
+  let path = awiwi#util#relativize(awiwi#asset#get_asset_path(a:date, a:name))
+  let anchor = options->get('anchor', '')
+  if empty(anchor)
+    let link = printf('[asset %s, %s](%s)', a:name, a:date, path)
+  else
+    let link = printf('[asset %s: %s, %s](%s#%s)', a:name, anchor, a:date, path, anchor)
+  endif
   call awiwi#insert_link_here(link)
 endfun "}}}
 
 
-fun! s:get_asset_path(date, name) abort "{{{
+fun! awiwi#asset#get_asset_path(date, name) abort "{{{
   let [year, month, day] = split(a:date, '-')
   return awiwi#path#join(awiwi#get_asset_subpath(), year, month, day, a:name)
 endfun "}}}
@@ -197,7 +203,7 @@ endfun "}}}
 fun! awiwi#asset#open_asset_by_name(date, name, ...) abort "{{{
   let options = get(a:000, 0, {})
   let date = awiwi#date#parse_date(a:date)
-  let path = s:get_asset_path(date, a:name)
+  let path = awiwi#asset#get_asset_path(date, a:name)
   let dir = fnamemodify(path, ':h')
   if !filewritable(dir)
     call mkdir(dir, 'p')

@@ -16,7 +16,7 @@ let s:search_cmd = 'search'
 let s:serve_cmd = 'serve'
 let s:server_cmd = 'server'
 let s:redact_cmd = 'redact'
-let s:tasks_cmd = 'tasks'
+let s:tags_cmd = 'tags'
 let s:todo_cmd = 'todo'
 let s:store_session_cmd = 'save'
 let s:restore_session_cmd = 'restore'
@@ -56,20 +56,22 @@ let s:subcommands = [
       \ s:search_cmd,
       \ s:serve_cmd,
       \ s:server_cmd,
-      \ s:tasks_cmd,
+      \ s:tags_cmd,
       \ s:toc_cmd,
       \ s:todo_cmd,
       \ ]
 
-let s:tasks_all_cmd = 'all'
-let s:tasks_delegate_cmd = 'delegate'
-let s:tasks_due_cmd = 'due'
-let s:tasks_filter_cmd = 'filter'
-let s:tasks_urgent_cmd = 'urgent'
-let s:tasks_onhold_cmd = 'onhold'
-let s:tasks_question_cmd = 'question'
-let s:tasks_todo_cmd = 'todo'
-let s:tasks_incidents_cmd = 'incidents'
+let s:tags_all_cmd = 'all'
+let s:tags_due_cmd = 'due'
+let s:tags_filter_cmd = 'filter'
+let s:tags_urgent_cmd = 'urgent'
+let s:tags_onhold_cmd = 'onhold'
+let s:tags_question_cmd = 'question'
+let s:tags_todo_cmd = 'todo'
+let s:tags_incidents_cmd = 'incidents'
+let s:tags_issues_cmd = 'issues'
+let s:tags_bugs_cmd = 'bugs'
+
 
 let s:journal_create_file_cmd = '+create'
 let s:journal_new_window_cmd = '+new'
@@ -94,16 +96,17 @@ let s:journal_all_dim_window_cmds = [
       \ s:journal_width_window_cmd
       \ ]
 
-let s:tasks_subcommands = [
-      \ s:tasks_all_cmd,
-      \ s:tasks_delegate_cmd,
-      \ s:tasks_due_cmd,
-      \ s:tasks_filter_cmd,
-      \ s:tasks_urgent_cmd,
-      \ s:tasks_onhold_cmd,
-      \ s:tasks_question_cmd,
-      \ s:tasks_todo_cmd,
-      \ s:tasks_incidents_cmd
+let s:tags_subcommands = [
+      \ s:tags_all_cmd,
+      \ s:tags_due_cmd,
+      \ s:tags_filter_cmd,
+      \ s:tags_urgent_cmd,
+      \ s:tags_onhold_cmd,
+      \ s:tags_question_cmd,
+      \ s:tags_todo_cmd,
+      \ s:tags_incidents_cmd,
+      \ s:tags_issues_cmd,
+      \ s:tags_bugs_cmd
       \ ]
 
 let s:todo_inprogress_cmd = 'inprogress'
@@ -230,49 +233,104 @@ endfun "}}}
 
 
 fun! s:parse_file_and_options(args, ...) abort "{{{
-    if len(a:args) == 0 || len(a:args) > 3
-      echoerr printf('Awiwi journal: 1 to 3 arguments expected. got %d', len(a:args)-1)
-    endif
-    if a:0
-      let options = copy(a:1)
-    else
-      let options = {'position': 'auto', 'new_window': v:true, 'new_tab': v:false, 'create_dirs': v:false, 'bookmark': v:false}
-    endif
-    let file = ''
-    for arg in a:args
-      if arg == s:journal_create_file_cmd
-        let options.create_dirs = v:true
-      elseif index(s:journal_options_cmd, arg) > -1
-        if arg == s:journal_hnew_window_cmd
-          let options.position = "bottom"
-          let options.new_window = v:true
-        elseif arg == s:journal_vnew_window_cmd
-          let options.position = "right"
-          let options.new_window = v:true
-        elseif arg == s:journal_new_window_cmd
-          let options.position = 'auto'
-          let options.new_window = v:true
-        elseif arg == s:journal_same_window_cmd
-          let options.new_window = v:false
-        elseif arg == s:journal_new_tab_cmd
-          let options.new_window = v:false
-          let options.new_tab = v:true
-        elseif arg == s:bookmark_cmd
-          let options.bookmark = v:true
-        endif
-      elseif awiwi#str#startswith(arg, s:journal_height_window_cmd) || awiwi#str#startswith(arg, s:journal_width_window_cmd)
-        let options.height = str2nr(split(arg, '=')[-1])
-      else
-        let file = arg
+  if len(a:args) == 0 || len(a:args) > 3
+    echoerr printf('Awiwi journal: 1 to 3 arguments expected. got %d', len(a:args)-1)
+  endif
+  if a:0
+    let options = copy(a:1)
+  else
+    let options = {'position': 'auto', 'new_window': v:true, 'new_tab': v:false, 'create_dirs': v:false, 'bookmark': v:false}
+  endif
+  let file = ''
+  for arg in a:args
+    if arg =~# '^#'
+      let options.anchor = arg[1:]
+    elseif arg == s:journal_create_file_cmd
+      let options.create_dirs = v:true
+    elseif index(s:journal_options_cmd, arg) > -1
+      if arg == s:journal_hnew_window_cmd
+        let options.position = "bottom"
+        let options.new_window = v:true
+      elseif arg == s:journal_vnew_window_cmd
+        let options.position = "right"
+        let options.new_window = v:true
+      elseif arg == s:journal_new_window_cmd
+        let options.position = 'auto'
+        let options.new_window = v:true
+      elseif arg == s:journal_same_window_cmd
+        let options.new_window = v:false
+      elseif arg == s:journal_new_tab_cmd
+        let options.new_window = v:false
+        let options.new_tab = v:true
+      elseif arg == s:bookmark_cmd
+        let options.bookmark = v:true
       endif
-    endfor
-    if get(options, 'height') == 0 && awiwi#util#window_split_below()
-      let options.height = 20
+    elseif awiwi#str#startswith(arg, s:journal_height_window_cmd) || awiwi#str#startswith(arg, s:journal_width_window_cmd)
+      let options.height = str2nr(split(arg, '=')[-1])
+    else
+      let file = arg
     endif
-    if file == ''
-      echoerr 'Awiwi journal: missing file to open'
+  endfor
+  if get(options, 'height') == 0 && awiwi#util#window_split_below()
+    let options.height = 20
+  endif
+  if file == ''
+    echoerr 'Awiwi journal: missing file to open'
+  endif
+  return [file, options]
+endfun "}}}
+
+
+fun! s:get_file_for_command(args) abort "{{{
+  let cmd = ''
+  let file = ''
+  if len(a:args) < 2
+    return
+  endif
+
+  if a:args[1] == s:link_cmd
+    if len(a:args) == 2
+      return
     endif
-    return [file, options]
+    let cmd = a:args[2]
+    let rem = a:args[3:]
+  else
+    let cmd = a:args[1]
+    let rem = a:args[2:]
+  endif
+  for arg in rem
+    if arg !~# '^[-+#]'
+      let file = arg
+      break
+    endif
+  endfor
+  if empty(cmd)
+    return
+  endif
+  if cmd == s:recipe_cmd
+    return printf('%s/%s', awiwi#get_recipe_subpath(), file)
+  elseif cmd == s:asset_cmd
+    let [date, name] = file->split(':')
+    return awiwi#asset#get_asset_path(date, name)
+  elseif cmd == s:journal_cmd
+    return awiwi#get_journal_file_by_date(file)
+  else
+    return
+  endif
+endfun "}}}
+
+
+fun! s:get_headings_from_file(file) abort "{{{
+  return systemlist(['rg', '^#+ ', a:file])
+        \->map({_,v -> v->substitute('^#\+\s\+', '', '')})
+        \->map({_,v -> s:heading_to_html(v)})
+endfun "}}}
+
+
+fun! s:heading_to_html(heading) abort "{{{
+  return a:heading
+        \->substitute('[^-a-zA-Z0-9 ]', '', 'g')
+        \->substitute('\s\+', '-', 'g')
 endfun "}}}
 
 
@@ -283,14 +341,14 @@ fun! awiwi#cmd#get_completion(ArgLead, CmdLine, CursorPos) abort "{{{
   endif
   let args = split(a:CmdLine)
 
-  if args[1] == s:tasks_cmd && current_arg_pos >= 2
-    let matches = awiwi#util#match_subcommands(s:tasks_subcommands, a:ArgLead)
+  if args[1] == s:tags_cmd && current_arg_pos >= 2
+    let matches = awiwi#util#match_subcommands(s:tags_subcommands, a:ArgLead)
     if current_arg_pos == 2
       return matches
-    elseif args[2] == s:tasks_filter_cmd
+    elseif args[2] == s:tags_filter_cmd
       return []
     endif
-    let prev_cmds = uniq(args[2:current_arg_pos-1]) + [s:tasks_filter_cmd]
+    let prev_cmds = uniq(args[2:current_arg_pos-1]) + [s:tags_filter_cmd]
     return filter(matches, {_, v -> index(prev_cmds, v) == -1})
   elseif args[1] == s:journal_cmd || (args[1] == s:link_cmd && get(args, 2, '') == s:journal_cmd)
     let start = args[1] == s:journal_cmd ? 2 : 3
@@ -302,6 +360,13 @@ fun! awiwi#cmd#get_completion(ArgLead, CmdLine, CursorPos) abort "{{{
         call remove(submatches, todos_idx)
       endif
       call extend(submatches, ['todos', 'today', 'next', 'previous'], 0)
+    elseif args[1] == s:link_cmd && args->get(current_arg_pos, '') == '#'
+      let _file = s:get_file_for_command(args)
+      let headings = s:get_headings_from_file(_file)->map({_,v -> '#' .. v})
+      if !empty(headings) && headings[0] =~# '^#2[-0-9]\+\s*$'
+        call remove(headings, 0)
+      endif
+      return headings
     endif
     if args[1] == s:journal_cmd
       call s:insert_win_cmds(submatches, current_arg_pos, args[start:])
@@ -322,6 +387,9 @@ fun! awiwi#cmd#get_completion(ArgLead, CmdLine, CursorPos) abort "{{{
       call add(submatches, s:new_asset_cmd)
       call add(submatches, s:paste_asset_cmd)
       call extend(submatches, files)
+    elseif args[1] == s:link_cmd && args->get(current_arg_pos, '') == '#'
+      let _file = s:get_file_for_command(args)
+      return s:get_headings_from_file(_file)->map({_,v -> '#' .. v})
     endif
     if args[1] == s:asset_cmd
       call s:insert_win_cmds(submatches, current_arg_pos, args[start:])
@@ -332,6 +400,9 @@ fun! awiwi#cmd#get_completion(ArgLead, CmdLine, CursorPos) abort "{{{
     let submatches = []
     if s:need_to_insert_files(current_arg_pos, args[start:], start)
       call extend(submatches, s:get_all_recipe_files())
+    elseif args[1] == s:link_cmd && args->get(current_arg_pos, '') == '#'
+      let _file = s:get_file_for_command(args)
+      return s:get_headings_from_file(_file)->map({_,v -> '#' .. v})
     endif
     if args[1] == s:recipe_cmd
       call s:insert_win_cmds(submatches, current_arg_pos, args[start:])
@@ -407,9 +478,8 @@ fun! awiwi#cmd#run(...) abort "{{{
     endif
     let [date, options] = s:parse_file_and_options(a:000[1:], {'new_window': v:false})
     if a:1 == s:link_cmd
-      return awiwi#insert_journal_link(date)
+      return awiwi#insert_journal_link(date, options)
     " elseif options.bookmark
-
     else
       call awiwi#edit_journal(date, options)
     endif
@@ -457,7 +527,7 @@ fun! awiwi#cmd#run(...) abort "{{{
       let file = date_file_expr
     endif
     if a:1 == s:link_cmd
-      return awiwi#asset#insert_asset_link(date, file)
+      return awiwi#asset#insert_asset_link(date, file, options)
     else
       return awiwi#asset#open_asset_by_name(date, file, options)
     endif
@@ -484,10 +554,10 @@ fun! awiwi#cmd#run(...) abort "{{{
       let recipe_file = awiwi#path#join(awiwi#get_recipe_subpath(), recipe)
       call awiwi#open_file(recipe_file, options)
     else
-      call awiwi#insert_recipe_link(recipe)
+      call awiwi#insert_recipe_link(recipe, options)
       return
     endif
-  elseif a:1 == s:tasks_cmd
+  elseif a:1 == s:tags_cmd
     call fn#apply('awiwi#cmd#show_tasks', fn#spread(a:000[1:]))
   elseif a:1 == s:search_cmd
     call call(funcref('awiwi#fuzzy_search'), a:000[1:])
@@ -574,37 +644,39 @@ fun! awiwi#cmd#show_tasks(...) abort "{{{
   if a:0
     let args = a:000
   else
-    let args = [s:tasks_todo_cmd]
+    let args = [s:tags_todo_cmd]
   endif
 
-  if s:contains(args, s:tasks_urgent_cmd, s:tasks_all_cmd, s:tasks_todo_cmd)
+  if s:contains(args, s:tags_urgent_cmd, s:tags_all_cmd, s:tags_todo_cmd)
     let markers = [awiwi#get_markers('urgent')]
   else
     let markers = []
   endif
   let has_due = v:false
-  if s:contains(args, s:tasks_todo_cmd, s:tasks_all_cmd)
+  if s:contains(args, s:tags_todo_cmd, s:tags_all_cmd)
     call add(markers, awiwi#get_markers('todo'))
   endif
-  if s:contains(args, s:tasks_delegate_cmd, s:tasks_all_cmd)
-    let delegates = awiwi#get_markers('delegate')
-    call add(markers, printf('\(?(%s):?( \S+){0,2}\)?', delegates))
-  endif
-  if s:contains(args, s:tasks_due_cmd, s:tasks_all_cmd)
+  if s:contains(args, s:tags_due_cmd, s:tags_all_cmd)
     let due = awiwi#get_markers('due')
     call add(markers, printf('\(?(%s):?( \S+)*\)?', due))
     let has_due = v:true
   endif
-  if s:contains(args, s:tasks_onhold_cmd, s:tasks_all_cmd)
+  if s:contains(args, s:tags_onhold_cmd, s:tags_all_cmd)
     call add(markers, awiwi#get_markers('onhold'))
   endif
-  if s:contains(args, s:tasks_question_cmd, s:tasks_all_cmd)
+  if s:contains(args, s:tags_question_cmd, s:tags_all_cmd)
     call add(markers, awiwi#get_markers('question'))
   endif
-  if s:contains(args, s:tasks_incidents_cmd, s:tasks_all_cmd)
+  if s:contains(args, s:tags_incidents_cmd, s:tags_all_cmd)
     call add(markers, awiwi#get_markers('incident'))
   endif
-  if args[0] == s:tasks_filter_cmd
+  if s:contains(args, s:tags_issues_cmd, s:tags_all_cmd)
+    call add(markers, awiwi#get_markers('issue'))
+  endif
+  if s:contains(args, s:tags_bugs_cmd, s:tags_all_cmd)
+    call add(markers, awiwi#get_markers('bug'))
+  endif
+  if args[0] == s:tags_filter_cmd
     if a:0 == 1
       throw s:AwiwiCmdError('missing argument for "Awiwi tasks filter"')
     endif
