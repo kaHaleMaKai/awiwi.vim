@@ -23,7 +23,10 @@ from flask import (
 )
 from functools import lru_cache, wraps
 import itertools
+from xml.etree import ElementTree as etree
 import markdown
+
+markdown.util.etree = etree
 from markdown.extensions.fenced_code import FencedCodeExtension
 from markdown.extensions.tables import TableExtension
 from markdown.extensions.codehilite import CodeHiliteExtension
@@ -48,7 +51,7 @@ from threading import Lock
 import subprocess
 
 
-sys.path.append("/home/lars/venvs/qtile/lib/python3.10/site-packages")
+sys.path.append("/home/lars/venvs/qtile/lib/python3.11/site-packages")
 sys.path.append("/home/lars/.config/qtile")
 # checkclock_path = Path("~/.config/qtile/widgets").expanduser().absolute()
 # sys.path.insert(1, str(checkclock_path))

@@ -61,6 +61,7 @@ let s:delegate_markers = ['@@']
 let s:question_markers = ['QUESTION', 'q?', 'Q?']
 let s:due_markers = ['DUE', 'DUE TO', 'UNTIL', '@until', '@due']
 let s:incident_markers = ['@incident']
+let s:change_markers = ['@change']
 let s:issue_markers = ['@issue']
 let s:bug_markers = ['@bug']
 

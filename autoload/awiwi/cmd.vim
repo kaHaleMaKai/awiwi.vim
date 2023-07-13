@@ -23,6 +23,7 @@ let s:restore_session_cmd = 'restore'
 let s:meta_cmd = 'meta'
 let s:due_cmd = 'due'
 let s:toc_cmd = 'toc'
+let s:ask_cmd = 'ask'
 
 let s:new_asset_cmd = 'create'
 let s:empty_asset_cmd = 'empty'
@@ -69,6 +70,7 @@ let s:tags_onhold_cmd = 'onhold'
 let s:tags_question_cmd = 'question'
 let s:tags_todo_cmd = 'todo'
 let s:tags_incidents_cmd = 'incidents'
+let s:tags_changes_cmd = 'changes'
 let s:tags_issues_cmd = 'issues'
 let s:tags_bugs_cmd = 'bugs'
 
@@ -105,6 +107,7 @@ let s:tags_subcommands = [
       \ s:tags_question_cmd,
       \ s:tags_todo_cmd,
       \ s:tags_incidents_cmd,
+      \ s:tags_changes_cmd,
       \ s:tags_issues_cmd,
       \ s:tags_bugs_cmd
       \ ]
@@ -669,6 +672,9 @@ fun! awiwi#cmd#show_tasks(...) abort "{{{
   endif
   if s:contains(args, s:tags_incidents_cmd, s:tags_all_cmd)
     call add(markers, awiwi#get_markers('incident'))
+  endif
+  if s:contains(args, s:tags_changes_cmd, s:tags_all_cmd)
+    call add(markers, awiwi#get_markers('change'))
   endif
   if s:contains(args, s:tags_issues_cmd, s:tags_all_cmd)
     call add(markers, awiwi#get_markers('issue'))

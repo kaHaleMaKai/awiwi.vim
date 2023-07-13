@@ -99,6 +99,8 @@ const wrapInSection = (start) => {
   const cls = needsMainPage(start.tagName) ? "page" : "subpage";
   const nodeExpr = `section.${cls}`;
   const section = createNode(nodeExpr);
+  const div = createNode("div.section");
+  section.appendChild(div);
   const nodes = [];
   nodes.push(start);
   let sib = start.nextElementSibling;
@@ -112,7 +114,7 @@ const wrapInSection = (start) => {
     sib = sib.nextElementSibling;
   }
   start.parentNode.insertBefore(section, start);
-  nodes.forEach(n => section.appendChild(n));
+  nodes.forEach(n => div.appendChild(n));
   return section;
 }
 

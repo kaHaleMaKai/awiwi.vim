@@ -86,6 +86,7 @@ syn region awiwiRedacted
 syn match awiwiRedactedTag /\C\!!redacted/ containedin=awiwiRedacted contained
 syn match awiwiRedactedCause /[[:space:]]\+.*/ containedin=awiwiRedacted contained
 
+call s:tagInHeader('awiwiChange', '@change', 'awiwiUrgent')
 call s:tagInHeader('awiwiIncident', '@incident', 'awiwiUrgent')
 call s:tagInHeader('awiwiIssue', '@issue', 'awiwiUrgent')
 call s:tagInHeader('awiwiBug', '@bug', 'awiwiUrgent')
