@@ -6,3 +6,4 @@ kbdextension
 markdown-del-ins
 pygments
 passlib
+md-mermaid

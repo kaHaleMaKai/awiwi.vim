@@ -4,7 +4,9 @@
   <head>
     <script src="/static/js/common.js"></script>
     <script src="/static/js/custom-reveal.js"></script>
+    <script src="/static/js/sortable-tables.js"></script>
     <link rel="stylesheet" href="/static/css/common.css" />
+    <link rel="stylesheet" href="/static/css/sortable-tables.css" />
     <link rel="stylesheet" href="/static/css/bootstrap-grid.min.css" />
     <link rel="stylesheet" href="/static/css/bootstrap-grid.min.css.map" />
     <link id="{id}" rel="stylesheet" href="/static/css/solarized.css" />
@@ -16,7 +18,7 @@
     <div class="top-bar">
 
       <label class="switch">
-        <input type="checkbox" id="mode-switcher-input" {{ 'checked="true"' if theme_mode == "dark" else '' }} onclick="themeChanger()" />
+        <input type="checkbox" id="mode-switcher-input" {{ 'checked="true"' if theme_mode == "dark" else '' }} />
         <div class="slider round"></div>
       </label>
 
@@ -74,7 +76,10 @@
           <img class="arrow-img down-arrow" src="/static/img/down-arrow.png" />
         </div>
 
-
+    <script type="module">
+      import mermaid from '/static/js/mermaid.js';
+      mermaid.initialize({ startOnLoad: true, theme: getMermaidTheme() });
+    </script>
   </body>
 
 </html>

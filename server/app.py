@@ -38,6 +38,7 @@ from markdown.extensions.sane_lists import SaneListExtension
 from markdown.extensions.toc import TocExtension
 from markdown.extensions.attr_list import AttrListExtension
 from markdown_strikethrough.extension import StrikethroughExtension
+from md_mermaid import MermaidExtension
 from kbdextension import KbdExtension
 from markdown_del_ins import DelInsExtension
 from markdown_blockdiag.extension import BlockdiagExtension
@@ -78,13 +79,14 @@ md = markdown.Markdown(
         StrikethroughExtension(),
         TableExtension(),
         AttrListExtension(),
+        MermaidExtension(initialize=False),
     ],
 )
 
 DOWNLOAD_EXTENSIONS = [".ods", ".odt"]
 LEXER_MAP = {"pgsql": "sql"}
 
-THEME_MODE_KEY = "theme-mode"
+THEME_MODE_KEY = "awiwi.theme-mode"
 DEFAULT_THEME_MODE = "light"
 SERVER_ROOT = Path(os.path.abspath(os.path.dirname(__file__)))
 CONTENT_ROOT = Path(os.environ.get("FLASK_ROOT", "."))
@@ -94,6 +96,8 @@ FLASK_PORT = os.environ.get("FLASK_PORT")
 AUTH_CACHE_FILE = CONTENT_ROOT / "auth"
 FLASK_SECRET_FILE = CONTENT_ROOT / "flask-secret"
 
+TAG_PATTERN = re.compile(r"@(?P<type>bug|change|incident|issue)\b")
+PERSON_TAG_PATTERN = re.compile(r"@(@[^\s,;.)}\]])")
 
 app = Flask(
     __name__,
@@ -217,6 +221,8 @@ def filter_body(lines: list, offset: int):
                 f'{m.group(1)}<input type="checkbox" id="checkbox-line-{line_no}" {checked} data-line-nr="{line_no}" '
                 + f'class="awiwi-checkbox" data-hash="{hash}"> <label for="checkbox-line-{line_no}"><span>{m.group(3)}</span></label>'
             )
+        line = TAG_PATTERN.sub(r'<span class="awiwi-\1">\g<0></span>', line)
+        line = PERSON_TAG_PATTERN.sub(r'<span class="awiwi-mention">\1</span>', line)
         yield replace_date_ordinal(line).replace("\n", "")
 
 

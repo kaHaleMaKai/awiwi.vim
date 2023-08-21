@@ -39,7 +39,7 @@ endfun "}}}
 fun! awiwi#asset#create_asset_here_if_not_exists(type, ...) abort "{{{
   let opts = get(a:000, 0, {})
   if a:type == awiwi#cmd#get_cmd('paste_asset')
-    let opts.suffix = '.jpg'
+    let opts.suffix = '.png'
   endif
   let [name, filename, link] = call('awiwi#asset#create_asset_link', [opts])
   let path = awiwi#asset#get_asset_path(awiwi#date#get_own_date(), filename)

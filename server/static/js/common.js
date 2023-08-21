@@ -1,3 +1,6 @@
+const THEME_COOKIE_KEY = "awiwi.theme-mode";
+let _theme = 'light';
+
 const _ = (expr) => {
   if (typeof expr === "string") {
     return document.querySelector(expr);
@@ -76,17 +79,41 @@ let createCookie = (name, value) => {
     return name + "=" + value + expires + "; path=/";
 }
 
-const activateColorSwitching = () => {
-  let modeSwitcher = document.getElementById('mode-switcher-input');
+const getCookie = (key, defaultValue) => {
+  const cookie = document.cookie?.split("; ")
+    .find(row => row.trim().startsWith(`${key}=`));
+  if (!cookie?.length) {
+      return defaultValue;
+  }
+  return cookie.trim().substr(key.length + 1);
+}
 
-  if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+const setTheme = (theme) => {
+  const isDark = theme === 'dark';
+  const modeSwitcher = _("#mode-switcher-input");
+  html.setAttribute('data-theme', theme);
+  document.cookie = createCookie(THEME_COOKIE_KEY, theme);
+  modeSwitcher.checked = isDark;
+  _theme = theme;
+}
+
+const getTheme = () => html.getAttribute('data-theme', 'light');
+
+const getMermaidTheme = () => getTheme() === 'light' ? 'neutral' : 'dark';
+
+const activateColorSwitching = () => {
+  const modeSwitcher = _("#mode-switcher-input");
+  const cookieTheme = getCookie(THEME_COOKIE_KEY);
+
+  if (cookieTheme !== "light" && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
       html.classList.add('color-theme-in-transition');
       window.setTimeout(() => {
         document.documentElement.classList.remove('color-theme-in-transition')
       }, 1000);
-      html.setAttribute('data-theme', 'dark');
-      document.cookie = createCookie('theme-mode', 'dark');
-      modeSwitcher.checked = true;
+      setTheme("dark");
+  }
+  else {
+      setTheme("light");
   }
 
   window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
@@ -95,39 +122,26 @@ const activateColorSwitching = () => {
         document.documentElement.classList.remove('color-theme-in-transition')
       }, 1000);
 
-      if (e.matches) {
-          html.setAttribute('data-theme', 'dark');
-          document.cookie = createCookie('theme-mode', 'dark');
-          modeSwitcher.checked = true;
+      let theme = e.matches ? 'dark' : 'light';
+      setTheme(theme);
       }
-      else {
-          html.setAttribute('data-theme', 'light');
-          document.cookie = createCookie('theme-mode', 'light');
-          modeSwitcher.checked = false;
-      }
-  });
+  );
 };
 
 
-let themeChanger = () => {
+const themeChanger = () => {
 
-    let html = document.getElementsByTagName('html')[0];
+    const html = document.getElementsByTagName('html')[0];
     html.classList.add('color-theme-in-transition')
 
-    let theme = html.getAttribute('data-theme');
+    const theme = html.getAttribute('data-theme');
 
     window.setTimeout(() => {
       document.documentElement.classList.remove('color-theme-in-transition')
     }, 1000);
 
-    if (theme === 'dark') {
-        html.removeAttribute('data-theme');
-        document.cookie = createCookie('theme-mode', 'light');
-    }
-    else {
-        html.setAttribute('data-theme', 'dark');
-        document.cookie = createCookie('theme-mode', 'dark');
-    }
+    const newTheme = theme === 'dark' ? 'light' : 'dark';
+    setTheme(newTheme);
 }
 
 const checkboxHandler = (e) => {
@@ -172,10 +186,19 @@ const addParentClasses = () => {
   })
 }
 
+
+const makeTablesSortable = () => {
+  __("table").forEach(el => {
+    el.classList.add("sortable");
+  });
+};
+
 const onloadHandler = () => {
+  _("#mode-switcher-input + div").onclick = themeChanger;
   activateColorSwitching();
   attachCheckboxes();
   addParentClasses();
+  makeTablesSortable();
 }
 
 const downKeys = new Set();
@@ -205,4 +228,4 @@ document.addEventListener('keyup', (e) => {
     case "ShiftLeft":
       downKeys.delete(e.code);
   }
-})
+});

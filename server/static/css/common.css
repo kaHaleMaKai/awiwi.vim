@@ -4,12 +4,12 @@
 
 html {
   font-size: 100%;
-  width: 100VHW;
+  width: 100VW;
   height: 100VH;
   overflow-y: scroll;
 
-  -webkit-text-size-adjust: 100%;
-  -ms-text-size-adjust: 100%;
+  /* -webkit-text-size-adjust: 100%; */
+  /* -ms-text-size-adjust: 100%; */
 
   --arrow-size: 3em;
   --arrow-color-inversion: 0%;
@@ -520,9 +520,9 @@ table {
 
 table:hover {
   --table-border: var(--theme-switch-color);
-  min-width: 80%;
-  line-height: 3em;
-  transition: 0.8s;
+  /* min-width: 80%; */
+  /* line-height: 3em; */
+  transition: 0.07s;
 }
 
 table th {
@@ -560,7 +560,9 @@ table tr:nth-child(even) {
   transition: 0.07s;
 }
 
-table tr:hover, table tr:nth-child(even):hover, table tr:hover th {
+table tr:hover,
+table tr:nth-child(even):hover,
+table tr:hover th {
   color: var(--table-row-hover-color);
   background-color: var(--table-row-hover-bg);
   transition: 0.07s;
@@ -574,7 +576,7 @@ section.presenting tr {
   line-height: 1.2em;
 }
 
-section.presenting table:hover {
+section.presenting /*table:hover*/ {
   min-width: 50%;
 }
 
@@ -692,7 +694,7 @@ div.aside {
 
 div.article {
   float: left;
-  max-width: 72%;
+  width: 72%;
   padding-bottom: 4em;
 }
 
@@ -1070,6 +1072,19 @@ section.fade-down {
   transform: translate(-50%, +100VW);
 }
 
+span.awiwi-bug,
+span.awiwi-change,
+span.awiwi-incident,
+span.awiwi-issue
+{
+  color: #df623c;
+  font-style: italic, ;
+  font-weight: bold;
+  border: 2px solid;
+  padding: 0.18em;
+  border-radius: 6px;
+}
+
 .no-overflow {
   overflow: hidden;
   max-width: 100%;
@@ -1197,5 +1212,31 @@ div.section {
   top: 50%;
   left: 50%;
   margin-right: -50%;
-  transform: translate(-50%, -50%) }
+  transform: translate(-50%, -50%)
+}
+
+rect.rect {
+  /* stroke: #ccccff; */
+  /* fill: #ececff; */
+  stroke-width: 0.2em;
+  stroke-dasharray: 10;
+  stroke: #909090;
+  stroke-opacity: 0.3;
+  paint-order: stroke;
+}
+
+rect.rect + text.text {
+  font-size: 140% !important;
+}
+
+rect.note {
+  fill: #a0a0a0 !important;
+}
+
+rect.actor {
+  fill: #e0e0e0 !important;
+}
+
+text.actor {
+  font-size: 110% !important;
 }
