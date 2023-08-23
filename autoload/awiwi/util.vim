@@ -250,10 +250,12 @@ fun! awiwi#util#determine_link_type(link) abort "{{{
     let link.type = 'journal'
   endif
   if !empty(link.anchor)
-    if index(['browser', 'mail', 'external'], link.type) > -1 && !empty(link.anchor)
+    if index(['browser', 'mail', 'external'], link.type) > -1
       let link.target = printf('%s#%s', link.target, link.anchor)
     else
-      let link.anchor = '^#\\+\\s\\+' .. substitute('-', '.', '', 'g')
+      let link.anchor = '.*' .. (link.anchor)
+            \->substitute('^#\\+\\s\\+\|[^a-zA-Z0-9_]', '', 'g')
+            \->substitute('.', '&.*', 'g')
     endif
   endif
   return link

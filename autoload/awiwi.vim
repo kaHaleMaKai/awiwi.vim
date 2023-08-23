@@ -310,7 +310,7 @@ fun! awiwi#open_file(file, options) abort "{{{
   let anchor = a:options->get('anchor', '')
   let jump_to_last_line = a:options->get('last_line', v:false)
   if !empty(anchor)
-    let jump_mod = printf('+/%s', anchor)
+    let jump_mod = printf('+/\\c%s', anchor)
   elseif jump_to_last_line
     let jump_mod = '+'
   else

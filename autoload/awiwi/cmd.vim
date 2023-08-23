@@ -325,15 +325,13 @@ endfun "}}}
 
 fun! s:get_headings_from_file(file) abort "{{{
   return systemlist(['rg', '^#+ ', a:file])
-        \->map({_,v -> v->substitute('^#\+\s\+', '', '')})
-        \->map({_,v -> s:heading_to_html(v)})
-endfun "}}}
-
-
-fun! s:heading_to_html(heading) abort "{{{
-  return a:heading
-        \->substitute('[^-a-zA-Z0-9 ]', '', 'g')
-        \->substitute('\s\+', '-', 'g')
+        \->map({_,v -> v
+        \  ->tolower()}
+        \  ->substitute('^#\+\s\+', '', ''))
+        \  ->substitute('[^-a-zA-Z0-9 ]', '', 'g')
+        \  ->substitute('\s\+', '-', 'g')
+        \  ->substitute('/', '', 'g')
+        \})
 endfun "}}}
 
 
@@ -366,7 +364,7 @@ fun! awiwi#cmd#get_completion(ArgLead, CmdLine, CursorPos) abort "{{{
     elseif args[1] == s:link_cmd && args->get(current_arg_pos, '') == '#'
       let _file = s:get_file_for_command(args)
       let headings = s:get_headings_from_file(_file)->map({_,v -> '#' .. v})
-      if !empty(headings) && headings[0] =~# '^#2[-0-9]\+\s*$'
+      if !empty(headings) && headings[0] =~# '^#\s\+2[-0-9]\+\s*$'
         call remove(headings, 0)
       endif
       return headings
