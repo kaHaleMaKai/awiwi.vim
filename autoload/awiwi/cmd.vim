@@ -326,8 +326,8 @@ endfun "}}}
 fun! s:get_headings_from_file(file) abort "{{{
   return systemlist(['rg', '^#+ ', a:file])
         \->map({_,v -> v
-        \  ->tolower()}
-        \  ->substitute('^#\+\s\+', '', ''))
+        \  ->tolower()
+        \  ->substitute('^#\+\s\+', '', '')
         \  ->substitute('[^-a-zA-Z0-9 ]', '', 'g')
         \  ->substitute('\s\+', '-', 'g')
         \  ->substitute('/', '', 'g')
