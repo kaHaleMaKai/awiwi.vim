@@ -8,7 +8,7 @@ import threading
 import atexit
 import mimetypes
 import hashlib
-from typing import Callable, Optional, Union, Tuple
+from typing import Callable, Optional, Union, Tuple, Iterable
 from pathlib import Path
 from flask import (
     Flask,
@@ -38,6 +38,7 @@ from markdown.extensions.sane_lists import SaneListExtension
 from markdown.extensions.toc import TocExtension
 from markdown.extensions.attr_list import AttrListExtension
 from markdown_strikethrough.extension import StrikethroughExtension
+from nomnoml_extension import NomnomlExtension
 from md_mermaid import MermaidExtension
 from kbdextension import KbdExtension
 from markdown_del_ins import DelInsExtension
@@ -80,6 +81,7 @@ md = markdown.Markdown(
         TableExtension(),
         AttrListExtension(),
         MermaidExtension(initialize=False),
+        NomnomlExtension(),
     ],
 )
 
@@ -186,7 +188,7 @@ def secured_route(path: str, methods=("GET",)):
     return inner
 
 
-def filter_body(lines: list, offset: int):
+def filter_body(lines: Iterable[str], offset: int) -> Iterable[str]:
     redaction_pattern = "!!redacted"
     hide = False
     # we only have h1…h6 – using 7 is safe here
@@ -259,7 +261,17 @@ def format_markdown(file, template, add_toc=True, title=None, **kwargs):
         md_text = "\n[TOC]\n" + "\n".join(body)
     else:
         md_text = "\n".join(body)
+
+    iter = re.finditer("[^\x00-\x7F]", md_text)
+    matches = {m.start(): m.group() for m in iter}
+    for start, char in reversed(sorted(matches.items())):
+        md_text = md_text[:start] + f";match({start});" + md_text[start + 1 :]
     html = md.convert(md_text)
+    for m in re.finditer(r";match\(([0-9]+)\);", html):
+        id = int(m.groups()[0])
+        char = matches[id]
+        html = re.sub(f";match\\({id}\\);", char, html)
+
     toc = []
     extracing_toc = False
 
@@ -297,7 +309,10 @@ def find_min_max_paths(path: Path, max_depth: int):
             for f in sorted(os.listdir(p))
             if not f.startswith(".") and predicate(p / f)
         ]
-        child = p / fn(entries)
+        try:
+            child = p / fn(entries)
+        except ValueError:
+            return None
         return fun(child, fn, max_depth, level + 1)
 
     return fun(path, min, max_depth), fun(path, max, max_depth)
@@ -317,12 +332,17 @@ def get_adjacent_journal_file(current_date: datetime.date, diff: int):
 
 def get_prev_and_next_journal(path: Path) -> Tuple[Optional[str], Optional[str]]:
     journal_root = Path(CONTENT_ROOT, "journal")
-    paths = find_min_max_paths(journal_root, 3)
-    min_, max_ = [datetime.date.fromisoformat(d.stem.replace(".md", "")) for d in paths]
-    current_date = datetime.date.fromisoformat(path.stem.replace(".md", ""))
-    lo_diff, hi_diff = (min_ - current_date).days, (max_ - current_date).days
-    prev = get_adjacent_journal_file(current_date, lo_diff)
-    next = get_adjacent_journal_file(current_date, hi_diff)
+    try:
+        paths = find_min_max_paths(journal_root, 3)
+        min_, max_ = [
+            datetime.date.fromisoformat(d.stem.replace(".md", "")) for d in paths
+        ]
+        current_date = datetime.date.fromisoformat(path.stem.replace(".md", ""))
+        lo_diff, hi_diff = (min_ - current_date).days, (max_ - current_date).days
+        prev = get_adjacent_journal_file(current_date, lo_diff)
+        next = get_adjacent_journal_file(current_date, hi_diff)
+    except Exception:
+        return None, None
     return prev, next
 
 
