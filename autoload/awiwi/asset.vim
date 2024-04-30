@@ -219,12 +219,28 @@ fun! awiwi#asset#open_asset_sink(expr) abort "{{{
 endfun "}}}
 
 
+fun! s:compare_asset_files(f1, f2, reverse) abort
+  let less = a:reverse ? -1 : 1
+  let more = a:reverse ? 1 : -1
+  if a:f1.date > a:f2.date
+    return less
+  elseif a:f1.date < a:f2.date
+    return more
+  endif
+  if a:f1.name > a:f2.name
+    return less
+  elseif a:f1.name < a:f2.name
+    return more
+  endif
+  return 0
+endfun
+
 fun! awiwi#asset#get_all_asset_files() abort "{{{
-    return map(
-          \  map(
-          \    filter(
-          \      glob(awiwi#path#join(g:awiwi_home, 'assets', '2*', '**'), v:false, v:true),
-          \      {_, v -> filereadable(v)}),
-          \    {_, v -> split(v, '/')[-4:]}),
-          \  {_, v -> {'date': join(v[:2], '-'), 'name': v[-1]}})
+
+  return glob(awiwi#path#join(g:awiwi_home, 'assets', '2*', '**'), v:false, v:true)
+        \->filter({_, v -> filereadable(v)})
+        \->map({_, v -> split(v, '/')[-4:]})
+        \->map({_, v -> {'date': join(v[:2], '-'), 'name': v[-1]}})
+        \->copy()
+        \->sort({f1, f2 -> s:compare_asset_files(f1, f2, v:false)})
 endfun "}}}

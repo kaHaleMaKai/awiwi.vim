@@ -24,6 +24,7 @@ let s:meta_cmd = 'meta'
 let s:due_cmd = 'due'
 let s:toc_cmd = 'toc'
 let s:ask_cmd = 'ask'
+let s:export_cmd = 'export'
 
 let s:new_asset_cmd = 'create'
 let s:empty_asset_cmd = 'empty'
@@ -40,10 +41,10 @@ let s:meta_delete_cmd = 'delete'
 
 let s:subcommands = [
       \ s:activate_cmd,
-      \ s:bookmark_cmd,
       \ s:continuation_cmd,
       \ s:due_cmd,
       \ s:deactivate_cmd,
+      \ s:export_cmd,
       \ s:journal_cmd,
       \ s:entry_cmd,
       \ s:asset_cmd,
@@ -484,6 +485,8 @@ fun! awiwi#cmd#run(...) abort "{{{
     else
       call awiwi#edit_journal(date, options)
     endif
+  elseif a:1 == s:export_cmd
+    call awiwi#cmd#export_drawio_diagram()
   elseif a:1 == s:continuation_cmd
     call awiwi#insert_and_open_continuation()
   elseif a:1 == s:activate_cmd
@@ -515,6 +518,7 @@ fun! awiwi#cmd#run(...) abort "{{{
         let args = [s:empty_asset_cmd, {'suffix': '.md'}]
         call extend(args, a:000[2:])
         let filename = call('awiwi#asset#create_asset_here_if_not_exists', args)
+        write
         return awiwi#asset#open_asset(filename, {'new_window': v:true})
       endif
     endif
@@ -700,3 +704,77 @@ fun! awiwi#cmd#show_tasks(...) abort "{{{
   call fzf#vim#grep(join(rg_cmd, ' '), 1, with_preview, 0)
 
 endfun "}}}
+
+
+fun! s:send_exit_msg(job_id, rc, event) abort "{{{
+  let job_data = s:job_data[a:job_id]
+  let output_file = job_data.output
+  let errors = job_data.errors
+  if empty(errors)
+    let msg = "converted successfully to pdf ✔\n\n(filename copied to clipboard)"
+    let level = luaeval('vim.log.levels.INFO')
+    let opts = {'timeout': 1000}
+    call nvim_notify(msg, level, opts)
+    let @+ = output_file
+  else
+    let msg = printf('could not convert to pdf ✖%s%s', "\n", errors->join("\n"))
+    let level = luaeval('vim.log.levels.ERROR')
+    call nvim_notify(msg, level, {})
+  endif
+  unlet s:job_data[a:job_id]
+endfun
+
+
+let s:job_data = {}
+
+fun! s:on_stderr(job_id, data, event) abort
+  let errors = []
+  for line in a:data
+    if stridx(line, 'object_proxy.cc') > -1
+      continue
+    elseif stridx(line, 'Error') > -1
+      call add(errors, line)
+    endif
+  endfor
+  if !empty(errors)
+    call extend(s:job_errors[a:job_id].errors, errors)
+  endif
+endfun
+
+fun! awiwi#cmd#export_drawio_diagram(...) abort
+  if a:0
+    let input_file = a:1
+  else
+    let line = getline('.')
+    let m = matchstr(line, '(\zs[^)]*\.drawio\ze)')
+    if !empty(m)
+      let input_file = m
+    else
+      echoerr 'No drawio filename specified as input, nor found in the current line'
+      return v:false
+    endif
+  endif
+  if stridx(input_file, '/assets/' ) > -1
+    let input_file = input_file->substitute('^.*/\zeassets/', '', '')
+  endif
+  let name = fnamemodify(input_file, ':t:r')
+  let default = printf('/tmp/%s.pdf', name)
+  let output_file = awiwi#util#input('output: ', {'default': default })
+  if empty(output_file)
+    echoerr 'No output file given.'
+    return 1
+  endif
+  let cmd = ['drawio', '--export', '--output', output_file, '--crop', '--all-pages', input_file]
+  let job_id = jobstart(cmd, {
+        \ 'on_stderr': {j,d,e -> s:on_stderr(j, d, e)},
+        \ 'on_exit': {j,d,e -> s:send_exit_msg(j, d, e)}
+        \ })
+  let s:job_data[job_id] = {'output': output_file, 'errors': []}
+
+  if job_id == 0
+    echoerr printf('[ERROR] could not convert file to pdf. reason: bad arguments %s', markup_language, cmd)
+  elseif job_id == -1
+    echoerr printf('[ERROR] could not convert file to pdf. reason: drawio is not executable')
+  endif
+
+endfun
