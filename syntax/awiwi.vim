@@ -3,7 +3,7 @@ if get(b:, 'current_syntax', '') ==# 'awiwi'
 endif
 
 unlet! b:current_syntax
-runtime! syntax/markdown.vim
+"runtime! syntax/markdown.vim
 
 let b:current_syntax = 'awiwi'
 

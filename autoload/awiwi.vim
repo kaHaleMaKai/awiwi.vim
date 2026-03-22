@@ -657,7 +657,9 @@ fun! awiwi#open_link(options, ...) abort "{{{
     let date = join(split(fnamemodify(link.target, ':h:t'), '-'), '/')
     let file = fnamemodify(link.target, ':t')
     let dest = awiwi#path#join(g:awiwi_home, 'assets', date, file)
-    call jobstart(['xdg-open', dest])
+    let img_open_cmd = get(g:, 'awiwi_image_opener', ['xdg-open'])->copy()
+    call add(img_open_cmd, dest)
+    call jobstart(img_open_cmd)
   else
     echoerr printf('cannot open unknown link type "%s"', link.type)
   endif
