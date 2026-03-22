@@ -53,7 +53,7 @@ from threading import Lock
 import subprocess
 
 
-sys.path.append("/home/lars/venvs/qtile/lib/python3.11/site-packages")
+sys.path.append("/home/lars/venvs/qtile/lib/python3.12/site-packages")
 sys.path.append("/home/lars/.config/qtile")
 # checkclock_path = Path("~/.config/qtile/widgets").expanduser().absolute()
 # sys.path.insert(1, str(checkclock_path))
@@ -262,7 +262,7 @@ def format_markdown(file, template, add_toc=True, title=None, **kwargs):
     else:
         md_text = "\n".join(body)
 
-    iter = re.finditer("[^\x00-\x7F]", md_text)
+    iter = re.finditer("[^\x00-\x7f]", md_text)
     matches = {m.start(): m.group() for m in iter}
     for start, char in reversed(sorted(matches.items())):
         md_text = md_text[:start] + f";match({start});" + md_text[start + 1 :]
@@ -883,7 +883,7 @@ def update_checkbox_in_file(path: Path, line_nr: int, check: bool, hash: str) ->
             line = line[:-1]
         if hash != (this_hash := hash_line(line)):
             raise ValueError(f"hashes don't match. exp: '{this_hash}. got: '{hash}'")
-        m = re.match("(\s*\* \[)([ x])", line)
+        m = re.match(r"(\s*\* \[)([ x])", line)
         is_checked = m.group(2) == "x"
         if is_checked == check:
             raise ValueError(
