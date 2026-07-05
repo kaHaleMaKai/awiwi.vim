@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+# Knowledge-base: generate derived docs, then gate hand-authored docs, then (optional) QA.
+set -uo pipefail
+
+repo_root="$(git rev-parse --show-toplevel)"
+
+# ── Phase 1: regenerate derived docs (auto-fix, never blocks) ───
+# Some knowledge layers are DETERMINISTICALLY DERIVABLE from the code (a structural
+# index, an API table, a CSS/class index, generated reference docs). Don't gate those —
+# REGENERATE and re-stage them so they can never drift. Wire your generators here; each
+# should run only when its source is staged, write its doc, and `git add` it. The gate
+# below (Phase 2) then sees the fresh doc. NEVER list a generated doc in rules.tsv.
+#
+# staged="$(git diff --cached --name-only)"
+# if printf '%s\n' "$staged" | grep -qE '^src/.*\.(py|ts|go|rs)$'; then
+#   <your-index-generator> && git add docs/overview/INDEX-or-ARCHITECTURE.md
+# fi
+# if printf '%s\n' "$staged" | grep -qE '^src/.*\.css$'; then
+#   <your-css-index-generator> && git add docs/css-index.md
+# fi
+# (No generators wired by default — this phase is a no-op until you add yours.)
+
+# ── Phase 2: gate hand-authored knowledge layers ────────────────
+# A code change must move at least one knowledge layer it provably invalidates
+# (contract: .claude/kb/rules.tsv, gate: scripts/kb-detect.sh).
+# Override for genuinely knowledge-neutral changes: DOCS_OK=1 git commit …
+if [ "${DOCS_OK:-0}" != "1" ]; then
+  if ! "$repo_root/scripts/kb-detect.sh"; then
+    # Optional self-healing pass (disabled unless KB_AUTOUPDATE=1, and
+    # recursion-guarded). It re-runs the detector and propagates its verdict.
+    "$repo_root/scripts/kb-update.sh" || true
+    if ! "$repo_root/scripts/kb-detect.sh"; then
+      echo ""
+      echo "pre-commit: knowledge layers are stale (see violations above)."
+      echo "Fix it by one of:"
+      echo "  • update the listed layer file(s) and stage them, or"
+      echo "  • run the kb-curator subagent to refresh them, or"
+      echo "  • DOCS_OK=1 git commit … for a genuinely knowledge-neutral change."
+      exit 1
+    fi
+  fi
+fi
+
+# ── project QA (optional) ───────────────────────────────────────
+# If the project ships a QA gate, run it as the final pre-commit step. Otherwise
+# this hook is still useful purely as the knowledge-base freshness gate.
+if [ -x "$repo_root/scripts/qa.sh" ]; then
+  exec "$repo_root/scripts/qa.sh"
+fi
+
+exit 0

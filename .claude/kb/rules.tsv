@@ -1,0 +1,79 @@
+# Knowledge-base detection rules — the machine-readable freshness contract.
+# Consumed by scripts/kb-detect.sh (the pre-commit gate) and the kb-curator agent.
+#
+# ── Format ──────────────────────────────────────────────────────────────────
+# Three TAB-separated columns. Lines starting with # and blank lines are ignored.
+#   1. PATTERN       extended-regex (ERE) matched against each STAGED file path
+#                    (git diff --cached --name-only)
+#   2. REQUIRED_ANY  comma-separated list of knowledge-layer files; if PATTERN matches
+#                    any staged path, AT LEAST ONE of these must ALSO be staged, else
+#                    it is a violation (a bug)
+#   3. RATIONALE     short human reason, shown by kb-detect on violation and used by
+#                    the kb-curator agent
+#
+# ── Matching semantics (READ THIS before editing) ───────────────────────────
+# - PATTERN is matched with `grep -E` (ERE) as a SUBSTRING/partial match against each
+#   staged path — anchor with ^ and $ when you mean a whole-path or prefix match.
+# - REQUIRED_ANY entries are matched with `grep -Fxq`: EXACT, WHOLE-LINE, FIXED-STRING
+#   path equality against the staged set. So each REQUIRED_ANY entry must be the exact
+#   repo-relative path of a real file (e.g. docs/INDEX.md) — NOT a glob, prefix, or
+#   regex. "docs/" or "docs/*.md" will never match; "docs/architecture.md" will.
+# - Order matters only for readability; EVERY matching rule is evaluated. A change can
+#   trip several rules; identical REQUIRED_ANY sets are de-duplicated in the report.
+#   Keep REQUIRED_ANY as narrow as is honest, then add a catch-all backstop.
+# - Because every matching rule is evaluated, overlapping rules COMPOUND their
+#   requirements. SHARE docs across REQUIRED_ANY lists so one honest doc edit satisfies
+#   all rules that list it — e.g. a file matched by both a narrow cluster rule and the
+#   catch-all is cleared by editing one doc present in both lists. Make the catch-all's
+#   REQUIRED_ANY the UNION of your hand-authored layers so any single doc edit clears it.
+#
+# ── Generated docs are NOT gated here ────────────────────────────────────────
+# Docs your build regenerates deterministically (a structural index, API table, CSS/class
+# index) belong in the pre-commit hook's GENERATE phase (see .githooks/pre-commit), which
+# rebuilds and re-stages them. NEVER list a generated doc as a REQUIRED_ANY here — the gate
+# is for HAND-AUTHORED layers a tool cannot derive. (Tip: if you already keep a path→doc
+# map for proactive context injection, seed these rules from it so both mechanisms align.)
+#
+# ── Test doubles are NOT knowledge surfaces ──────────────────────────────────
+# kb-detect.sh pre-filters paths matching __mocks__/ , __fixtures__/ , *.test.* and
+# *.spec.* OUT of the changed set BEFORE evaluating these rules, so a tests-only change
+# never trips a rule. Keep that concern in the detector, not duplicated into every
+# pattern below.
+#
+# ── HOW TO USE THIS TEMPLATE ─────────────────────────────────────────────────
+# Everything below is commented-out EXAMPLE rules for common stacks plus ONE active,
+# gentle catch-all. You MUST tailor these to YOUR source tree and YOUR layer files:
+#   1. Uncomment / adapt the PATTERN rows that match your languages and directories.
+#   2. Point each REQUIRED_ANY at the exact path(s) of the deep-doc / state / decision
+#      file that the matched code provably invalidates (must be real, exact paths).
+#   3. Keep or replace the catch-all so no source change ever lands fully undocumented.
+# A rule with no real REQUIRED_ANY file (typo'd path) silently never fires — verify
+# each REQUIRED_ANY path exists in your repo.
+#
+# PATTERN	REQUIRED_ANY	RATIONALE
+#
+# ── awiwi.vim tailored rules ─────────────────────────────────────────────────
+# docs/architecture.md is the authoritative spec for the plugin — it doubles as the
+# rewrite target for the Lua port. Keep it fresh with any behavior change.
+
+# Vim plugin core (current implementation, being ported to Lua). Any module change
+# must move the architecture spec or the index.
+^autoload/awiwi.*\.vim$	docs/architecture.md,docs/INDEX.md	plugin core changed — update the module map / command surface in the architecture spec
+
+# Command surface, filetype behavior, and mappings live in ftplugin/ftdetect.
+^ft(plugin|detect)/.*\.vim$	docs/architecture.md	command surface / mappings / filetype detection changed — update the architecture spec
+
+# Lua rewrite (future / in progress) — mirrors the vim plugin's module structure.
+^lua/.*\.lua$	docs/architecture.md,docs/INDEX.md	Lua module changed — update the architecture spec / index
+
+# SQLite schema & queries back the task/checklist DAO. Schema shape is a decision.
+^resources/db/.*\.sql$	docs/data-model.md,docs/decisions.md	DB schema / query changed — update the data model + record an ADR
+
+# New FastAPI server (viewer). Structure changes update the architecture spec.
+^server/src/.*\.py$	docs/architecture.md,docs/INDEX.md	server code changed — update the architecture spec / index
+^server/pyproject\.toml$	docs/architecture.md	server project shape / deps changed — note it in the architecture spec
+
+# ── catch-all backstop ───────────────────────────────────────────────────────
+# Its REQUIRED_ANY is the UNION of hand-authored layers, so any single honest doc
+# edit clears it. Does NOT fire on docs-only commits (no .md path matches).
+^(autoload|ftplugin|ftdetect|lua|server/src)/.*\.(vim|lua|py)$	docs/INDEX.md,docs/architecture.md,docs/data-model.md,docs/decisions.md	CATCH-ALL: source changed — at least one knowledge layer must move
