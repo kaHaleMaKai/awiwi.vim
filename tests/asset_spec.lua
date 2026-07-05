@@ -433,7 +433,19 @@ describe("asset.open_asset_by_name", function()
     local ok_, err = pcall(fn, function() return write_calls end)
     vim.cmd = orig_cmd
     pcall(vim.api.nvim_set_current_win, prev_win)
-    pcall(vim.api.nvim_win_set_buf, prev_win, prev_buf)
+    -- the spy'd open_asset_by_name really `:edit`s the asset. `:edit` from
+    -- the pristine unnamed startup buffer REUSES that buffer (renames it in
+    -- place), so restoring prev_buf would keep the dated asset name and leak
+    -- it as the current buffer into later spec files (get_own_date() reads
+    -- the current buffer name). Park the window on a fresh scratch buffer
+    -- and wipe anything named like an asset instead.
+    local fresh = vim.api.nvim_create_buf(true, false)
+    pcall(vim.api.nvim_win_set_buf, prev_win, fresh)
+    for _, b in ipairs(vim.api.nvim_list_bufs()) do
+      if b ~= fresh and vim.api.nvim_buf_get_name(b):find("/assets/", 1, true) then
+        pcall(vim.api.nvim_buf_delete, b, { force = true })
+      end
+    end
     if not ok_ then error(err, 0) end
   end
 
@@ -494,8 +506,19 @@ describe("asset.open_asset_sink", function()
       local seen
       local orig = asset.deps.open_file
       asset.deps.open_file = function(path) seen = path end
-      asset.open_asset_sink("2026-07-05:foo.txt")
+      -- open_file is stubbed (no :edit happens), so swallow the create
+      -- path's follow-up :write too — it would hit the unnamed test-runner
+      -- buffer and E32 (it only ever "worked" against a buffer leaked by an
+      -- earlier spec, see with_write_spy's cleanup comment)
+      local orig_cmd = vim.cmd
+      vim.cmd = function(arg)
+        if arg == "write" then return end
+        return orig_cmd(arg)
+      end
+      local ok_, err = pcall(asset.open_asset_sink, "2026-07-05:foo.txt")
+      vim.cmd = orig_cmd
       asset.deps.open_file = orig
+      if not ok_ then error(err, 0) end
       eq(asset.get_asset_path("2026-07-05", "foo.txt"), seen)
     end)
   end)

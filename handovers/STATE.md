@@ -12,7 +12,7 @@ _Updated: 2026-07-05 — plan `~/.claude/plans/plan-the-migration-from-declarati
 - [x] T5 — `asset` (3a5ad89) — qa PASS; cycle broken (`M.types`), B4/B-new-1/B-new-2 fixed, B5 dropped; ADR D4
 - [x] T6a — `hi` (<pending>) — qa PASS; B9/hi-1/hi-3 fixed, structural pass `hi.headings`/`hi.code_line_mask` ready for T6b
 - [ ] T6b — `syn` + `markers` (dep: T6a; worktree; wired only at T10) ◀ IN FLIGHT
-- [x] T7 — `server` (<pending>) — qa PASS; all 7 brief bugs fixed; launches FastAPI (ADR D5); `app:app` entrypoint placeholder must be pinned when server/ gains its app module
+- [x] T7 — `server` (71f0195) — qa PASS; all 7 brief bugs fixed; launches FastAPI (ADR D5); `app:app` entrypoint placeholder must be pinned when server/ gains its app module
 - [ ] T9 — `cmd` + `picker` (dep: T5, T7, T6b-merged; opus engineer; telescope.nvim — probe at start)
 - [ ] T10 — façade + switchover (dep: all; opus; worktree + user dogfood sign-off; deletes vimscript)
 - [ ] T11 — drain deferred-bugs queue (dep: T10)
@@ -32,6 +32,7 @@ Cadence per transaction: S.1 recon (vim-archaeologist) → S.2 port (lua-port-en
 - [ ] B9 `hi.vim:101-124` — fence tracker misses `~~~`/indented code — fixed structurally in T6a
 - [ ] COORD-1 — `path.relativize` prefix off-by-one (B-PATH-6): if fixed properly in T2, the live workaround at `hi.vim:129-130` must NOT be replicated in the T6a Lua port — T6a engineer prompt must state this; check path brief `## Ported` for what T2 actually did
 - [ ] B10 — `awiwi#get_recipe_subpath` is unreachable end-to-end in shipped vimscript (pre-existing `fn#spread` breakage in `awiwi#path#join`); hi_spec stubs it — T10 must port it natively (found in T6a)
+- [x] B11 — `tests/asset_spec.lua` — `with_write_spy` "restored" the startup buffer that `:edit` had renamed in place, leaking a `2026-07-05`-dated asset buffer as current into later spec files; `open_asset_sink` spec silently depended on that leaked buffer for its `:write`. Masked while wall-clock date == 2026-07-05; broke the suite on rollover. Fixed inline by orchestrator (park on fresh scratch buffer + wipe asset buffers; swallow stubbed sink write) — found in T6b's full-suite run
 - (new bugs found during implementation are appended here by any agent: `- [ ] B<n> — <file:line> — <one-liner> — found in T<x>; fix-in-port|post-port`)
 
 ## What the next session needs
