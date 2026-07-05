@@ -6,9 +6,9 @@ _Updated: 2026-07-05 — plan `~/.claude/plans/plan-the-migration-from-declarati
 
 - [x] T0 — orchestration setup: agents (vim-archaeologist, lua-port-engineer, qa-verifier), `.claude/skills/lua-port`, `tests/run.lua`, this ledger
 - [x] T1 — `str` (5b1f486) — ADRs D1–D2 recorded
-- [x] T2 — `path` (<pending>) — qa PASS; relativize B-PATH-6/7 fixed, see COORD-1
-- [ ] T3 — `date` (dep: T1) ◀ NEXT
-- [ ] T4 — `util` (dep: T1–T3)
+- [x] T2 — `path` (4f6a627) — qa PASS; relativize B-PATH-6/7 fixed, see COORD-1
+- [x] T3 — `date` (<pending>) — qa PASS; ADR D3 (narrowed grammar), `diff_days` ready for T6a
+- [ ] T4 — `util` (dep: T1–T3) ◀ NEXT
 - [ ] T5 — `asset` (dep: T4; owns `M.types`, breaks asset⇄cmd cycle)
 - [ ] T6a — `hi` (dep: T3, T4; extmarks + TS structural pass)
 - [ ] T6b — `syn` + `markers` (dep: T6a; worktree; wired only at T10)

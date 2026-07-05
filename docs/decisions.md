@@ -62,3 +62,23 @@ kb-curator does not invent decisions. Format: number, date, status, context, dec
 - **Consequences:** users with `set ignorecase` global will see no change in practice (all call
   sites benefit from case-sensitive checks). The change is invisible and correct. The commit
   records this as an intentional simplification, not a regression.
+
+## D3 — Narrowed relative-date grammar in Lua date module (2026-07-05)
+
+**Context.** `date.vim` shelled out to GNU `date --date`, inheriting its full
+natural-language parser. The Lua rewrite mandates pure `os.date`/`os.time`
+(no subprocess), which cannot replicate that grammar wholesale.
+
+**Decision.** `lua/awiwi/date.lua` implements a hand-written grammar covering
+exactly the vocabulary reachable from the plugin's UI (per the T3 port brief's
+call-site inventory): `today`/`yesterday`/`tomorrow`; `in N day(s)/week(s)/
+month(s)`; `N day(s)/week(s)/month(s) ago`; `next <weekday>`/`last <weekday>`
+(strictly future/past, skipping today — GNU semantics). Anything else throws
+`AwiwiDateError` — clear rejection over silent wrong answers.
+
+**Consequences.** Exotic GNU expressions ("the third tuesday", timestamps with
+a time component) that technically worked before now error. Extending the
+grammar is a local change in `date.lua` with spec coverage. Also fixed in the
+same port: journal "previous" off-by-one (B-date-3), ordinal suffixes
+11th/12th/13th (B-date-5); preserved quirks: shape-only `is_date` (B-date-1),
+`DD.MM` assumes current year (B-date-2).

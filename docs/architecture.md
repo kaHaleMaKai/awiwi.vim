@@ -12,7 +12,7 @@ Keep this truthful — when behavior changes, this file changes in the same comm
 | component     | location                                | status                                       |
 | ------------- | --------------------------------------- | -------------------------------------------- |
 | Plugin        | `autoload/`, `ftplugin/`, `ftdetect/`, `syntax/` | active (vimscript) → being ported to Lua |
-| Lua rewrite   | `lua/`                                  | in progress (str, path complete)             |
+| Lua rewrite   | `lua/`                                  | in progress (str, path, date complete)       |
 | Server/viewer | `server/` (FastAPI + Pydantic)          | in progress, replacing `server.old/`         |
 | Legacy server | `server.old/` (Flask + Jinja)           | reference only                               |
 
@@ -46,7 +46,7 @@ completion `cmd.vim:339`; central file opener `awiwi.vim:271` (`awiwi#open_file`
 | `cmd.vim`      | 780 | active | `:Awiwi` subcommand parse/dispatch (`run`) + completion (`get_completion`) + `show_tasks`, `store/restore_session`, `export_drawio_diagram` |
 | `sql.vim`      | 378 | active | shells out to `sqlite3` binary; typed param binding (`?` placeholders, `col@type` result hints), transactions. Self-contained (no awiwi deps) |
 | `asset.vim`    | 246 | active | create/open/link assets under `assets/YYYY/MM/DD/`; clipboard image paste; drawio template (`pyx` for random id) |
-| `date.vim`     | 168 | active | parse/normalize dates, journal-relative nav (today/next/previous/iso); shells to `date` |
+| `date.vim`     | 168 | ported to `lua/awiwi/date.lua` | parse/normalize dates, journal-relative nav; pure os.date/os.time, narrowed grammar (ADR D3), new `diff_days` |
 | `util.vim`     | 369 | active | helpers: resource cache (`get_resource` loads `resources/*`), link parse/classify, `match_subcommands` (completion), input prompt, code-block text objects |
 | `hi.vim`       | 147 | active | nvim virtual-text: due-date badges, header rules; title helpers for `entitlement.nvim` |
 | `path.vim`     |  82 | ported to `lua/awiwi/path.lua` | path join/split/relativize/canonicalize; B-PATH bugs fixed in port |
