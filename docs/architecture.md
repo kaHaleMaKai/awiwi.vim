@@ -12,7 +12,7 @@ Keep this truthful — when behavior changes, this file changes in the same comm
 | component     | location                                | status                                       |
 | ------------- | --------------------------------------- | -------------------------------------------- |
 | Plugin        | `autoload/`, `ftplugin/`, `ftdetect/`, `syntax/` | active (vimscript) → being ported to Lua |
-| Lua rewrite   | `lua/`                                  | in progress (str complete)                   |
+| Lua rewrite   | `lua/`                                  | in progress (str, path complete)             |
 | Server/viewer | `server/` (FastAPI + Pydantic)          | in progress, replacing `server.old/`         |
 | Legacy server | `server.old/` (Flask + Jinja)           | reference only                               |
 
@@ -49,7 +49,7 @@ completion `cmd.vim:339`; central file opener `awiwi.vim:271` (`awiwi#open_file`
 | `date.vim`     | 168 | active | parse/normalize dates, journal-relative nav (today/next/previous/iso); shells to `date` |
 | `util.vim`     | 369 | active | helpers: resource cache (`get_resource` loads `resources/*`), link parse/classify, `match_subcommands` (completion), input prompt, code-block text objects |
 | `hi.vim`       | 147 | active | nvim virtual-text: due-date badges, header rules; title helpers for `entitlement.nvim` |
-| `path.vim`     |  82 | active | path join/split/relativize/canonicalize |
+| `path.vim`     |  82 | ported to `lua/awiwi/path.lua` | path join/split/relativize/canonicalize; B-PATH bugs fixed in port |
 | `server.vim`   | 131 | active | control the Flask viewer (`server/`): start/stop/logs/serve, write `config.json`, xdg-open |
 | `str.vim`      |  33 | ported to `lua/awiwi/str.lua` | string helpers (startswith/endswith/contains/is_empty); leaf, widely used |
 | `dao.vim`      | 667 | **WIP, unreachable** | OOP-prototype SQLite ORM (`task.db`): Task/Project/Tag/Urgency/ChecklistEntry/… Not reachable from `:Awiwi`. Has stray-colon typos that throw (see bugs) |

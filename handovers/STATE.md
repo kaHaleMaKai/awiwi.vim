@@ -5,9 +5,9 @@ _Updated: 2026-07-05 — plan `~/.claude/plans/plan-the-migration-from-declarati
 ## Transactions
 
 - [x] T0 — orchestration setup: agents (vim-archaeologist, lua-port-engineer, qa-verifier), `.claude/skills/lua-port`, `tests/run.lua`, this ledger
-- [x] T1 — `str` (<pending>) — ADRs D1–D2 recorded
-- [ ] T2 — `path` (dep: T1) ◀ NEXT
-- [ ] T3 — `date` (dep: T1)
+- [x] T1 — `str` (5b1f486) — ADRs D1–D2 recorded
+- [x] T2 — `path` (<pending>) — qa PASS; relativize B-PATH-6/7 fixed, see COORD-1
+- [ ] T3 — `date` (dep: T1) ◀ NEXT
 - [ ] T4 — `util` (dep: T1–T3)
 - [ ] T5 — `asset` (dep: T4; owns `M.types`, breaks asset⇄cmd cycle)
 - [ ] T6a — `hi` (dep: T3, T4; extmarks + TS structural pass)
@@ -30,6 +30,7 @@ Cadence per transaction: S.1 recon (vim-archaeologist) → S.2 port (lua-port-en
 - [ ] B7 `ftplugin/awiwi.vim:342` — fragile Funcref printf for foldexpr — replaced in T10
 - [ ] B8 `ftplugin/awiwi.vim:339` — global `updatetime` mutation from ftplugin — resolve in T10
 - [ ] B9 `hi.vim:101-124` — fence tracker misses `~~~`/indented code — fixed structurally in T6a
+- [ ] COORD-1 — `path.relativize` prefix off-by-one (B-PATH-6): if fixed properly in T2, the live workaround at `hi.vim:129-130` must NOT be replicated in the T6a Lua port — T6a engineer prompt must state this; check path brief `## Ported` for what T2 actually did
 - (new bugs found during implementation are appended here by any agent: `- [ ] B<n> — <file:line> — <one-liner> — found in T<x>; fix-in-port|post-port`)
 
 ## What the next session needs
