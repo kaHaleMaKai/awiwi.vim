@@ -82,3 +82,17 @@ grammar is a local change in `date.lua` with spec coverage. Also fixed in the
 same port: journal "previous" off-by-one (B-date-3), ordinal suffixes
 11th/12th/13th (B-date-5); preserved quirks: shape-only `is_date` (B-date-1),
 `DD.MM` assumes current year (B-date-2).
+
+## D4 — Opening an asset no longer silently creates/rewrites files (2026-07-05)
+
+**Context.** `asset.vim`'s `open_asset_by_name` unconditionally `:write`d the
+buffer, so merely *opening* a named asset created an empty file on disk (or
+rewrote an existing one) as a side effect (bug B-new-1, found during T5 recon).
+
+**Decision.** In `lua/awiwi/asset.lua`, opening an existing asset is
+side-effect-free; file creation happens only on the explicit create paths
+(`create_asset_link`, `create_asset_here_if_not_exists`). Regression-tested
+both ways.
+
+**Consequences.** Workflows that (likely unknowingly) relied on open-to-create
+must use the create commands. Empty stray asset files stop appearing.

@@ -8,9 +8,9 @@ _Updated: 2026-07-05 — plan `~/.claude/plans/plan-the-migration-from-declarati
 - [x] T1 — `str` (5b1f486) — ADRs D1–D2 recorded
 - [x] T2 — `path` (4f6a627) — qa PASS; relativize B-PATH-6/7 fixed, see COORD-1
 - [x] T3 — `date` (86a9f1a) — qa PASS; ADR D3 (narrowed grammar), `diff_days` ready for T6a
-- [x] T4 — `util` (<pending>) — qa PASS; 12 live fns ported, 11 dropped; input is now callback-style (T5/T9 callers must adapt, pattern in brief)
-- [ ] T5 — `asset` (dep: T4; owns `M.types`, breaks asset⇄cmd cycle) ◀ NEXT
-- [ ] T6a — `hi` (dep: T3, T4; extmarks + TS structural pass)
+- [x] T4 — `util` (ba1ca75) — qa PASS; 12 live fns ported, 11 dropped; input is now callback-style (T5/T9 callers must adapt, pattern in brief)
+- [x] T5 — `asset` (<pending>) — qa PASS; cycle broken (`M.types`), B4/B-new-1/B-new-2 fixed, B5 dropped; ADR D4
+- [ ] T6a — `hi` (dep: T3, T4; extmarks + TS structural pass) ◀ NEXT
 - [ ] T6b — `syn` + `markers` (dep: T6a; worktree; wired only at T10)
 - [ ] T7 — `server` (dep: T4; vim.system, non-blocking readiness)
 - [ ] T9 — `cmd` + `picker` (dep: T5, T7, T6b-merged; opus engineer; telescope.nvim — probe at start)

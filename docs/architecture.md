@@ -12,7 +12,7 @@ Keep this truthful — when behavior changes, this file changes in the same comm
 | component     | location                                | status                                       |
 | ------------- | --------------------------------------- | -------------------------------------------- |
 | Plugin        | `autoload/`, `ftplugin/`, `ftdetect/`, `syntax/` | active (vimscript) → being ported to Lua |
-| Lua rewrite   | `lua/`                                  | in progress (str, path, date, util complete) |
+| Lua rewrite   | `lua/`                                  | in progress (str, path, date, util, asset complete) |
 | Server/viewer | `server/` (FastAPI + Pydantic)          | in progress, replacing `server.old/`         |
 | Legacy server | `server.old/` (Flask + Jinja)           | reference only                               |
 
@@ -45,7 +45,7 @@ completion `cmd.vim:339`; central file opener `awiwi.vim:271` (`awiwi#open_file`
 | `awiwi.vim`    | 939 | active | façade: journals, links, asset paste, **file-based active-task timer** (`data/task.log`), quickfix TOC, markers |
 | `cmd.vim`      | 780 | active | `:Awiwi` subcommand parse/dispatch (`run`) + completion (`get_completion`) + `show_tasks`, `store/restore_session`, `export_drawio_diagram` |
 | `sql.vim`      | 378 | active | shells out to `sqlite3` binary; typed param binding (`?` placeholders, `col@type` result hints), transactions. Self-contained (no awiwi deps) |
-| `asset.vim`    | 246 | active | create/open/link assets under `assets/YYYY/MM/DD/`; clipboard image paste; drawio template (`pyx` for random id) |
+| `asset.vim`    | 246 | ported to `lua/awiwi/asset.lua` | create/open/link assets under `assets/YYYY/MM/DD/`; owns `M.types` (asset⇄cmd cycle broken); pure-Lua random id (pyx gone); open no longer silently creates files (ADR D4); façade deps via `M.deps` until T10 |
 | `date.vim`     | 168 | ported to `lua/awiwi/date.lua` | parse/normalize dates, journal-relative nav; pure os.date/os.time, narrowed grammar (ADR D3), new `diff_days` |
 | `util.vim`     | 369 | ported to `lua/awiwi/util.lua` (12 live fns; 11 dead fns dropped per ADR D1) | helpers: link parse/classify (journal misclassification fixed), `match_subcommands`, `input` (vim.ui.input callback style), code-block text objects |
 | `hi.vim`       | 147 | active | nvim virtual-text: due-date badges, header rules; title helpers for `entitlement.nvim` |
