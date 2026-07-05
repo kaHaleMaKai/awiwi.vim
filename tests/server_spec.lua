@@ -302,5 +302,11 @@ describe("server._write_json_config", function()
     eq("blue", decoded.link_color)
     eq({ "todo-1", "todo-2" }, decoded.todo_markers)
     eq({ "due-1", "due-2" }, decoded.due_markers)
+
+    -- don't leak config globals into later spec files (syn's
+    -- setup_highlights honors g:awiwi_link_color)
+    vim.g.awiwi_search_engine = nil
+    vim.g.awiwi_screensaver = nil
+    vim.g.awiwi_link_color = nil
   end)
 end)
