@@ -9,10 +9,10 @@ _Updated: 2026-07-05 — plan `~/.claude/plans/plan-the-migration-from-declarati
 - [x] T2 — `path` (4f6a627) — qa PASS; relativize B-PATH-6/7 fixed, see COORD-1
 - [x] T3 — `date` (86a9f1a) — qa PASS; ADR D3 (narrowed grammar), `diff_days` ready for T6a
 - [x] T4 — `util` (ba1ca75) — qa PASS; 12 live fns ported, 11 dropped; input is now callback-style (T5/T9 callers must adapt, pattern in brief)
-- [x] T5 — `asset` (<pending>) — qa PASS; cycle broken (`M.types`), B4/B-new-1/B-new-2 fixed, B5 dropped; ADR D4
-- [ ] T6a — `hi` (dep: T3, T4; extmarks + TS structural pass) ◀ NEXT
-- [ ] T6b — `syn` + `markers` (dep: T6a; worktree; wired only at T10)
-- [ ] T7 — `server` (dep: T4; vim.system, non-blocking readiness)
+- [x] T5 — `asset` (3a5ad89) — qa PASS; cycle broken (`M.types`), B4/B-new-1/B-new-2 fixed, B5 dropped; ADR D4
+- [x] T6a — `hi` (<pending>) — qa PASS; B9/hi-1/hi-3 fixed, structural pass `hi.headings`/`hi.code_line_mask` ready for T6b
+- [ ] T6b — `syn` + `markers` (dep: T6a; worktree; wired only at T10) ◀ IN FLIGHT
+- [ ] T7 — `server` (dep: T4; vim.system, non-blocking readiness) ◀ IN FLIGHT
 - [ ] T9 — `cmd` + `picker` (dep: T5, T7, T6b-merged; opus engineer; telescope.nvim — probe at start)
 - [ ] T10 — façade + switchover (dep: all; opus; worktree + user dogfood sign-off; deletes vimscript)
 - [ ] T11 — drain deferred-bugs queue (dep: T10)
@@ -31,6 +31,7 @@ Cadence per transaction: S.1 recon (vim-archaeologist) → S.2 port (lua-port-en
 - [ ] B8 `ftplugin/awiwi.vim:339` — global `updatetime` mutation from ftplugin — resolve in T10
 - [ ] B9 `hi.vim:101-124` — fence tracker misses `~~~`/indented code — fixed structurally in T6a
 - [ ] COORD-1 — `path.relativize` prefix off-by-one (B-PATH-6): if fixed properly in T2, the live workaround at `hi.vim:129-130` must NOT be replicated in the T6a Lua port — T6a engineer prompt must state this; check path brief `## Ported` for what T2 actually did
+- [ ] B10 — `awiwi#get_recipe_subpath` is unreachable end-to-end in shipped vimscript (pre-existing `fn#spread` breakage in `awiwi#path#join`); hi_spec stubs it — T10 must port it natively (found in T6a)
 - (new bugs found during implementation are appended here by any agent: `- [ ] B<n> — <file:line> — <one-liner> — found in T<x>; fix-in-port|post-port`)
 
 ## What the next session needs

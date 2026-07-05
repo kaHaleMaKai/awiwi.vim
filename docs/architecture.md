@@ -12,7 +12,7 @@ Keep this truthful — when behavior changes, this file changes in the same comm
 | component     | location                                | status                                       |
 | ------------- | --------------------------------------- | -------------------------------------------- |
 | Plugin        | `autoload/`, `ftplugin/`, `ftdetect/`, `syntax/` | active (vimscript) → being ported to Lua |
-| Lua rewrite   | `lua/`                                  | in progress (str, path, date, util, asset complete) |
+| Lua rewrite   | `lua/`                                  | in progress (str, path, date, util, asset, hi complete) |
 | Server/viewer | `server/` (FastAPI + Pydantic)          | in progress, replacing `server.old/`         |
 | Legacy server | `server.old/` (Flask + Jinja)           | reference only                               |
 
@@ -48,7 +48,7 @@ completion `cmd.vim:339`; central file opener `awiwi.vim:271` (`awiwi#open_file`
 | `asset.vim`    | 246 | ported to `lua/awiwi/asset.lua` | create/open/link assets under `assets/YYYY/MM/DD/`; owns `M.types` (asset⇄cmd cycle broken); pure-Lua random id (pyx gone); open no longer silently creates files (ADR D4); façade deps via `M.deps` until T10 |
 | `date.vim`     | 168 | ported to `lua/awiwi/date.lua` | parse/normalize dates, journal-relative nav; pure os.date/os.time, narrowed grammar (ADR D3), new `diff_days` |
 | `util.vim`     | 369 | ported to `lua/awiwi/util.lua` (12 live fns; 11 dead fns dropped per ADR D1) | helpers: link parse/classify (journal misclassification fixed), `match_subcommands`, `input` (vim.ui.input callback style), code-block text objects |
-| `hi.vim`       | 147 | active | nvim virtual-text: due-date badges, header rules; title helpers for `entitlement.nvim` |
+| `hi.vim`       | 147 | ported to `lua/awiwi/hi.lua` | due-date badges + header rules as extmarks (deprecated virtual-text API gone); treesitter structural pass (`headings`/`code_line_mask`, reused by syn); title helpers for `entitlement.nvim` |
 | `path.vim`     |  82 | ported to `lua/awiwi/path.lua` | path join/split/relativize/canonicalize; B-PATH bugs fixed in port |
 | `server.vim`   | 131 | active | control the Flask viewer (`server/`): start/stop/logs/serve, write `config.json`, xdg-open |
 | `str.vim`      |  33 | ported to `lua/awiwi/str.lua` | string helpers (startswith/endswith/contains/is_empty); leaf, widely used |
