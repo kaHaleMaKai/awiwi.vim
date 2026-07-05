@@ -113,3 +113,27 @@ readiness via bounded non-blocking `wait_ready` (no more editor-blocking sleep).
 **Consequences.** `:Awiwi serve` works again once the FastAPI app exists;
 anyone still needing the old Flask viewer must run it manually from
 `server.old/`.
+
+## D6 — Treesitter syntax layer; highlight-group typo renames (2026-07-06)
+
+**Context.** `syntax/awiwi.vim` (214 lines of regex `:syntax`) is replaced by
+`lua/awiwi/syn.lua`: one structural repaint via `markdown`/`markdown_inline`
+treesitter queries plus plain-Lua line patterns applied outside the code-block
+mask (shared from `hi.lua`). Extmark painting in three namespaces
+(structure/links/markers). Built and headless-tested in T6b; **wiring happens
+at T10** — activating alongside the live vimscript syntax file would double-
+paint running sessions. `lua/awiwi/markers.lua` owns the marker vocabulary
+(with `g:awiwi_custom_*_markers` overrides) for both syn and rg-based search.
+
+**Decision.** The legacy typo groups are renamed in the port:
+`awiwiQuestionn` → `awiwiQuestion`, `awiwiOnHole` → `awiwiOnHold`. The
+`@onhole` marker keyword is kept as a backward-compat alias for `@onhold`.
+Dead `awiwiDateOverlay` (crashed when link highlighting was off, referenced
+nowhere) is dropped. Also fixed in port: `g:awiwi_conceal_link_end_char` now
+takes effect (B1), the `printd` crash branch (B2), unstyled
+`awiwiLinkNameStart/End` (B11-syn), markers highlighting inside fences (B10),
+and the dead vim-regex fragment in the rg todo pattern (verified against the
+real `rg`).
+
+**Consequences.** Configs referencing the misspelled groups must switch to the
+corrected names; all other group names are preserved exactly.

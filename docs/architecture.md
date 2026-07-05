@@ -12,7 +12,7 @@ Keep this truthful — when behavior changes, this file changes in the same comm
 | component     | location                                | status                                       |
 | ------------- | --------------------------------------- | -------------------------------------------- |
 | Plugin        | `autoload/`, `ftplugin/`, `ftdetect/`, `syntax/` | active (vimscript) → being ported to Lua |
-| Lua rewrite   | `lua/`                                  | in progress (str, path, date, util, asset, hi, server complete) |
+| Lua rewrite   | `lua/`                                  | in progress (str, path, date, util, asset, hi, server, syn, markers complete) |
 | Server/viewer | `server/` (FastAPI + Pydantic)          | in progress, replacing `server.old/`         |
 | Legacy server | `server.old/` (Flask + Jinja)           | reference only                               |
 
@@ -52,6 +52,7 @@ completion `cmd.vim:339`; central file opener `awiwi.vim:271` (`awiwi#open_file`
 | `path.vim`     |  82 | ported to `lua/awiwi/path.lua` | path join/split/relativize/canonicalize; B-PATH bugs fixed in port |
 | `server.vim`   | 131 | ported to `lua/awiwi/server.lua` | viewer control: start/stop/logs/serve via `vim.system`, non-blocking `wait_ready`; launches the FastAPI server (ADR D5; `app:app` entrypoint is a placeholder until `server/` gains its app module), config.json, xdg-open |
 | `str.vim`      |  33 | ported to `lua/awiwi/str.lua` | string helpers (startswith/endswith/contains/is_empty); leaf, widely used |
+| `syntax/awiwi.vim` | 214 | ported to `lua/awiwi/syn.lua` + `lua/awiwi/markers.lua` (**built, not wired** — activation is T10) | treesitter/extmark repaint replaces regex `:syntax`: markdown+markdown_inline queries, link conceal, marker/redaction/Redmine line patterns outside the code mask (B10); marker vocab + rg/vim escaping in `markers.lua`; group typos fixed (ADR D6) |
 | `dao.vim`      | 667 | **WIP, unreachable** | OOP-prototype SQLite ORM (`task.db`): Task/Project/Tag/Urgency/ChecklistEntry/… Not reachable from `:Awiwi`. Has stray-colon typos that throw (see bugs) |
 | `task.vim`     | 402 | **dead** | abandoned parallel SQLite task manager. Unloadable: syntax error `task.vim:11`, references undefined `s:Entity`/`s:db`/`s:states` |
 | `view.vim`     | 286 | **dead/WIP** | interactive DAO prompts. Load has side effects (`awiwi#dao#init_test_data('/tmp/awiwi-test.db')`, `echo new_task(...)` at `view.vim:286`). Not wired to `:Awiwi` |
