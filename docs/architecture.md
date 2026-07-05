@@ -12,7 +12,7 @@ Keep this truthful — when behavior changes, this file changes in the same comm
 | component     | location                                | status                                       |
 | ------------- | --------------------------------------- | -------------------------------------------- |
 | Plugin        | `autoload/`, `ftplugin/`, `ftdetect/`, `syntax/` | active (vimscript) → being ported to Lua |
-| Lua rewrite   | `lua/` (not yet created)                | planned                                      |
+| Lua rewrite   | `lua/`                                  | in progress (str complete)                   |
 | Server/viewer | `server/` (FastAPI + Pydantic)          | in progress, replacing `server.old/`         |
 | Legacy server | `server.old/` (Flask + Jinja)           | reference only                               |
 
@@ -51,7 +51,7 @@ completion `cmd.vim:339`; central file opener `awiwi.vim:271` (`awiwi#open_file`
 | `hi.vim`       | 147 | active | nvim virtual-text: due-date badges, header rules; title helpers for `entitlement.nvim` |
 | `path.vim`     |  82 | active | path join/split/relativize/canonicalize |
 | `server.vim`   | 131 | active | control the Flask viewer (`server/`): start/stop/logs/serve, write `config.json`, xdg-open |
-| `str.vim`      |  33 | active | string helpers (startswith/endswith/contains/is_empty); leaf, widely used |
+| `str.vim`      |  33 | ported to `lua/awiwi/str.lua` | string helpers (startswith/endswith/contains/is_empty); leaf, widely used |
 | `dao.vim`      | 667 | **WIP, unreachable** | OOP-prototype SQLite ORM (`task.db`): Task/Project/Tag/Urgency/ChecklistEntry/… Not reachable from `:Awiwi`. Has stray-colon typos that throw (see bugs) |
 | `task.vim`     | 402 | **dead** | abandoned parallel SQLite task manager. Unloadable: syntax error `task.vim:11`, references undefined `s:Entity`/`s:db`/`s:states` |
 | `view.vim`     | 286 | **dead/WIP** | interactive DAO prompts. Load has side effects (`awiwi#dao#init_test_data('/tmp/awiwi-test.db')`, `echo new_task(...)` at `view.vim:286`). Not wired to `:Awiwi` |
