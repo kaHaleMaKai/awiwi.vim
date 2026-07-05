@@ -12,7 +12,7 @@ Keep this truthful — when behavior changes, this file changes in the same comm
 | component     | location                                | status                                       |
 | ------------- | --------------------------------------- | -------------------------------------------- |
 | Plugin        | `autoload/`, `ftplugin/`, `ftdetect/`, `syntax/` | active (vimscript) → being ported to Lua |
-| Lua rewrite   | `lua/`                                  | in progress (str, path, date, util, asset, hi complete) |
+| Lua rewrite   | `lua/`                                  | in progress (str, path, date, util, asset, hi, server complete) |
 | Server/viewer | `server/` (FastAPI + Pydantic)          | in progress, replacing `server.old/`         |
 | Legacy server | `server.old/` (Flask + Jinja)           | reference only                               |
 
@@ -50,7 +50,7 @@ completion `cmd.vim:339`; central file opener `awiwi.vim:271` (`awiwi#open_file`
 | `util.vim`     | 369 | ported to `lua/awiwi/util.lua` (12 live fns; 11 dead fns dropped per ADR D1) | helpers: link parse/classify (journal misclassification fixed), `match_subcommands`, `input` (vim.ui.input callback style), code-block text objects |
 | `hi.vim`       | 147 | ported to `lua/awiwi/hi.lua` | due-date badges + header rules as extmarks (deprecated virtual-text API gone); treesitter structural pass (`headings`/`code_line_mask`, reused by syn); title helpers for `entitlement.nvim` |
 | `path.vim`     |  82 | ported to `lua/awiwi/path.lua` | path join/split/relativize/canonicalize; B-PATH bugs fixed in port |
-| `server.vim`   | 131 | active | control the Flask viewer (`server/`): start/stop/logs/serve, write `config.json`, xdg-open |
+| `server.vim`   | 131 | ported to `lua/awiwi/server.lua` | viewer control: start/stop/logs/serve via `vim.system`, non-blocking `wait_ready`; launches the FastAPI server (ADR D5; `app:app` entrypoint is a placeholder until `server/` gains its app module), config.json, xdg-open |
 | `str.vim`      |  33 | ported to `lua/awiwi/str.lua` | string helpers (startswith/endswith/contains/is_empty); leaf, widely used |
 | `dao.vim`      | 667 | **WIP, unreachable** | OOP-prototype SQLite ORM (`task.db`): Task/Project/Tag/Urgency/ChecklistEntry/… Not reachable from `:Awiwi`. Has stray-colon typos that throw (see bugs) |
 | `task.vim`     | 402 | **dead** | abandoned parallel SQLite task manager. Unloadable: syntax error `task.vim:11`, references undefined `s:Entity`/`s:db`/`s:states` |

@@ -12,7 +12,7 @@ _Updated: 2026-07-05 — plan `~/.claude/plans/plan-the-migration-from-declarati
 - [x] T5 — `asset` (3a5ad89) — qa PASS; cycle broken (`M.types`), B4/B-new-1/B-new-2 fixed, B5 dropped; ADR D4
 - [x] T6a — `hi` (<pending>) — qa PASS; B9/hi-1/hi-3 fixed, structural pass `hi.headings`/`hi.code_line_mask` ready for T6b
 - [ ] T6b — `syn` + `markers` (dep: T6a; worktree; wired only at T10) ◀ IN FLIGHT
-- [ ] T7 — `server` (dep: T4; vim.system, non-blocking readiness) ◀ IN FLIGHT
+- [x] T7 — `server` (<pending>) — qa PASS; all 7 brief bugs fixed; launches FastAPI (ADR D5); `app:app` entrypoint placeholder must be pinned when server/ gains its app module
 - [ ] T9 — `cmd` + `picker` (dep: T5, T7, T6b-merged; opus engineer; telescope.nvim — probe at start)
 - [ ] T10 — façade + switchover (dep: all; opus; worktree + user dogfood sign-off; deletes vimscript)
 - [ ] T11 — drain deferred-bugs queue (dep: T10)

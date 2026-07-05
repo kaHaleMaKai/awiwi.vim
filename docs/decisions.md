@@ -96,3 +96,20 @@ both ways.
 
 **Consequences.** Workflows that (likely unknowingly) relied on open-to-create
 must use the create commands. Empty stray asset files stop appearing.
+
+## D5 — Lua server module launches the FastAPI viewer, not Flask (2026-07-05)
+
+**Context.** `server.vim` launched `server/.venv/bin/flask` + `server/app.py` —
+paths that no longer exist since the Flask app moved to `server.old/`; the
+shipped `:Awiwi serve` has been broken (T7 recon, bug #5). The live stack is
+FastAPI + Pydantic under `server/` (uv-managed).
+
+**Decision.** `lua/awiwi/server.lua` builds `uv run uvicorn app:app --host
+<host> --port <port>` with cwd=`server/`, overridable via `M.config.cmd_builder`.
+`app:app` is a documented placeholder — `server/` has no app module yet; pin the
+real import path when it lands. Spawn via `vim.system` (env scoped per-job);
+readiness via bounded non-blocking `wait_ready` (no more editor-blocking sleep).
+
+**Consequences.** `:Awiwi serve` works again once the FastAPI app exists;
+anyone still needing the old Flask viewer must run it manually from
+`server.old/`.
