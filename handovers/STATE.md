@@ -1,6 +1,6 @@
 # State — Lua rewrite
 
-_Updated: 2026-07-06 — T1–T9 all landed and qa-verified; suite 354 green. Session stopped after T9 by user request; T10 (façade + switchover) starts in a fresh session._
+_Updated: 2026-07-06 — T10 (façade + switchover) implemented + qa PASS on branch `worktree-lua-port-t10` (worktree `.claude/worktrees/lua-port-t10`); suite 454 green (14 files). **Merge to master gated on user dogfood + sign-off** — see "next session needs"._
 
 ## Transactions
 
@@ -14,30 +14,34 @@ _Updated: 2026-07-06 — T1–T9 all landed and qa-verified; suite 354 green. Se
 - [x] T6b — `syn` + `markers` (a2ec467) — qa PASS; built+headless-tested, NOT wired (T10 activates); B1/B2/B3/B10/B11-syn fixed, ADR D6; exposed test-hygiene bugs B11/B12 (fixed 9a9f8ab, c0fef93)
 - [x] T7 — `server` (71f0195) — qa PASS; all 7 brief bugs fixed; launches FastAPI (ADR D5); `app:app` entrypoint placeholder must be pinned when server/ gains its app module
 - [x] T9 — `cmd` + `picker` (d2159c7) — qa PASS (354 green ×2, all 38 flows covered); ADR D7 picker seam (vim.ui.select default, telescope auto-upgrade — user decision); brief bugs B1–B7 handled; NOT wired (`:Awiwi` still vimscript)
-- [ ] T10 — façade + switchover (dep: all; opus; worktree + user dogfood sign-off; deletes vimscript) ◀ NEXT — **user asked to start T10 in a fresh session.** T10 must: port awiwi.vim façade (939 ln; incl. `get_recipe_subpath` natively, B10) + ftplugin/ftdetect (py3 todo-cleanup → Lua, verify B6 off-by-one; drop B8 global updatetime mutation; B7 foldexpr), define `:Awiwi` via nvim_create_user_command → `require('awiwi.cmd').run`, fill every `M.deps` (inventories in cmd.md and asset.md `## Ported`), rewire `<F12>`→`:Awiwi tags`, teach `open_file` about `options.width` (B3 note in cmd.md), activate syn (`vim.treesitter.start` + attach, see syn.md `## Ported` activation notes), then DELETE `autoload/*.vim`, `syntax/awiwi.vim`, old ftplugin logic. Worktree + real-session dogfood + user sign-off gate the merge.
-- [ ] T11 — drain deferred-bugs queue (dep: T10)
+- [x] T10 — façade + switchover (commit on branch `worktree-lua-port-t10`) — qa PASS; suite 454 green (14 files); brief `handovers/lua-port/init.md` (84-item contract, 100 new specs); façade `lua/awiwi/init.lua` + `ftplugin/awiwi.lua` + `ftdetect/awiwi.lua`; all 16 tracked vimscript files deleted; B6/B7/B8/B10 + B-INIT-1..5 + cmd-B3 (`options.width`) fixed; syn activated; `<F12>`→`:Awiwi tags`; ADRs D8–D11. **NOT MERGED — user dogfood + sign-off pending** (checklist in init.md `## Dogfood checklist`)
+- [ ] T11 — drain deferred-bugs queue (dep: T10 merge)
 
 Cadence per transaction: S.1 recon (vim-archaeologist) → S.2 port (lua-port-engineer, red/green TDD) → S.3 verify (qa-verifier PASS/FAIL) → S.4 curate+commit (kb-curator, pre-commit kb-detect gate). Full suite `nvim --clean --headless -l tests/run.lua` after each.
 
 ## Deferred bugs
 
-- [ ] B1 `syntax/awiwi.vim:172` — `conceal_end_char` reads `…_start_char` (copy-paste) — fixed by T6b port
-- [ ] B2 `syntax/awiwi.vim:190` — `printd` typo (dead branch) — fixed by T6b port
-- [ ] B3 `syntax/awiwi.vim:94-95` + `autoload/awiwi.vim:47` — `awiwiQuestionn`/`awiwiOnHole`/`@onhole` typos — fix in T6b, note in ADR
-- [ ] B4 `asset.vim:11-21` — missing `endif` → E171 — fix in T5
-- [ ] B5 `asset.vim:168` — `if !open_bracket_pos == -1` precedence bug, FIXME-deprecated fn — drop-candidate in T5 brief
-- [ ] B6 `ftplugin/awiwi.vim:249-271` — py3 block missing `import vim`, off-by-one line range — superseded by T10; verify behavior in brief
-- [ ] B7 `ftplugin/awiwi.vim:342` — fragile Funcref printf for foldexpr — replaced in T10
-- [ ] B8 `ftplugin/awiwi.vim:339` — global `updatetime` mutation from ftplugin — resolve in T10
-- [ ] B9 `hi.vim:101-124` — fence tracker misses `~~~`/indented code — fixed structurally in T6a
+- [x] B1 `syntax/awiwi.vim:172` — `conceal_end_char` reads `…_start_char` (copy-paste) — fixed by T6b port
+- [x] B2 `syntax/awiwi.vim:190` — `printd` typo (dead branch) — fixed by T6b port
+- [x] B3 `syntax/awiwi.vim:94-95` + `autoload/awiwi.vim:47` — `awiwiQuestionn`/`awiwiOnHole`/`@onhole` typos — fix in T6b, note in ADR
+- [x] B4 `asset.vim:11-21` — missing `endif` → E171 — fix in T5
+- [x] B5 `asset.vim:168` — `if !open_bracket_pos == -1` precedence bug, FIXME-deprecated fn — drop-candidate in T5 brief
+- [x] B6 `ftplugin/awiwi.vim:249-271` — py3 block missing `import vim`, off-by-one line range — superseded by T10; verify behavior in brief
+- [x] B7 `ftplugin/awiwi.vim:342` — fragile Funcref printf for foldexpr — replaced in T10
+- [x] B8 `ftplugin/awiwi.vim:339` — global `updatetime` mutation from ftplugin — resolve in T10
+- [x] B9 `hi.vim:101-124` — fence tracker misses `~~~`/indented code — fixed structurally in T6a
 - [ ] COORD-1 — `path.relativize` prefix off-by-one (B-PATH-6): if fixed properly in T2, the live workaround at `hi.vim:129-130` must NOT be replicated in the T6a Lua port — T6a engineer prompt must state this; check path brief `## Ported` for what T2 actually did
-- [ ] B10 — `awiwi#get_recipe_subpath` is unreachable end-to-end in shipped vimscript (pre-existing `fn#spread` breakage in `awiwi#path#join`); hi_spec stubs it — T10 must port it natively (found in T6a)
+- [x] B10 — `awiwi#get_recipe_subpath` is unreachable end-to-end in shipped vimscript (pre-existing `fn#spread` breakage in `awiwi#path#join`); hi_spec stubs it — T10 must port it natively (found in T6a)
 - [x] B11 — `tests/asset_spec.lua` — `with_write_spy` "restored" the startup buffer that `:edit` had renamed in place, leaking a `2026-07-05`-dated asset buffer as current into later spec files; `open_asset_sink` spec silently depended on that leaked buffer for its `:write`. Masked while wall-clock date == 2026-07-05; broke the suite on rollover. Fixed inline by orchestrator (park on fresh scratch buffer + wipe asset buffers; swallow stubbed sink write) — found in T6b's full-suite run
 - [x] B12 — `tests/server_spec.lua` — config.json spec leaked `g:awiwi_link_color`/`search_engine`/`screensaver` into later spec files, breaking syn's default-color assertions. Fixed inline by orchestrator (c0fef93) — found in T6b's full-suite run
+- [x] B-INIT-1..5 — five façade bugs found by T10 recon (see `handovers/lua-port/init.md` bug ledger) — fixed in T10 port; B-INIT-6 (`g:awiwi_history_length` no-op) documented as ADR D10, deliberately inert
+- [ ] PENDING-ADR — `split_screen` `<C-x>/<C-v>` inverted guard: shipped behavior preserved verbatim in `lua/awiwi/init.lua` (recorded as D11); needs a human decision on intended behavior, then fix in T11
 - (new bugs found during implementation are appended here by any agent: `- [ ] B<n> — <file:line> — <one-liner> — found in T<x>; fix-in-port|post-port`)
 
 ## What the next session needs
 
+- **T10 merge gate (USER):** dogfood the plugin from worktree `.claude/worktrees/lua-port-t10` (branch `worktree-lua-port-t10`) in a real session — checklist: `handovers/lua-port/init.md` `## Dogfood checklist`. On sign-off: merge to master, fill commit hash into init.md `## Ported`, archive `handovers/lua-port/*.md` → `handovers/done/`, remove worktree. Untracked `autoload/awiwi/ask.vim`/`bookmarks.vim` drafts in the main checkout are untouched (dropped modules per skill) — user decides their fate.
+- After merge: T11 drains the queue above (COORD-1 reconciliation + PENDING-ADR decision).
 - Plan: `~/.claude/plans/plan-the-migration-from-declarative-castle.md` (design decisions D1 treesitter arch, asset⇄cmd break, telescope pickers, dropped modules, bug policy).
 - Per-module handovers at `handovers/lua-port/<module>.md` (archaeologist writes, engineer appends `## Ported`, verifier judges in `.claude/progress/qa-verifier-<module>.md`).
 - Engineers serialize through the verify gate; archaeologists/verifiers parallelize.

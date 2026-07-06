@@ -157,3 +157,83 @@ first, then pick.
 fzf is gone from the Lua plugin. The telescope path is smoke-tested via an
 injected fake — machines with real telescope should sanity-check it at T10
 dogfooding.
+
+---
+
+## D8 — task.log format change: JSON in Lua port (2026-07-06)
+
+**Context.** `task.log` (the shipped file-based active-task timer) was written by vimscript as
+one task record per line in `vim.string()` dict-literal format (vimscript serialization). The Lua
+port needs to write the same logical data to the same file, but reading/writing vimscript string
+literals in pure Lua is not practical.
+
+**Decision.** `lua/awiwi/init.lua` writes task records to `task.log` as one JSON object per line
+(via `vim.json.encode`). Old lines in an existing `task.log` fail gracefully on decode and are
+skipped (migration is transparent; no user action needed). The new format is internal and
+documented only in this ADR — `task.log` is not a public interchange format.
+
+**Consequences.** Existing task logs are readable but not writable from the Lua port. The first
+time the Lua port activates a task after the vimscript port, a new JSON line is appended. No
+state is lost; existing records are simply not amended. The file can grow indefinitely
+(unbounded, per ADR D10 — `g:awiwi_history_length` remains a no-op).
+
+---
+
+## D9 — Search command routes through picker.grep (2026-07-06)
+
+**Context.** `:Awiwi search <pattern>` in vimscript used `fzf#vim#grep` directly. The Lua port
+unifies all picker UI through `lua/awiwi/picker.lua` (ADR D7), which wraps `vim.ui.select`
+(default) or telescope (if available). All pickers — `journal` (file), `asset`, `tags`, `entries`,
+and now `search` — use the same backend, making the picker choice consistent and upgradeable.
+
+**Decision.** `:Awiwi search` now routes through `picker.lua:grep()` (live-rg → select/telescope
+picker), replacing the legacy `fzf#vim#grep` call. The picker backend is chosen once at load time;
+no per-command override.
+
+**Consequences.** Users without telescope get the simple `vim.ui.select` default for search (still
+functional, just simpler UI). Telescope users get the same multi-selection, live-filter UI as all
+other pickers. The `--color=never` rg option is hardcoded (not user-configurable, matching the
+pattern from ADR D7).
+
+---
+
+## D10 — g:awiwi_history_length remains a no-op (2026-07-06)
+
+**Context.** The vimscript `awiwi.vim` declared `let s:log_file_size = get(g:, 'awiwi_history_length', 10000)`
+and `let s:history = []`, but neither variable is used anywhere in the codebase. The config key
+is documented in `docs/architecture.md` as "log size, 10000" but silently ignored — `data/awiwi.log`
+grows unbounded forever. The intended behavior (log rotation after N entries) was never implemented.
+
+**Decision.** The Lua port **does not** implement log rotation. The config key `g:awiwi_history_length`
+is preserved (no error if set) but produces no effect. If log rotation is desired in the future,
+it is a separate feature decision, not a port task.
+
+**Consequences.** `data/awiwi.log` continues to grow unbounded, as it did under vimscript. No user
+action is required. If log bloat becomes an issue, either delete `data/awiwi.log` manually or
+implement a new rotation feature (which would require an ADR at decision time, not port time).
+
+---
+
+## D11 — split_screen guard pending human ADR (2026-07-06)
+
+**Context.** The vimscript `ftplugin/awiwi.vim` defines `<C-x>` and `<C-v>` command-line-mode mappings
+that inject split flags (`+hnew` / `+vnew`) into a command line. The guard logic is: only activate
+if `getcmdtype() == ':'` AND the first word of the command is NOT one of the abbreviations
+`Aw`, `Awi`, `Awiw`, `Awiwi` (i.e., not an `:Awiwi` command). But the guard uses `match(...)==1`,
+which should be `==0` to detect `Awiwi` — as written, it never fires, so the split flag is
+**always** injected, even on `:Awiwi ...` commands (where it has no effect, but technically it
+violates the stated intent). This is **not** documented as a bug; it has been in the shipped code
+and may be relied upon by users.
+
+**Decision.** The Lua port **preserves the guard logic exactly as written** (the `match(...)` return
+value check inverted from the intended sense), pending a human decision. If the current behavior is
+in fact intentional or has become a convention, the guard can stay. If it is genuinely a bug, a
+separate human-initiated ADR should record the intent and authorize a fix.
+
+**Consequences.** The Lua port faithfully reproduces the vimscript behavior. The dogfood checklist
+should confirm the `<C-x>` / `<C-v>` mappings work as users expect. Future fixes to the guard logic
+are a separate decision.
+
+---
+
+**High-water mark: D11**

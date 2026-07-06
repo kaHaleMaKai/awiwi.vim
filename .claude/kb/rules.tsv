@@ -56,15 +56,9 @@
 # docs/architecture.md is the authoritative spec for the plugin — it doubles as the
 # rewrite target for the Lua port. Keep it fresh with any behavior change.
 
-# Vim plugin core (current implementation, being ported to Lua). Any module change
-# must move the architecture spec or the index.
-^autoload/awiwi.*\.vim$	docs/architecture.md,docs/INDEX.md	plugin core changed — update the module map / command surface in the architecture spec
-
-# Command surface, filetype behavior, and mappings live in ftplugin/ftdetect.
-^ft(plugin|detect)/.*\.vim$	docs/architecture.md	command surface / mappings / filetype detection changed — update the architecture spec
-
-# Lua rewrite (future / in progress) — mirrors the vim plugin's module structure.
-^lua/.*\.lua$	docs/architecture.md,docs/INDEX.md	Lua module changed — update the architecture spec / index
+# Lua plugin (T10 switchover complete). Vimscript autoload/ftplugin/ftdetect/syntax
+# files were deleted in T10; lua/* is now the primary implementation.
+^lua/awiwi/.*\.lua$	docs/architecture.md,docs/INDEX.md	Lua plugin module changed — update the architecture spec / index
 
 # SQLite schema & queries back the task/checklist DAO. Schema shape is a decision.
 ^resources/db/.*\.sql$	docs/data-model.md,docs/decisions.md	DB schema / query changed — update the data model + record an ADR
