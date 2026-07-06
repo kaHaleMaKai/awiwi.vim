@@ -431,18 +431,10 @@ end)
 describe("hi.get_recipe_title", function()
   it("relativizes against the recipe subpath and strips a .md suffix", function()
     with_home(function(home)
-      local subpath = home .. "/recipes"
-      local saved_fn = vim.fn["awiwi#get_recipe_subpath"]
-      vim.fn["awiwi#get_recipe_subpath"] = function()
-        return subpath
-      end
-
       with_scratch_buffer(nil, function(buf)
-        vim.api.nvim_buf_set_name(buf, subpath .. "/cooking/pasta.md")
+        vim.api.nvim_buf_set_name(buf, home .. "/recipes/cooking/pasta.md")
         eq("cooking/pasta", hi.get_recipe_title())
       end)
-
-      vim.fn["awiwi#get_recipe_subpath"] = saved_fn
     end)
   end)
 end)

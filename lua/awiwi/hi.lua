@@ -281,11 +281,11 @@ end
 --- workaround (hi.vim:129-130) that manually stripped a spurious leading
 --- path component to compensate for the old buggy `relativize`; doing so on
 --- top of the fixed function would double-cancel and silently eat one path
---- component too many. `awiwi#get_recipe_subpath()` is a T10 façade
---- dependency (not yet ported) -- called via vimscript interop.
+--- component too many. `get_recipe_subpath()` lives on the façade; required
+--- lazily here because the façade requires `hi` at top level (cycle).
 function M.get_recipe_title()
   local file = vim.fn.expand("%:p")
-  local subpath = vim.fn["awiwi#get_recipe_subpath"]()
+  local subpath = require("awiwi").get_recipe_subpath()
   local rel = path.relativize(file, subpath)
   return rel:sub(1, -4)
 end
