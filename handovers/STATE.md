@@ -1,6 +1,6 @@
 # State — Lua rewrite
 
-_Updated: 2026-07-05 — plan `~/.claude/plans/plan-the-migration-from-declarative-castle.md` synced; recon fan-out dispatched._
+_Updated: 2026-07-06 — T1–T9 all landed and qa-verified; suite 354 green. Session stopped after T9 by user request; T10 (façade + switchover) starts in a fresh session._
 
 ## Transactions
 
@@ -13,7 +13,7 @@ _Updated: 2026-07-05 — plan `~/.claude/plans/plan-the-migration-from-declarati
 - [x] T6a — `hi` (<pending>) — qa PASS; B9/hi-1/hi-3 fixed, structural pass `hi.headings`/`hi.code_line_mask` ready for T6b
 - [x] T6b — `syn` + `markers` (a2ec467) — qa PASS; built+headless-tested, NOT wired (T10 activates); B1/B2/B3/B10/B11-syn fixed, ADR D6; exposed test-hygiene bugs B11/B12 (fixed 9a9f8ab, c0fef93)
 - [x] T7 — `server` (71f0195) — qa PASS; all 7 brief bugs fixed; launches FastAPI (ADR D5); `app:app` entrypoint placeholder must be pinned when server/ gains its app module
-- [x] T9 — `cmd` + `picker` (<pending>) — qa PASS (354 green ×2, all 38 flows covered); ADR D7 picker seam (vim.ui.select default, telescope auto-upgrade — user decision); brief bugs B1–B7 handled; NOT wired (`:Awiwi` still vimscript)
+- [x] T9 — `cmd` + `picker` (d2159c7) — qa PASS (354 green ×2, all 38 flows covered); ADR D7 picker seam (vim.ui.select default, telescope auto-upgrade — user decision); brief bugs B1–B7 handled; NOT wired (`:Awiwi` still vimscript)
 - [ ] T10 — façade + switchover (dep: all; opus; worktree + user dogfood sign-off; deletes vimscript) ◀ NEXT — **user asked to start T10 in a fresh session.** T10 must: port awiwi.vim façade (939 ln; incl. `get_recipe_subpath` natively, B10) + ftplugin/ftdetect (py3 todo-cleanup → Lua, verify B6 off-by-one; drop B8 global updatetime mutation; B7 foldexpr), define `:Awiwi` via nvim_create_user_command → `require('awiwi.cmd').run`, fill every `M.deps` (inventories in cmd.md and asset.md `## Ported`), rewire `<F12>`→`:Awiwi tags`, teach `open_file` about `options.width` (B3 note in cmd.md), activate syn (`vim.treesitter.start` + attach, see syn.md `## Ported` activation notes), then DELETE `autoload/*.vim`, `syntax/awiwi.vim`, old ftplugin logic. Worktree + real-session dogfood + user sign-off gate the merge.
 - [ ] T11 — drain deferred-bugs queue (dep: T10)
 
@@ -44,4 +44,6 @@ Cadence per transaction: S.1 recon (vim-archaeologist) → S.2 port (lua-port-en
 
 ## Tooling gaps noted (non-critical)
 
-- telescope.nvim (+ plenary.nvim) must be present by T9 — probe `nvim --headless` `require('telescope')` at T9 start; pause T9 if absent.
+- ~~telescope.nvim by T9~~ — resolved: probe found no telescope/plenary/fzf; user chose vim.ui.select default + telescope auto-upgrade (ADR D7). Telescope path is fake-injected in specs only — sanity-check with real telescope during T10 dogfooding if available.
+- `server/` has no FastAPI app module yet — `server.lua`'s `uv run uvicorn app:app` entrypoint is a documented placeholder (ADR D5); pin it when the app lands.
+- Per-module briefs stay in `handovers/lua-port/` until T10 consumes their `## Ported` inventories; archive to `handovers/done/` at close.
