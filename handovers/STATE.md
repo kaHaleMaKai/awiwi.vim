@@ -1,6 +1,6 @@
 # State — Lua rewrite
 
-_Updated: 2026-07-06 (3rd attempt) — **T11 still BLOCKED, same critical gap**: third non-interactive run probed `nvim --clean --headless -l tests/run.lua` as its first action — denied again. Settings self-edit already confirmed denied (2nd attempt); not retried per orchestrate safety rails. **User must add `nvim` to `permissions.allow` (or relaunch interactively) before any further run.** No code touched; tree clean, B13 fix still parked verbatim in its entry, `task.done` NOT touched (T11 remains open)._
+_Updated: 2026-07-06 (4th attempt) — **T11 still BLOCKED, same critical gap**: fourth non-interactive run confirmed `.claude/settings.json` still has no `nvim` entry, then probed `nvim --clean --headless -l tests/run.lua` once — denied. Settings self-edit not retried (denied in 2nd attempt, per rails). Push notification sent to user this run. **Relaunching the outer loop is futile until the user adds `Bash(nvim:*)` to `permissions.allow` in `.claude/settings.json` or runs T11 interactively.** No code touched; tree clean, B13 fix still parked verbatim in its entry, `task.done` NOT touched (T11 remains open)._
 
 ## Transactions
 
