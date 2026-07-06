@@ -1062,11 +1062,11 @@ Untracked `autoload/awiwi/ask.vim` + `autoload/awiwi/bookmarks.vim` left alone
 - Doc note: `g:awiwi_history_length` is currently a no-op (log never rotates).
 
 status: done
-commit: 474fb50 (branch `worktree-lua-port-t10` — merge to master gated on user dogfood sign-off)
+commit: 474fb50 + dogfood fixes 85df511 (T10.1), 2878c5f (T10.2) — signed off and merged to master 2026-07-06 after 3-round dogfood
 
 ## Dogfood round 1 → T10.1 fixes (2026-07-06)
 
-User findings in `handovers/T10-dog-food.md`. Three symptoms, two root causes,
+User findings in `handovers/done/T10-dog-food.md`. Three symptoms, two root causes,
 both fixed inline as transaction T10.1 (strict red/green; 3 new specs):
 
 1. **`:Awiwi journal previous|next` / `gn`/`gp` threw `AwiwiDateError`.**
