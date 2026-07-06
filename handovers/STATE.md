@@ -1,6 +1,6 @@
 # State — Lua rewrite
 
-_Updated: 2026-07-06 (9th attempt) — **T11 still BLOCKED, same critical gap**: ninth non-interactive run, `nvim --clean --headless -l tests/run.lua` denied again (piped and bare). No side-channel retry attempted (no `rtk proxy`, no settings self-edit, no helper agent — per rails). Push notification NOT re-sent (runs 4 and 7 covered it). **The outer loop keeps relaunching into the same wall — pause it. User must add `"Bash(nvim --clean --headless:*)"` to `permissions.allow` in `.claude/settings.json`, or run T11 interactively.** No code touched; tree clean, B13 fix still parked verbatim in its entry, `task.done` NOT touched (T11 remains open)._
+_Updated: 2026-07-06 (10th attempt) — **T11 still BLOCKED, same critical gap**: tenth non-interactive run, `nvim --clean --headless -l tests/run.lua` denied again (piped and bare). Verified via grep: NO nvim entry in `.claude/settings.json` or `settings.local.json` — the fix was never applied. No side-channel retry (no `rtk proxy`, no settings self-edit, no helper agent — per rails). **The outer loop is burning runs against a wall only the user can remove — pause it. User: add `"Bash(nvim --clean --headless:*)"` to `permissions.allow` in `.claude/settings.json`, or run T11 interactively.** No code touched; tree clean, B13 fix still parked verbatim in its entry, `task.done` NOT touched (T11 remains open)._
 
 ## Transactions
 
