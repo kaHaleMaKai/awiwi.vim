@@ -170,6 +170,12 @@ vim.api.nvim_create_autocmd("BufModifiedSet", {
 
 -- syn activation (net-new for T10; the deleted syntax/awiwi.vim self-activated
 -- via :syntax). Attach the current buffer; detach on unload.
+-- T10.1 dogfood fix: syn.lua paints only the awiwi *extras* — the base
+-- markdown look (headings, fences, emphasis) that the legacy :syntax file
+-- layered on top of must come from the bundled markdown treesitter
+-- highlighter, which nothing started. pcall: a nvim built without the
+-- bundled markdown parser just loses base styling, not the whole ftplugin.
+pcall(vim.treesitter.start, buf, "markdown")
 syn.setup_highlights()
 syn.attach(buf)
 vim.api.nvim_create_autocmd({ "BufUnload" }, {

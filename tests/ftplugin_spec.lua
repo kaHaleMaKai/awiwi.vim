@@ -109,6 +109,12 @@ describe("ftplugin", function()
     ok(not vim.wo.foldexpr:find("<SNR>", 1, true), "foldexpr uses a Funcref splice")
   end)
 
+  it("starts base markdown treesitter highlighting (T10.1 dogfood fix)", function()
+    open_awiwi_buffer()
+    local buf = vim.api.nvim_get_current_buf()
+    ok(vim.treesitter.highlighter.active[buf], "no treesitter highlighter active on awiwi buffer")
+  end)
+
   it("B8: does not mutate updatetime session-wide", function()
     vim.o.updatetime = 271
     open_awiwi_buffer()

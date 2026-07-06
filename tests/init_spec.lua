@@ -289,6 +289,29 @@ describe("edit_journal", function()
     end)
   end)
 
+  it("18b: 'previous' resolves against the real journal-file list (T10.1 dogfood fix)", function()
+    sandbox(function(set)
+      local jdir = path.join(vim.g.awiwi_home, "journal", "2024", "03")
+      vim.fn.mkdir(jdir, "p")
+      local f1 = path.join(jdir, "2024-03-05.md")
+      local f2 = path.join(jdir, "2024-03-07.md")
+      vim.fn.writefile({}, f1)
+      vim.fn.writefile({}, f2)
+      local file
+      set(awiwi, "open_file", function(f)
+        file = f
+      end)
+      set(date, "get_own_date", function()
+        return "2024-03-07"
+      end)
+      local success, err = pcall(awiwi.edit_journal, "previous", {})
+      vim.fn.delete(f1)
+      vim.fn.delete(f2)
+      ok(success, "edit_journal('previous') threw: " .. tostring(err))
+      ok(file and file:find("2024%-03%-05%.md$"), "expected previous journal file, got " .. tostring(file))
+    end)
+  end)
+
   it("21: normal date sets last_line + delegates", function()
     sandbox(function(set)
       local file, o

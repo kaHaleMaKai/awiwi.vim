@@ -1,6 +1,6 @@
 # State — Lua rewrite
 
-_Updated: 2026-07-06 — T10 (façade + switchover) implemented + qa PASS on branch `worktree-lua-port-t10` (worktree `.claude/worktrees/lua-port-t10`); suite 454 green (14 files). **Merge to master gated on user dogfood + sign-off** — see "next session needs"._
+_Updated: 2026-07-06 — dogfood round 1 found 3 symptoms → T10.1 fixes landed (suite 457 green, 14 files) on branch `worktree-lua-port-t10` (worktree `.claude/worktrees/lua-port-t10`). **Merge to master gated on user dogfood round 2 + sign-off** — see "next session needs"._
 
 ## Transactions
 
@@ -15,6 +15,7 @@ _Updated: 2026-07-06 — T10 (façade + switchover) implemented + qa PASS on bra
 - [x] T7 — `server` (71f0195) — qa PASS; all 7 brief bugs fixed; launches FastAPI (ADR D5); `app:app` entrypoint placeholder must be pinned when server/ gains its app module
 - [x] T9 — `cmd` + `picker` (d2159c7) — qa PASS (354 green ×2, all 38 flows covered); ADR D7 picker seam (vim.ui.select default, telescope auto-upgrade — user decision); brief bugs B1–B7 handled; NOT wired (`:Awiwi` still vimscript)
 - [x] T10 — façade + switchover (474fb50 on branch `worktree-lua-port-t10`) — qa PASS; suite 454 green (14 files); brief `handovers/lua-port/init.md` (84-item contract, 100 new specs); façade `lua/awiwi/init.lua` + `ftplugin/awiwi.lua` + `ftdetect/awiwi.lua`; all 16 tracked vimscript files deleted; B6/B7/B8/B10 + B-INIT-1..5 + cmd-B3 (`options.width`) fixed; syn activated; `<F12>`→`:Awiwi tags`; ADRs D8–D11. **NOT MERGED — user dogfood + sign-off pending** (checklist in init.md `## Dogfood checklist`)
+- [x] T10.1 — dogfood round-1 fixes (<pending>) — user findings `handovers/T10-dog-food.md`; two root causes fixed inline (orchestrator, red/green, 3 new specs, suite 457 green): (1) `date.deps.journal_dates` seam wired to `get_all_journal_files` — `:Awiwi journal previous|next`/`gn`/`gp` threw AwiwiDateError because nothing ever injected `options.files`; (2) `vim.treesitter.start(buf, "markdown")` in ftplugin — port had deleted `syntax/awiwi.vim` without starting any base markdown layer ("fences/markers don't work"). "redacted only after set ft" NOT reproduced headlessly — re-check in dogfood round 2 (details in init.md `## Dogfood round 1`)
 - [ ] T11 — drain deferred-bugs queue (dep: T10 merge)
 
 Cadence per transaction: S.1 recon (vim-archaeologist) → S.2 port (lua-port-engineer, red/green TDD) → S.3 verify (qa-verifier PASS/FAIL) → S.4 curate+commit (kb-curator, pre-commit kb-detect gate). Full suite `nvim --clean --headless -l tests/run.lua` after each.
@@ -40,7 +41,7 @@ Cadence per transaction: S.1 recon (vim-archaeologist) → S.2 port (lua-port-en
 
 ## What the next session needs
 
-- **T10 merge gate (USER):** dogfood the plugin from worktree `.claude/worktrees/lua-port-t10` (branch `worktree-lua-port-t10`) in a real session — checklist: `handovers/lua-port/init.md` `## Dogfood checklist`. On sign-off: merge to master, fill commit hash into init.md `## Ported`, archive `handovers/lua-port/*.md` → `handovers/done/`, remove worktree. Untracked `autoload/awiwi/ask.vim`/`bookmarks.vim` drafts in the main checkout are untouched (dropped modules per skill) — user decides their fate.
+- **T10 merge gate (USER), round 2 after T10.1:** re-dogfood — focus on the round-1 failures (`gn`/`gp`/`:Awiwi journal previous|next`; base markdown styling: headings/fences; markers + redacted visible on open *without* `:set ft=awiwi`) plus the round-1 untested items (clipboard paste, real fzf/telescope pickers, airline). Round-1 findings: `handovers/T10-dog-food.md`; fixes: init.md `## Dogfood round 1`. Original instructions: dogfood the plugin from worktree `.claude/worktrees/lua-port-t10` (branch `worktree-lua-port-t10`) in a real session — checklist: `handovers/lua-port/init.md` `## Dogfood checklist`. On sign-off: merge to master, fill commit hash into init.md `## Ported`, archive `handovers/lua-port/*.md` → `handovers/done/`, remove worktree. Untracked `autoload/awiwi/ask.vim`/`bookmarks.vim` drafts in the main checkout are untouched (dropped modules per skill) — user decides their fate.
 - After merge: T11 drains the queue above (COORD-1 reconciliation + PENDING-ADR decision).
 - Plan: `~/.claude/plans/plan-the-migration-from-declarative-castle.md` (design decisions D1 treesitter arch, asset⇄cmd break, telescope pickers, dropped modules, bug policy).
 - Per-module handovers at `handovers/lua-port/<module>.md` (archaeologist writes, engineer appends `## Ported`, verifier judges in `.claude/progress/qa-verifier-<module>.md`).

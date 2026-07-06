@@ -1063,3 +1063,33 @@ Untracked `autoload/awiwi/ask.vim` + `autoload/awiwi/bookmarks.vim` left alone
 
 status: done
 commit: 474fb50 (branch `worktree-lua-port-t10` — merge to master gated on user dogfood sign-off)
+
+## Dogfood round 1 → T10.1 fixes (2026-07-06)
+
+User findings in `handovers/T10-dog-food.md`. Three symptoms, two root causes,
+both fixed inline as transaction T10.1 (strict red/green; 3 new specs):
+
+1. **`:Awiwi journal previous|next` / `gn`/`gp` threw `AwiwiDateError`.**
+   Root cause: the port broke the legacy `date.vim → awiwi#get_all_journal_files()`
+   cycle by dependency-injecting `options.files` into `date.parse_date` — but no
+   caller was ever updated to inject it, so the list was always empty. Fix:
+   `date.deps.journal_dates` provider seam (defaults to `{}`, keeping the module
+   filesystem-free), wired to `M.get_all_journal_files` in the façade's cmd-deps
+   wiring block. Specs: `date_spec` (provider fallback), `init_spec` §18b
+   (acceptance: 'previous' resolves against real files).
+2. **"fences don't work / markers don't work" (base look missing).**
+   Root cause: legacy `syntax/awiwi.vim` layered its extras on *base markdown
+   syntax* (`containedin=markdownH1..6`, `syn clear markdownListMarker`); the
+   T6b/T10 port painted only the awiwi extras and started no base layer at all.
+   Fix: `pcall(vim.treesitter.start, buf, "markdown")` in `ftplugin/awiwi.lua`
+   before `syn.attach` — bundled markdown parser supplies headings/fences/
+   emphasis. Spec: `ftplugin_spec` (highlighter active on awiwi buffer).
+3. **"redacted works only after `:set ft=awiwi`" — NOT reproduced headlessly:**
+   extmarks (markers, redacted, links) are provably painted at load
+   (`awiwi-syn-markers=9` incl. `awiwiRedacted` right after `:edit`). Likely the
+   missing base styling made the page read as "unhighlighted" overall; needs
+   re-verification in dogfood round 2 after the T10.1 fixes. If it persists,
+   suspect a TUI-only redraw/ordering issue around the FileType autocmd.
+
+Verified end-to-end headlessly: `:Awiwi journal previous` from 2026-07-06 opens
+2026-07-05.md, `next` returns, `vim.treesitter.highlighter.active[buf]` truthy.

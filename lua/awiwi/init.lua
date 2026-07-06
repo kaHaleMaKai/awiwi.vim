@@ -1198,6 +1198,11 @@ cmd.deps.edit_meta_info = M.edit_meta_info
 cmd.deps.edit_todo = M.edit_todo
 cmd.deps.show_toc_in_qlist = M.show_toc_in_qlist
 
+-- date's prev/next resolution needs the real journal-file-date list
+-- (T10.1 dogfood fix — the seam existed but was never wired, so
+-- `:Awiwi journal previous`/`next` threw AwiwiDateError).
+date.deps.journal_dates = M.get_all_journal_files
+
 -- asset's opener default is a bare `:edit`; give it the real façade opener so
 -- opening assets honors splits/anchors/xdg extensions.
 asset.deps.open_file = M.open_file

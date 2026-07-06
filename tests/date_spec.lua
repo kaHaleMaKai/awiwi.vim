@@ -156,6 +156,18 @@ describe("date.parse_date", function()
       eq("2099-01-01", date.parse_date(alias, { files = files }))
     end
   end)
+
+  it("falls back to deps.journal_dates provider when options.files is absent (T10.1 dogfood fix)", function()
+    local today = date.get_today()
+    local old = date.deps.journal_dates
+    date.deps.journal_dates = function()
+      return { "2024-01-01", today }
+    end
+    local success, result = pcall(date.parse_date, "previous")
+    date.deps.journal_dates = old
+    eq(true, success)
+    eq("2024-01-01", result)
+  end)
 end)
 
 describe("date.offset_date", function()

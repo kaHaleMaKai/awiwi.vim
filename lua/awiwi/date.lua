@@ -16,6 +16,18 @@ local path = require("awiwi.path")
 
 local M = {}
 
+--- Injection seam for the ascending journal-file-date list `prev`/`next`
+--- resolution needs (see `offset_date`). The façade wires this to
+--- `awiwi.get_all_journal_files` at bootstrap; the default keeps this
+--- module filesystem-free (only "today has no journal file yet" resolves).
+--- T10.1 dogfood fix: without this seam every `parse_date` caller had to
+--- pass `options.files`, and none did — `:Awiwi journal previous` threw.
+M.deps = {
+  journal_dates = function()
+    return {}
+  end,
+}
+
 local WEEKDAYS = {
   sunday = 1,
   monday = 2,
@@ -237,7 +249,7 @@ end
 --- the result isn't ISO-shaped.
 function M.parse_date(date, options)
   options = options or {}
-  local files = options.files or {}
+  local files = options.files or M.deps.journal_dates()
 
   if date == "today" then
     return M.get_today()

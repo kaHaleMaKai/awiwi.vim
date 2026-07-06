@@ -49,13 +49,13 @@ were deleted in T10; this table reflects the current Lua state.
 | `cmd.lua`      | subcommand dispatch (`run`) + completion; `show_tasks`, sessions, drawio export; routes through `picker.lua` seam; `:Awiwi search` now via `picker.grep` (ADR D8) |
 | `picker.lua`   | unified picker seam: `vim.ui.select` default, telescope auto-upgrade (ADR D7); three types: `select`, `files`, `grep` |
 | `asset.lua`    | create/open/link assets under `assets/YYYY/MM/DD/`; owns `M.types` (asset⇄cmd cycle broken); pure-Lua random id; open side-effect-free (ADR D4); injectable deps |
-| `date.lua`     | parse/normalize dates, journal-relative nav; pure os.date/os.time, narrowed grammar (ADR D3), new `diff_days` |
+| `date.lua`     | parse/normalize dates, journal-relative nav; pure os.date/os.time, narrowed grammar (ADR D3), new `diff_days`; `deps.journal_dates` seam wired by the façade so `prev`/`next` resolve against real journal files (T10.1) |
 | `util.lua`     | helpers: link parse/classify (journal misclassification fixed), `match_subcommands`, `input` (vim.ui.input callback), code-block text objects, window-split utilities |
 | `hi.lua`       | due-date badges + header rules as extmarks; treesitter structural pass (`headings`/`code_line_mask`, reused by syn); title helpers for `entitlement.nvim` |
 | `path.lua`     | path join/split/relativize/canonicalize; native `path.join()` replaces broken `fn#apply`/`fn#spread` dependency (B10 fix) |
 | `server.lua`   | viewer control: start/stop/logs/serve via `vim.system`, non-blocking `wait_ready`; launches FastAPI server (ADR D5; `app:app` placeholder until `server/` gains app module); config.json, xdg-open |
 | `str.lua`      | string helpers (startswith/endswith/contains/is_empty); case-sensitive (intentional per ADR D2); leaf, widely used |
-| `syn.lua`      | treesitter/extmark syntax layer: markdown+markdown_inline queries, link conceal, marker/redaction/Redmine line patterns outside code mask; typos fixed (ADR D6); wired via ftplugin FileType autocmd (T10) |
+| `syn.lua`      | treesitter/extmark syntax layer: markdown+markdown_inline queries, link conceal, marker/redaction/Redmine line patterns outside code mask; typos fixed (ADR D6); wired via ftplugin FileType autocmd (T10); paints awiwi *extras* only — base markdown styling (headings/fences/emphasis) comes from `vim.treesitter.start(buf, "markdown")` in the ftplugin (T10.1) |
 | `markers.lua`  | marker vocabulary (TODO/FIXME/ONHOLD/DUE/@due/@incident/…); rg/vim escaping; `g:awiwi_custom_*_markers` overrides |
 
 ## Command surface
