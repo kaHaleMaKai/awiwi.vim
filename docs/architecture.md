@@ -12,7 +12,7 @@ Keep this truthful — when behavior changes, this file changes in the same comm
 | component     | location                                | status                                       |
 | ------------- | --------------------------------------- | -------------------------------------------- |
 | Plugin        | `autoload/`, `ftplugin/`, `ftdetect/`, `syntax/` | active (vimscript) → being ported to Lua |
-| Lua rewrite   | `lua/`                                  | in progress (str, path, date, util, asset, hi, server, syn, markers complete) |
+| Lua rewrite   | `lua/`                                  | in progress (str, path, date, util, asset, hi, server, syn, markers, cmd, picker complete — only the T10 façade/switchover remains) |
 | Server/viewer | `server/` (FastAPI + Pydantic)          | in progress, replacing `server.old/`         |
 | Legacy server | `server.old/` (Flask + Jinja)           | reference only                               |
 
@@ -43,7 +43,7 @@ completion `cmd.vim:339`; central file opener `awiwi.vim:271` (`awiwi#open_file`
 | module         | LOC | status | responsibility |
 | -------------- | --- | ------ | -------------- |
 | `awiwi.vim`    | 939 | active | façade: journals, links, asset paste, **file-based active-task timer** (`data/task.log`), quickfix TOC, markers |
-| `cmd.vim`      | 780 | active | `:Awiwi` subcommand parse/dispatch (`run`) + completion (`get_completion`) + `show_tasks`, `store/restore_session`, `export_drawio_diagram` |
+| `cmd.vim`      | 780 | ported to `lua/awiwi/cmd.lua` + `lua/awiwi/picker.lua` (**not wired** — `:Awiwi` still dispatches to vimscript until T10) | subcommand dispatch (`run`) + completion + `show_tasks`, sessions, drawio export; all picker UI behind `picker.lua` seam (vim.ui.select default, telescope auto-upgrade — ADR D7); façade calls via `M.deps` until T10; fzf gone |
 | `sql.vim`      | 378 | active | shells out to `sqlite3` binary; typed param binding (`?` placeholders, `col@type` result hints), transactions. Self-contained (no awiwi deps) |
 | `asset.vim`    | 246 | ported to `lua/awiwi/asset.lua` | create/open/link assets under `assets/YYYY/MM/DD/`; owns `M.types` (asset⇄cmd cycle broken); pure-Lua random id (pyx gone); open no longer silently creates files (ADR D4); façade deps via `M.deps` until T10 |
 | `date.vim`     | 168 | ported to `lua/awiwi/date.lua` | parse/normalize dates, journal-relative nav; pure os.date/os.time, narrowed grammar (ADR D3), new `diff_days` |
@@ -79,7 +79,8 @@ completion `cmd.vim:339`; central file opener `awiwi.vim:271` (`awiwi#open_file`
 | `toc [date]` | quickfix table of contents |
 | `meta <edit [col]\|delete>` / `due <spec>` | edit `{…}` JSON line-meta / due date |
 | `redact` | toggle `!!redacted` |
-| `serve` / `server <start [host]\|stop\|logs [stdout\|stderr\|exit]>` | Flask viewer |
+| `serve` / `server <start [host]\|stop\|logs [stdout\|stderr\|exit]>` | note viewer (FastAPI since ADR D5; vimscript still points at the dead Flask paths) |
+| `paste` | top-level alias for `asset paste` (shipped but long undocumented) |
 | `save` / `restore` | session `mksession` / source |
 | `export` | drawio → PDF (async) |
 

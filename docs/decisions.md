@@ -137,3 +137,23 @@ real `rg`).
 
 **Consequences.** Configs referencing the misspelled groups must switch to the
 corrected names; all other group names are preserved exactly.
+
+## D7 — Picker seam: vim.ui.select default, telescope auto-upgrade (2026-07-06)
+
+**Context.** Legacy pickers ran on fzf (`fzf#run`); the rewrite plan chose
+telescope.nvim. At T9 the probe found neither telescope/plenary nor even the
+fzf binary on the target machine, so a hard telescope dependency would leave
+the plugin without any working picker. User decision (T9 checkpoint).
+
+**Decision.** All picker UI flows through `lua/awiwi/picker.lua` (`select`,
+`files`, `grep`). Default backend is built-in `vim.ui.select` — zero deps,
+headless-testable. When `require('telescope.*')` succeeds (loaded through the
+injectable `picker.deps.require`), the seam auto-upgrades to a telescope list
+picker; all three picker types funnel through `select`, so telescope is
+implemented once. Live-grep flows materialize rg results via `vim.system`
+first, then pick.
+
+**Consequences.** Works on bare nvim; telescope users get telescope for free;
+fzf is gone from the Lua plugin. The telescope path is smoke-tested via an
+injected fake — machines with real telescope should sanity-check it at T10
+dogfooding.
