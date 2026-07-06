@@ -109,6 +109,11 @@ describe("ftplugin", function()
     ok(not vim.wo.foldexpr:find("<SNR>", 1, true), "foldexpr uses a Funcref splice")
   end)
 
+  it("sets window conceallevel so link conceal actually renders (T10.2 dogfood fix)", function()
+    open_awiwi_buffer()
+    eq(2, vim.wo.conceallevel)
+  end)
+
   it("starts base markdown treesitter highlighting (T10.1 dogfood fix)", function()
     open_awiwi_buffer()
     local buf = vim.api.nvim_get_current_buf()

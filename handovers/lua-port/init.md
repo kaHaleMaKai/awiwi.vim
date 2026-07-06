@@ -1093,3 +1093,16 @@ both fixed inline as transaction T10.1 (strict red/green; 3 new specs):
 
 Verified end-to-end headlessly: `:Awiwi journal previous` from 2026-07-06 opens
 2026-07-05.md, `next` returns, `vim.treesitter.highlighter.active[buf]` truthy.
+
+## Dogfood round 2 → T10.2 fix (2026-07-06)
+
+Round-2 verdict: gn/gp/ge work, syntax rendering smooth. One new finding:
+**links rendered as raw markdown** instead of the concealed `▶name (…)` form.
+Root cause: syn's conceal extmarks were always correct, but conceal only
+renders with `'conceallevel' >= 1`, which legacy never set (it relied on the
+user's global config — see syn.md Port notes "Conceal via extmarks"). Fix
+(user-sanctioned improvement over shipped behavior): window-local
+`conceallevel = 2` in ftplugin/awiwi.lua next to `concealcursor`. Spec:
+ftplugin_spec "sets window conceallevel". Verified by headless screen-scrape:
+`see [pancakes](../../../recipes/basics/pancakes.md) and` renders as
+`see ▶pancakes … and`. Suite 458 green (14 files).

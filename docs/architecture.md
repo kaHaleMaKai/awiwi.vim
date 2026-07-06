@@ -27,7 +27,10 @@ There is **no `plugin/` directory**. `:Awiwi` and all mappings are registered pe
 2. **`ftplugin/awiwi.lua`** (Neovim per-buffer, requires `g:awiwi_home`): calls `require('awiwi')` to initialize,
    defines `:Awiwi` command (`-nargs=+`, completion and dispatch through `awiwi.cmd`), all buffer mappings,
    autocommands (autosave, due-date/horizontal-line redraw, delete-old-tasks, optional `entitlement.nvim` titles),
-   folding via Lua `foldexpr`, abbreviations, optional server autostart.
+   folding via Lua `foldexpr`, abbreviations, optional server autostart. Sets window-local
+   `conceallevel=2` + `concealcursor=nciv` so syn's link conceal renders out of the box (T10.2 —
+   deliberate improvement: legacy relied on the user's global config for `conceallevel`), and starts
+   the bundled markdown treesitter highlighter for base styling (T10.1).
 3. **`lua/awiwi/init.lua`** — public API façade. On `require('awiwi')`, derives subpaths under `g:awiwi_home`
    (`journal/ todos/ assets/ recipes/ data/ cache/`), `mkdir`s them, ensures `data/task.log` (JSON format)
    and `data/awiwi.log` exist, resumes any active task from log, rebinds module dependencies.

@@ -24,6 +24,11 @@ local buf = vim.api.nvim_get_current_buf()
 local ft = vim.bo.ft
 
 vim.opt_local.concealcursor = "nciv"
+-- T10.2 dogfood fix: legacy relied on the user's global config for
+-- 'conceallevel', so link conceal (▶name, hidden URL) never rendered in a
+-- clean setup. Deliberate improvement over shipped behavior (user sign-off,
+-- dogfood round 2). Window-local, like concealcursor above.
+vim.opt_local.conceallevel = 2
 
 -- Command (global, idempotent redefinition — no per-buffer variance today).
 vim.api.nvim_create_user_command("Awiwi", function(o)
