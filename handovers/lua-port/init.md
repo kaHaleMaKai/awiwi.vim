@@ -1062,3 +1062,4 @@ Untracked `autoload/awiwi/ask.vim` + `autoload/awiwi/bookmarks.vim` left alone
 - Doc note: `g:awiwi_history_length` is currently a no-op (log never rotates).
 
 status: done
+commit: 474fb50 (branch `worktree-lua-port-t10` — merge to master gated on user dogfood sign-off)
