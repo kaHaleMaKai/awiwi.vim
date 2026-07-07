@@ -1,6 +1,13 @@
 # State — Lua rewrite
 
-_Updated: 2026-07-07 (27th run) — **T12 CLOSED, flow complete**: user resolved PENDING-ADR D11 by
+_Updated: 2026-07-07 (28th run) — **dogfood verified, ledger reconciled**: user confirmed the live
+plugin in their real config. Resolved: `<C-v>` clipboard image paste works (X11+xclip) — the
+earlier "no mapping" was a `--clean` artifact (plugin not on rtp, `g:awiwi_home` unset →
+`ftdetect/awiwi.lua:6-8` bails → ft stays markdown; in-config ft is `awiwi` and the map at
+`ftplugin/awiwi.lua:100` fires); airline/entitlement and telescope pickers work; drawio export and
+`:Awiwi serve` deferred by user; settings.json allowlist already committed. No transactions remain._
+
+_Previous (27th run) — **T12 CLOSED, flow complete**: user resolved PENDING-ADR D11 by
 directing "correct the inverted split_screen mapping". Fixed red/green: spec flipped to intended
 behavior (`:Awiwi` cmdlines get no split flag) → red → `lua/awiwi/init.lua` guard `== 1` → `== 0`
 → 458 green. ADR D12 recorded (supersedes D11's preservation clause); architecture.md mappings
@@ -50,9 +57,14 @@ Cadence per transaction: S.1 recon (vim-archaeologist) → S.2 port (lua-port-en
 
 ## What the next session needs
 
-- **All transactions T0–T12 closed; remaining items are user-only:**
-  1. `.claude/settings.json` has uncommitted nvim allowlist entries (user's own edit that unblocked T11) — commit or keep local as preferred.
-- Dogfood items never user-tested (machine lacked xclip/fzf/drawio; server app not built yet): clipboard paste, real fzf/telescope pickers, airline/entitlement, drawio export, `:Awiwi serve` — verify opportunistically now that master is live; file findings like `handovers/done/T10-dog-food.md`.
+- **All transactions T0–T12 closed and dogfood-verified; remaining items are user-only:**
+  1. `.claude/settings.json` nvim allowlist entries — **committed** (handover just wasn't updated at the time).
+- Dogfood results (2026-07-07, user's live config):
+  - `<C-v>` clipboard image paste — **verified working** (X11+xclip). The earlier "no mapping" was a `--clean` artifact only: `--clean` skips config so the plugin isn't on rtp and `g:awiwi_home` is unset → `ftdetect/awiwi.lua:6-8` bails → ft stays markdown → no buffer maps. In-config ft is `awiwi` and the map at `ftplugin/awiwi.lua:100` → `init.lua:655` → `asset.lua` fires. No code change.
+  - airline/entitlement — **verified working**.
+  - telescope pickers — **verified working**.
+  - drawio export — **deferred** by user.
+  - `:Awiwi serve` — **deferred** by user (FastAPI app module still a placeholder, ADR D5 — pin the `uv run uvicorn app:app` entrypoint when it lands).
 - Untracked `autoload/awiwi/ask.vim`/`bookmarks.vim` drafts in the main checkout are untouched (dropped modules per skill) — user decides their fate.
 - Plan: `~/.claude/plans/plan-the-migration-from-declarative-castle.md` (design decisions D1 treesitter arch, asset⇄cmd break, telescope pickers, dropped modules, bug policy).
 - Per-module handovers at `handovers/done/lua-port/<module>.md` (archived at T10 close) (archaeologist writes, engineer appends `## Ported`, verifier judges in `.claude/progress/qa-verifier-<module>.md`).
