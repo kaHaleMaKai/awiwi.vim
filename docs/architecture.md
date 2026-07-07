@@ -177,5 +177,5 @@ were deleted in T10. Known issues in the original code that are **fixed or dropp
 replacing `server.old/` (Flask + Jinja). Reference feature set from the old app: markdown render
 with TOC / internal links / mermaid; journal prev/next nav; asset serving (binary + downloadable);
 auth with localhost bypass; breadcrumbs; search. `lua/awiwi/server.lua` (T7, ADR D5) drives the
-FastAPI app via `uv run uvicorn app:app ...` (cwd=`server/`); `app:app` is a placeholder entrypoint
-until `server/` lands its app module. The live toolchain is ruff + basedpyright + pytest.
+FastAPI app via `uv run uvicorn awiwi.app:app ...` (cwd=`server/`); the entrypoint `awiwi.app:app`
+was assembled in T16 and must be pinned in server.lua by T17. The live toolchain is ruff + basedpyright + pytest.

@@ -34,6 +34,10 @@ class Settings(BaseSettings):
     home: Path
     """Notes root directory (`AWIWI_HOME`). Required: fails fast if unset."""
 
+    allow_remote: bool = False
+    """Admit non-localhost clients (`AWIWI_ALLOW_REMOTE`). Off by default
+    per user decision: localhost-only unless explicitly configured."""
+
 
 class PluginConfig(BaseModel):
     """User preferences from `<home>/config.json`, written by the plugin.

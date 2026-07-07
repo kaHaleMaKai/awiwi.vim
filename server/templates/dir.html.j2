@@ -1,0 +1,22 @@
+{% extends "base.html.j2" %}
+{% block aside %}
+
+<div class="dir-listing">
+  <ul class="dir-listing">
+  {% for entry in entries %}
+    {% if entry.class is defined %}
+    <li class="dir-listing {{ entry.class }}">
+      {% else %}
+    <li class="dir-listing">
+    {% endif %}
+      <a href="{{ entry.target }}" >{{ entry.name | beautify_if_date }}</a>
+    </li>
+  {% endfor %}
+  <ul>
+</div>
+
+{% endblock %}
+
+<!---
+vim: ft=html.j2
+-->

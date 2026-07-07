@@ -1,0 +1,91 @@
+<!doctype html>
+<html data-theme="{{ theme_mode }}">
+  <title>ʻāwīwī – {% block page_title %}{{ title|striptags }}{% endblock %}</title>
+  <head>
+    <script src="/static/js/common.js"></script>
+    <script src="/static/js/custom-reveal.js"></script>
+    <script src="/static/js/sortable-tables.js"></script>
+    <script src="/static/js/graphre.js"></script>
+    <script src="/static/js/nomnoml.js"></script>
+    <link rel="stylesheet" href="/static/css/common.css" />
+    <link rel="stylesheet" href="/static/css/sortable-tables.css" />
+    <link rel="stylesheet" href="/static/css/bootstrap-grid.min.css" />
+    <link rel="stylesheet" href="/static/css/bootstrap-grid.min.css.map" />
+    <link id="{id}" rel="stylesheet" href="/static/css/solarized.css" />
+    <link href="/static/img/favicon.ico" rel="icon" type="image/x-icon" />
+  </head>
+
+  <body onload="onloadHandler()">
+
+    <div class="top-bar">
+
+      <label class="switch">
+        <input type="checkbox" id="mode-switcher-input" {{ 'checked="true"' if theme_mode == "dark" else '' }} />
+        <div class="slider round"></div>
+      </label>
+
+      <div class="single-search-box">
+        <form class="single-search-box" action="/search/content" method="post">
+          <input type="text" id="search-content" class="search-box" value="" placeholder="search…" name="search-content" />
+          <label class="search-box" for="search-content"></label>
+          <div class="single-search-box-modal"></div>
+        </form>
+      </div>
+
+      <header>
+        <h1>
+          {% block title %}{{ title }}{% endblock %}
+        </h1>
+      </header>
+    </div>
+
+    <div class="container">
+
+      <div class="aside">
+
+        <div class="breadcrumbs">
+          <a class="breadcrumbs-link" href="/">ʻāwīwī</a>
+          {% for crumb in breadcrumbs %}
+            &gt; <a class="breadcrumbs-link" href="{{ crumb.target }}">{{ crumb.name }}</a>
+          {% endfor %}
+        </div>
+
+        {% block aside %}{% endblock %}
+
+      </div>
+
+      <div class="article {{ 'highlight-article' if highlight_article|default(false) else '' }}">
+        <div class="arrow-indicator up-arrow hidden">
+          <img class="arrow-img up-arrow" src="/static/img/up-arrow.png" />
+        </div>
+
+        <div class="arrow-indicator left-arrow hidden">
+          <img class="arrow-img left-arrow" src="/static/img/left-arrow.png" />
+        </div>
+
+        <div class="arrow-indicator right-arrow hidden">
+          <img class="arrow-img right-arrow" src="/static/img/right-arrow.png" />
+        </div>
+
+        {% block content %}
+        {{ content }}
+        {% endblock %}
+
+        {% block footer %}{% endblock %}
+      </div>
+    </div>
+        <div class="arrow-indicator down-arrow hidden">
+          <img class="arrow-img down-arrow" src="/static/img/down-arrow.png" />
+        </div>
+
+    <script type="module">
+      import mermaid from '/static/js/mermaid.js';
+      mermaid.initialize({ startOnLoad: true, theme: getMermaidTheme() });
+    </script>
+  </body>
+
+</html>
+
+<!---
+vim: ft=html.j2
+-->

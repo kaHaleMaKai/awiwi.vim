@@ -1,0 +1,24 @@
+{% extends "base.html.j2" %}
+{% block content %}
+
+{% if not content %}
+<span>No search hits found!</span>
+{% else %}
+
+<ul class="search-hits">
+{% for line in content %}
+<li class="search-hits">
+  <a href="{{ line.target }}">{{ line.type }} – {{ line.name }}</a>
+  <span class="search-hits">, l.{{ line.line }}:&nbsp;</span>
+  <span "search-hits content">{{ line.text }}</span>
+</li>
+{% endfor %}
+</ul>
+
+{% endif %}
+
+{% endblock %}
+
+<!---
+vim:ft=html.j2
+-->
