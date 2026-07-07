@@ -177,8 +177,9 @@ were deleted in T10. Known issues in the original code that are **fixed or dropp
 `server.old/` (Flask + Jinja). Bootable entrypoint: `awiwi.app:app` (pinned in `lua/awiwi/server.lua`
 T17, env `AWIWI_HOME` threaded via `vim.system`; ADR D15 supersedes D5 placeholder). Config protocol:
 env `AWIWI_HOME` set by launcher; `config.json` (from plugin, keys: `search_engine`, `home`,
-`screensaver`, `link_color`, per-marker lists) read once at lifespan, permissive (missing file → defaults,
-unknown keys ignored). Auth: localhost-only (403 for non-localhost), unless `AWIWI_ALLOW_REMOTE=1`
+`screensaver` — a screensaver *name* string, `link_color`, per-marker lists) read once at lifespan,
+permissive (missing file → defaults, unknown keys ignored, unparseable file → warning + defaults —
+boot never fails on config; T17.1). Auth: localhost-only (403 for non-localhost), unless `AWIWI_ALLOW_REMOTE=1`
 env var set (ADR D14). Markdown: python-markdown with trimmed built-ins (fenced_code, codehilite,
 def_list, footnotes, nl2br, sane_lists, toc, tables, attr_list) + local `_MermaidExtension` /
 `_StrikethroughExtension` replacing unmaintained third-party; corpus semantics preserved (nl2br,

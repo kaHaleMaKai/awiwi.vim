@@ -1,6 +1,14 @@
 # State — Lua rewrite
 
-_Updated: 2026-07-07 (29th run) — **T13–T17 server rewrite complete, FastAPI viewer live**: kb-curator
+_Updated: 2026-07-07 (30th run) — **T17.1 dogfood fix**: user's first live `:Awiwi serve` crashed at
+lifespan — PluginConfig rejected the real config.json (`screensaver` is a *name* string like
+"cinnamon", not bool; markers were pipe-joined strings). Root cause twofold: B14, a T10 façade
+regression (`init.lua` rebind dropped legacy `join = false`, so the plugin wrote joined strings
+instead of arrays), fixed red/green; and server-side, `screensaver: str | bool` + `PluginConfig.load`
+now truly permissive (unparseable config → warning + defaults, boot never fails). Plugin 462 green,
+server 118 green, boot verified against the user's exact failing config. Re-dogfood pending._
+
+_Previous (29th run) — **T13–T17 server rewrite complete, FastAPI viewer live**: kb-curator
 closed out knowledge base end-to-end. Architecture.md §Server rewritten comprehensive (module map,
 route table, config protocol, auth/localhost, markdown pipeline). ADRs D13–D15 recorded (python-markdown
 +local extensions, localhost-only auth+AWIWI_ALLOW_REMOTE escape hatch, AWIWI_HOME env+entrypoint
@@ -44,6 +52,7 @@ _Previous (26th run) — **T11 UNBLOCKED and CLOSED**: user added the nvim allow
 - [x] T15 — server markdown pipeline (2026-07-07, S15.1 sonnet) — `mdrender.py` (RenderedDoc, render_markdown, render_file w/ Pygments + vim-modeline sniff); python-markdown kept with trimmed extensions + tiny local mermaid/strikethrough replacing dropped third-party pkgs; legacy pre-filters (redaction, checkbox via hash_line, @tag/@@mention, ordinal sup); `;match(N);` non-ASCII hack deleted (unicode round-trip test); 27 new tests, 88 total green, gates all green; handover at `handovers/server-rewrite/T15-mdrender.md`; commit 3da3072
 - [x] T16 — server app assembly (2026-07-07, S16.1 opus + S16.2 orchestrator) — app.py/templating.py/routers/, templates+static copied pruned (141MB→4.5MB), acceptance-first TDD, 27 acceptance tests, 115 total green, uvicorn boot smoke OK; allow_remote escape hatch added (AWIWI_ALLOW_REMOTE); entrypoint `awiwi.app:app` ready for T17 pinning; handover handovers/server-rewrite/T16-app-assembly.md; commit 01dc9d7
 - [x] T17 — plugin integration + kb close-out (2026-07-07, S17.1 sonnet + S17.2 kb-curator) — `lua/awiwi/server.lua` entrypoint pinned `awiwi.app:app` + env `AWIWI_HOME=vim.g.awiwi_home` threaded via `vim.system`, 3 new specs → 461 green; docs: `architecture.md` §Server rewritten (module map, route table, config protocol, auth localhost-only + AWIWI_ALLOW_REMOTE, markdown pipeline), ADRs D13–D15 recorded (python-markdown+local extensions, auth dropped+localhost-only, AWIWI_HOME env+entrypoint pin), `docs/INDEX.md` ADR high-water mark D15, `handovers/STATE.md` ledger T16 hash filled + T17 entry + header updated; `kb-detect` passes; server rewrite T13–T17 complete, FastAPI viewer live, user-side only remaining (`:Awiwi serve` dogfood); handover `handovers/server-rewrite/T17-entrypoint-pin.md`; commit 4cc3b97.
+- [x] T17.1 — dogfood config fix (2026-07-07, orchestrator inline, red/green both sides) — B14: `init.lua` get_markers rebind wraps `{ join = false }` so config.json carries marker arrays again (new façade-wiring spec, plugin 462 green); server: `screensaver: str | bool`, `PluginConfig.load` catches ValidationError/OSError → warning + defaults (3 new tests, server 118 green); booted against the user's exact failing config.json → startup complete + 200; handover `handovers/server-rewrite/T17.1-dogfood-config.md`; commit <pending>
 
 Cadence per transaction: S.1 recon (vim-archaeologist) → S.2 port (lua-port-engineer, red/green TDD) → S.3 verify (qa-verifier PASS/FAIL) → S.4 curate+commit (kb-curator, pre-commit kb-detect gate). Full suite `nvim --clean --headless -l tests/run.lua` after each.
 
@@ -65,6 +74,7 @@ Cadence per transaction: S.1 recon (vim-archaeologist) → S.2 port (lua-port-en
 - [x] B12 — `tests/server_spec.lua` — config.json spec leaked `g:awiwi_link_color`/`search_engine`/`screensaver` into later spec files, breaking syn's default-color assertions. Fixed inline by orchestrator (c0fef93) — found in T6b's full-suite run
 - [x] B-INIT-1..5 — five façade bugs found by T10 recon (see `handovers/done/lua-port/init.md` bug ledger) — fixed in T10 port; B-INIT-6 (`g:awiwi_history_length` no-op) documented as ADR D10, deliberately inert
 - [x] PENDING-ADR — `split_screen` `<C-x>/<C-v>` inverted guard — **resolved in T12 (2026-07-07)**: user directed correction; guard fixed to `== 0` (ADR D12), spec updated, suite 458 green
+- [x] B14 (fixed in T17.1) — `lua/awiwi/init.lua:1211` — T10 façade rebind `server.config.get_markers = markers.get_markers` dropped the shim's `{ join = false }`, so `_write_json_config` wrote pipe-joined marker *strings* into config.json instead of the legacy *arrays* — crashed the FastAPI lifespan on the first live `:Awiwi serve` (PluginConfig expects `list[str]`). Masked because both reset() and the config.json spec stub `get_markers` with list-returning fakes. Fix: rebind wraps `join = false`; new spec reloads the façade and asserts decoded arrays; server hardened in same transaction (screensaver `str | bool`, permissive load fallback). Found in S17.3 dogfood
 - (new bugs found during implementation are appended here by any agent: `- [ ] B<n> — <file:line> — <one-liner> — found in T<x>; fix-in-port|post-port`)
 
 ## What the next session needs

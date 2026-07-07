@@ -73,3 +73,28 @@ class TestPluginConfig:
         config = PluginConfig()
         loaded = PluginConfig.load(tmp_path)
         assert loaded == config
+
+
+class TestPluginConfigDogfood:
+    """Regressions from the first live `:Awiwi serve` (S17.3 dogfood)."""
+
+    def test_screensaver_accepts_string(self, tmp_path: Path):
+        # vim.g.awiwi_screensaver is written verbatim; real configs hold a
+        # screensaver *name* like "cinnamon", not a boolean.
+        _ = (tmp_path / "config.json").write_text(
+            json.dumps({"screensaver": "cinnamon"})
+        )
+        assert PluginConfig.load(tmp_path).screensaver == "cinnamon"
+
+    def test_invalid_config_falls_back_to_defaults(self, tmp_path: Path):
+        # "Parsed permissively" means boot must survive any config.json —
+        # e.g. the T10-regression shape with pipe-joined marker strings.
+        _ = (tmp_path / "config.json").write_text(
+            json.dumps({"todo_markers": "TODO|@todo", "screensaver": []})
+        )
+        config = PluginConfig.load(tmp_path)
+        assert config == PluginConfig()
+
+    def test_unreadable_json_falls_back_to_defaults(self, tmp_path: Path):
+        _ = (tmp_path / "config.json").write_text("{not json")
+        assert PluginConfig.load(tmp_path) == PluginConfig()

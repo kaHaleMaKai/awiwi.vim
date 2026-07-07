@@ -20,7 +20,9 @@ from pathlib import Path
 
 from typing import ClassVar
 
-from pydantic import BaseModel, ConfigDict
+import logging
+
+from pydantic import BaseModel, ConfigDict, ValidationError
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 CONFIG_FILENAME = "config.json"
@@ -50,7 +52,9 @@ class PluginConfig(BaseModel):
 
     search_engine: str = "rg"
     home: str = ""
-    screensaver: bool = False
+    screensaver: str | bool = False
+    """`vim.g.awiwi_screensaver` verbatim — a screensaver *name* string in
+    real configs (e.g. "cinnamon"), false-y when unset."""
     link_color: str = ""
     todo_markers: list[str] = []
     onhold_markers: list[str] = []
@@ -61,8 +65,20 @@ class PluginConfig(BaseModel):
 
     @classmethod
     def load(cls, home: Path) -> PluginConfig:
-        """Load `<home>/config.json`, or defaults if it doesn't exist."""
+        """Load `<home>/config.json`; defaults if missing or unparseable.
+
+        Preferences must never prevent boot: a config.json the model can't
+        digest (stale format, hand-edited garbage) logs a warning and yields
+        defaults. The plugin rewrites the file on every `:Awiwi serve`, so a
+        healthy launcher self-heals the file anyway.
+        """
         config_path = Path(home) / CONFIG_FILENAME
         if not config_path.is_file():
             return cls()
-        return cls.model_validate_json(config_path.read_text())
+        try:
+            return cls.model_validate_json(config_path.read_text())
+        except (ValidationError, OSError) as exc:
+            logging.getLogger(__name__).warning(
+                "ignoring unparseable %s, using defaults: %s", config_path, exc
+            )
+            return cls()

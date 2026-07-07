@@ -1207,9 +1207,13 @@ date.deps.journal_dates = M.get_all_journal_files
 asset.deps.open_file = M.open_file
 
 -- server.config.get_markers defaulted to the now-deleted VimL `awiwi#get_markers`
--- (server.md gotcha) — point it at the ported markers module.
+-- (server.md gotcha) — point it at the ported markers module. join=false
+-- matches the legacy writer: config.json carries marker *lists*, not the
+-- pipe-joined strings get_markers defaults to (B14, found in S17.3 dogfood).
 local server = require("awiwi.server")
-server.config.get_markers = markers.get_markers
+server.config.get_markers = function(marker)
+  return markers.get_markers(marker, { join = false })
+end
 
 -- Bootstrap on load (no-op if g:awiwi_home is unset).
 if vim.g.awiwi_home and vim.g.awiwi_home ~= "" then

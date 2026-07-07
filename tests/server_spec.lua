@@ -357,3 +357,23 @@ describe("server._write_json_config", function()
     vim.g.awiwi_link_color = nil
   end)
 end)
+
+describe("façade get_markers wiring (S17.3 dogfood)", function()
+  it("keeps config.json markers as lists (rebind must pass join=false)", function()
+    reset({ system = fake_system() })
+    -- The regression lives in init.lua's wiring block, and both reset()
+    -- and earlier specs overwrite server.config.get_markers — reload the
+    -- façade so the real rebind is back in place before asserting.
+    package.loaded["awiwi"] = nil
+    require("awiwi")
+
+    server._write_json_config()
+
+    local f = assert(io.open(vim.g.awiwi_home .. "/config.json", "r"))
+    local decoded = vim.json.decode(f:read("*a"))
+    f:close()
+    eq("table", type(decoded.todo_markers))
+    ok(#decoded.todo_markers > 0)
+    eq("string", type(decoded.todo_markers[1]))
+  end)
+end)
