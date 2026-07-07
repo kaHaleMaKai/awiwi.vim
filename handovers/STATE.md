@@ -1,17 +1,24 @@
 # State — Lua rewrite
 
-_Updated: 2026-07-07 (28th run) — **dogfood verified, ledger reconciled**: user confirmed the live
-plugin in their real config. Resolved: `<C-v>` clipboard image paste works (X11+xclip) — the
-earlier "no mapping" was a `--clean` artifact (plugin not on rtp, `g:awiwi_home` unset →
-`ftdetect/awiwi.lua:6-8` bails → ft stays markdown; in-config ft is `awiwi` and the map at
-`ftplugin/awiwi.lua:100` fires); airline/entitlement and telescope pickers work; drawio export and
-`:Awiwi serve` deferred by user; settings.json allowlist already committed. No transactions remain._
+_Updated: 2026-07-07 (29th run) — **T13–T17 server rewrite complete, FastAPI viewer live**: kb-curator
+closed out knowledge base end-to-end. Architecture.md §Server rewritten comprehensive (module map,
+route table, config protocol, auth/localhost, markdown pipeline). ADRs D13–D15 recorded (python-markdown
++local extensions, localhost-only auth+AWIWI_ALLOW_REMOTE escape hatch, AWIWI_HOME env+entrypoint
+pinned). Entrypoint `awiwi.app:app` pinned in lua/awiwi/server.lua with env threading; plugin suite
+461 green (3 new specs). Only user-side remains: `:Awiwi serve` dogfood + real-world testing._
 
-_Previous (27th run) — **T12 CLOSED, flow complete**: user resolved PENDING-ADR D11 by
-directing "correct the inverted split_screen mapping". Fixed red/green: spec flipped to intended
-behavior (`:Awiwi` cmdlines get no split flag) → red → `lua/awiwi/init.lua` guard `== 1` → `== 0`
-→ 458 green. ADR D12 recorded (supersedes D11's preservation clause); architecture.md mappings
-section documents the corrected guard. No transactions remain._
+_Previous (28th run) — **dogfood verified, ledger reconciled**: user confirmed the live plugin in
+their real config. Resolved: `<C-v>` clipboard image paste works (X11+xclip) — the earlier "no mapping"
+was a `--clean` artifact (plugin not on rtp, `g:awiwi_home` unset → `ftdetect/awiwi.lua:6-8` bails →
+ft stays markdown; in-config ft is `awiwi` and the map at `ftplugin/awiwi.lua:100` fires);
+airline/entitlement and telescope pickers work; drawio export and `:Awiwi serve` deferred by user;
+settings.json allowlist already committed. No transactions remain._
+
+_Previous (27th run) — **T12 CLOSED, flow complete**: user resolved PENDING-ADR D11 by directing
+"correct the inverted split_screen mapping". Fixed red/green: spec flipped to intended behavior
+(`:Awiwi` cmdlines get no split flag) → red → `lua/awiwi/init.lua` guard `== 1` → `== 0` → 458 green.
+ADR D12 recorded (supersedes D11's preservation clause); architecture.md mappings section documents
+the corrected guard. No transactions remain._
 
 _Previous (26th run) — **T11 UNBLOCKED and CLOSED**: user added the nvim allowlist entries to `.claude/settings.json`; test gate alive again (baseline 458 green). B13 landed via its scripted red/green plan (spec de-stubbed → E117 red → lazy `require("awiwi")` in `hi.lua` → 458 green), committed `a7edcdc` through the kb-detect gate (architecture.md hi row updated by kb-curator). That was the last vimscript interop in `lua/`. **No transactional task remains — only user-side items** (PENDING-ADR D11 decision, dogfood gaps, drafts fate), so `task.done` touched per the outer-loop protocol._
 
@@ -35,7 +42,8 @@ _Previous (26th run) — **T11 UNBLOCKED and CLOSED**: user added the nvim allow
 - [x] T13 — server scaffold + config (2026-07-07, S13.1 sonnet) — `server/src/awiwi/` package with Settings (pydantic-settings, env `AWIWI_HOME`), PluginConfig (permissive JSON); 7 tests; pyproject.toml cleaned (deps added, dead Django/mypy blocks removed); gates all green (pytest/ruff/basedpyright); handover at `handovers/server-rewrite/T13-scaffold-config.md`; commit hash bdc9afb
 - [x] T14 — server domain leaf modules (2026-07-07, S14.1 sonnet) — `content.py` (parse_date aliases, journal nav, breadcrumbs, traversal guard, dir listing), `checkbox.py` (hash_line contract, toggle_checkbox with domain errors), `search.py` (rg args, search output parse, hit sorting); 61 tests green (30/14/17 new); gates all green (pytest/ruff/basedpyright); 6 legacy crash-bugs fixed (see handover); handover at `handovers/server-rewrite/T14-leaf-modules.md`; commit b63dc1b
 - [x] T15 — server markdown pipeline (2026-07-07, S15.1 sonnet) — `mdrender.py` (RenderedDoc, render_markdown, render_file w/ Pygments + vim-modeline sniff); python-markdown kept with trimmed extensions + tiny local mermaid/strikethrough replacing dropped third-party pkgs; legacy pre-filters (redaction, checkbox via hash_line, @tag/@@mention, ordinal sup); `;match(N);` non-ASCII hack deleted (unicode round-trip test); 27 new tests, 88 total green, gates all green; handover at `handovers/server-rewrite/T15-mdrender.md`; commit 3da3072
-- [x] T16 — server app assembly (2026-07-07, S16.1 opus + S16.2 orchestrator) — app.py/templating.py/routers/, templates+static copied pruned (141MB→4.5MB), acceptance-first TDD, 27 acceptance tests, 115 total green, uvicorn boot smoke OK; allow_remote escape hatch added (AWIWI_ALLOW_REMOTE); entrypoint `awiwi.app:app` ready for T17 pinning; handover handovers/server-rewrite/T16-app-assembly.md; commit <pending>
+- [x] T16 — server app assembly (2026-07-07, S16.1 opus + S16.2 orchestrator) — app.py/templating.py/routers/, templates+static copied pruned (141MB→4.5MB), acceptance-first TDD, 27 acceptance tests, 115 total green, uvicorn boot smoke OK; allow_remote escape hatch added (AWIWI_ALLOW_REMOTE); entrypoint `awiwi.app:app` ready for T17 pinning; handover handovers/server-rewrite/T16-app-assembly.md; commit 01dc9d7
+- [x] T17 — plugin integration + kb close-out (2026-07-07, S17.1 sonnet + S17.2 kb-curator) — `lua/awiwi/server.lua` entrypoint pinned `awiwi.app:app` + env `AWIWI_HOME=vim.g.awiwi_home` threaded via `vim.system`, 3 new specs → 461 green; docs: `architecture.md` §Server rewritten (module map, route table, config protocol, auth localhost-only + AWIWI_ALLOW_REMOTE, markdown pipeline), ADRs D13–D15 recorded (python-markdown+local extensions, auth dropped+localhost-only, AWIWI_HOME env+entrypoint pin), `docs/INDEX.md` ADR high-water mark D15, `handovers/STATE.md` ledger T16 hash filled + T17 entry + header updated; `kb-detect` passes; server rewrite T13–T17 complete, FastAPI viewer live, user-side only remaining (`:Awiwi serve` dogfood); handover `handovers/server-rewrite/T17-entrypoint-pin.md`; commit <pending>.
 
 Cadence per transaction: S.1 recon (vim-archaeologist) → S.2 port (lua-port-engineer, red/green TDD) → S.3 verify (qa-verifier PASS/FAIL) → S.4 curate+commit (kb-curator, pre-commit kb-detect gate). Full suite `nvim --clean --headless -l tests/run.lua` after each.
 

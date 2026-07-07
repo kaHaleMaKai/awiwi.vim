@@ -15,7 +15,7 @@ the architecture spec.
 | 4 — deep docs  | `docs/data-model.md`           | SQLite schema (tasks/checklists) + query files          | touching `dao`/`sql`/`resources/db` |
 | 4 — deep docs  | `docs/glossary.md`             | domain + architecture vocabulary                        | you hit an unfamiliar term     |
 | 4 — deep docs  | `docs/knowledge-base.md`       | memory-architecture spec + self-maintenance contract    | questions about the doc system |
-| 4 — deep docs  | `docs/decisions.md`            | ADR log — **high-water mark: D11** (keep this current)   | before deciding anything       |
+| 4 — deep docs  | `docs/decisions.md`            | ADR log — **high-water mark: D15** (keep this current)   | before deciding anything       |
 | 3 — working    | `handovers/STATE.md`           | Lua-rewrite ledger: transactions done/next, resume point | resuming / orchestrating the rewrite |
 | 3 — working    | `handovers/lua-port/<mod>.md`  | per-module port brief + "Ported" handover               | porting that module            |
 | 5 — pipeline   | `.claude/agents/kb-curator.md` | doc-refresh subagent                                    | orchestrating                  |

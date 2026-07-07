@@ -278,6 +278,53 @@ describe("server.serve", function()
   end)
 end)
 
+describe("server.default_cmd_builder", function()
+  it("targets the real FastAPI entrypoint awiwi.app:app", function()
+    reset({ system = fake_system() })
+
+    local built = server.default_cmd_builder("localhost", "5823")
+
+    local found = false
+    for _, arg in ipairs(built.cmd) do
+      if arg == "awiwi.app:app" then
+        found = true
+      end
+    end
+    ok(found, "expected default_cmd_builder's cmd to reference awiwi.app:app")
+  end)
+
+  it("threads AWIWI_HOME=g:awiwi_home through the env table", function()
+    reset({ system = fake_system() })
+    vim.g.awiwi_home = "/tmp/some-awiwi-home"
+
+    local built = server.default_cmd_builder("localhost", "5823")
+
+    ok(built.env ~= nil, "expected default_cmd_builder to set env")
+    eq("/tmp/some-awiwi-home", built.env.AWIWI_HOME)
+  end)
+end)
+
+describe("server.start_server env threading", function()
+  it("forwards the command builder's env (AWIWI_HOME) to the spawned process", function()
+    local system_calls = {}
+    reset({
+      system = function(cmd, opts, on_exit)
+        local stub = fake_system()
+        system_calls[#system_calls + 1] = opts
+        return stub(cmd, opts, on_exit)
+      end,
+    })
+    -- Use the real default_cmd_builder (not the fake) to prove the
+    -- AWIWI_HOME env actually reaches vim.system's opts.
+    server.config.cmd_builder = server.default_cmd_builder
+
+    server.start_server("localhost")
+
+    eq(1, #system_calls)
+    eq(vim.g.awiwi_home, system_calls[1].env.AWIWI_HOME)
+  end)
+end)
+
 describe("server._write_json_config", function()
   it("serializes globals + marker lists into <home>/config.json", function()
     reset({ system = fake_system() })

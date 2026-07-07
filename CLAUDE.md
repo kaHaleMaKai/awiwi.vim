@@ -36,7 +36,7 @@ Read `docs/architecture.md` for the module map, command surface, and data flow. 
   tracker is a plain-text time log (`<g:awiwi_home>/data/task.log`). A SQLite DB
   (`<g:awiwi_home>/task.db`, `resources/db/*.sql`) is a **WIP** replacement not yet reachable from
   `:Awiwi`. See `docs/data-model.md` and `docs/architecture.md` → Dead code / WIP.
-- **Server** — `server/` (FastAPI, in progress) is the note viewer, replacing `server.old/` (Flask).
+- **Server** — `server/` (FastAPI + Pydantic, complete T13–T17) is the note viewer, replacing `server.old/` (Flask).
 
 # Commands
 

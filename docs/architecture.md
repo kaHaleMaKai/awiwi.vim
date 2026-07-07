@@ -13,7 +13,7 @@ Keep this truthful — when behavior changes, this file changes in the same comm
 | ------------- | --------------------------------------- | -------------------------------------------- |
 | Plugin        | `lua/awiwi/`, `ftplugin/awiwi.lua`, `ftdetect/awiwi.lua` | ported to Lua (T10 switchover complete) |
 | Lua modules   | `lua/awiwi/*.lua`                       | complete (str, path, date, util, asset, hi, server, syn, markers, cmd, picker, init — all modules ported by T10) |
-| Server/viewer | `server/src/awiwi/` (FastAPI + Pydantic) | in progress — config module (Settings, PluginConfig) complete; domain leaf modules (content, checkbox, search) complete (T14); markdown pipeline (mdrender: RenderedDoc, render_markdown, render_file) complete (T15); app module coming, replacing `server.old/` |
+| Server/viewer | `server/src/awiwi/` (FastAPI + Pydantic) | bootable and complete (T13–T17): config, content/checkbox/search, mdrender, app/routers/templating, templates+static copy; replaces `server.old/` |
 | Legacy server | `server.old/` (Flask + Jinja)           | reference only                               |
 
 There is **no `plugin/` directory**. `:Awiwi` and all mappings are registered per-buffer in
@@ -56,7 +56,7 @@ were deleted in T10; this table reflects the current Lua state.
 | `util.lua`     | helpers: link parse/classify (journal misclassification fixed), `match_subcommands`, `input` (vim.ui.input callback), code-block text objects, window-split utilities |
 | `hi.lua`       | due-date badges + header rules as extmarks; treesitter structural pass (`headings`/`code_line_mask`, reused by syn); title helpers for `entitlement.nvim`; lazy-requires façade for recipe-title helper (B13) |
 | `path.lua`     | path join/split/relativize/canonicalize; native `path.join()` replaces broken `fn#apply`/`fn#spread` dependency (B10 fix) |
-| `server.lua`   | viewer control: start/stop/logs/serve via `vim.system`, non-blocking `wait_ready`; launches FastAPI server (ADR D5; `app:app` placeholder until `server/` gains app module); config.json, xdg-open |
+| `server.lua`   | viewer control: start/stop/logs/serve via `vim.system`, non-blocking `wait_ready`; launches FastAPI server (`awiwi.app:app` entrypoint pinned in T17, env `AWIWI_HOME=<g:awiwi_home>` threaded via `vim.system`; ADR D5 + D15); config.json, xdg-open |
 | `str.lua`      | string helpers (startswith/endswith/contains/is_empty); case-sensitive (intentional per ADR D2); leaf, widely used |
 | `syn.lua`      | treesitter/extmark syntax layer: markdown+markdown_inline queries, link conceal, marker/redaction/Redmine line patterns outside code mask; typos fixed (ADR D6); wired via ftplugin FileType autocmd (T10); paints awiwi *extras* only — base markdown styling (headings/fences/emphasis) comes from `vim.treesitter.start(buf, "markdown")` in the ftplugin (T10.1) |
 | `markers.lua`  | marker vocabulary (TODO/FIXME/ONHOLD/DUE/@due/@incident/…); rg/vim escaping; `g:awiwi_custom_*_markers` overrides |
@@ -173,9 +173,65 @@ were deleted in T10. Known issues in the original code that are **fixed or dropp
 
 ## Server (viewer)
 
-`server/` is a fresh FastAPI + Pydantic app (Python ≥3.13, uv-managed) rendering awiwi notes,
-replacing `server.old/` (Flask + Jinja). Reference feature set from the old app: markdown render
-with TOC / internal links / mermaid; journal prev/next nav; asset serving (binary + downloadable);
-auth with localhost bypass; breadcrumbs; search. `lua/awiwi/server.lua` (T7, ADR D5) drives the
-FastAPI app via `uv run uvicorn awiwi.app:app ...` (cwd=`server/`); the entrypoint `awiwi.app:app`
-was assembled in T16 and must be pinned in server.lua by T17. The live toolchain is ruff + basedpyright + pytest.
+`server/` is a FastAPI + Pydantic app (Python ≥3.13, uv-managed) rendering awiwi notes, replacing
+`server.old/` (Flask + Jinja). Bootable entrypoint: `awiwi.app:app` (pinned in `lua/awiwi/server.lua`
+T17, env `AWIWI_HOME` threaded via `vim.system`; ADR D15 supersedes D5 placeholder). Config protocol:
+env `AWIWI_HOME` set by launcher; `config.json` (from plugin, keys: `search_engine`, `home`,
+`screensaver`, `link_color`, per-marker lists) read once at lifespan, permissive (missing file → defaults,
+unknown keys ignored). Auth: localhost-only (403 for non-localhost), unless `AWIWI_ALLOW_REMOTE=1`
+env var set (ADR D14). Markdown: python-markdown with trimmed built-ins (fenced_code, codehilite,
+def_list, footnotes, nl2br, sane_lists, toc, tables, attr_list) + local `_MermaidExtension` /
+`_StrikethroughExtension` replacing unmaintained third-party; corpus semantics preserved (nl2br,
+no non-ASCII escaping hack; ADR D13).
+
+**Module map** (`server/src/awiwi/`):
+- `config.py` — `Settings` (pydantic-settings, env `AWIWI_HOME`), `PluginConfig` (permissive JSON load)
+- `content.py` — date parsing + aliases, journal prev/next nav, path safety, dir listing, breadcrumbs
+- `checkbox.py` — line hashing (MD5, legacy-compatible), in-place toggle with domain-specific errors
+- `search.py` — ripgrep arg building, output parsing, hit sorting (todo → journal → asset → recipe)
+- `mdrender.py` — `RenderedDoc`, `render_markdown` (with pre-filters: redaction, checkbox, @tag/@mention, ordinal sup), `render_file` (Pygments + vim-modeline sniff)
+- `templating.py` — Jinja2 setup (autoescape off, for legacy template compatibility)
+- `app.py` — app factory + module-level `app` (ASGI), lifespan (config load), localhost 403 middleware
+- `routers/pages.py` — pages router (journal, recipes, catch-all, dir index, `/todo`, `/change-mode`)
+- `routers/assets.py` — assets router (MIME dispatch, download disposition, render or serve binary)
+- `routers/actions.py` — actions router (`PATCH /checkbox`, `POST /search/content`)
+
+**Route table** (registration: assets → actions → pages; catch-all last; all routed through
+`render_content_file` helper that dispatches on extension: `.md` → `render_markdown`, `.drawio` →
+raw XML, images/binaries → inline/download, else `render_file` Pygments + fallback):
+
+| Method | Path | Behavior |
+|---|---|---|
+| GET | `/assets/{year}/{month}/{day}/{file}` | 302 → `/assets/{date}/{file}` (dash-format) |
+| GET | `/assets/{date}/{file}` | asset serve; invalid date → 404; `application/*` (except sql) → download; else render/inline |
+| PATCH | `/checkbox` | JSON `{line_nr,path,check,hash}` → toggle file line; 200/404/409 per domain errors |
+| POST | `/search/content` | form `search-content`; empty → 400; spawn `rg` (cwd home) → render search results |
+| GET | `/change-mode` | set theme cookie, 302 to `Referer` or `/` |
+| GET | `/` | dir index (home root) |
+| GET | `/dir/{path:path}` | dir index + breadcrumbs |
+| GET | `/todo` | render `journal/todos.md`, `title="TODO"`, no TOC |
+| GET | `/journal/{year}/{month}/{file}` | 302 → `/journal/{file-sans-.md}` |
+| GET | `/journal/{date_str}` | journal render (`.md` stripped if present); aliases (today/yesterday/prev); TOC + prev/next nav |
+| GET | `/{d}.md`, `/{m:int}/{d}.md`, `/{y:int}/{m:int}/{d}.md` | legacy date redirects → `/journal/{d}` |
+| GET | `/recipes/{path:path}` | render recipe markdown (or source file, Pygments) |
+| GET | `/{path:path}` | **catch-all (last)**: safe-resolve under home (traversal/absolute → 404), render/serve |
+| mount | `/static` | static files (`server/static/`, pre-mounted before routers) |
+| exc | `FileNotFoundError` | → `404.html` with status 404 |
+
+**Templates & static** — `templates/` (7 files, copied from `server.old/html/`): `base.html.j2`,
+`dir.html.j2`, `journal.html.j2`, `non-journal.html.j2`, `search-content.html.j2`, `todo.html.j2`,
+`404.html` (dropped: `login.html.j2` auth removed, `main.html.j2` dead). `static/` copied+pruned from
+`server.old/static/` (141 MB → 4.5 MB): excluded npm test fixtures (68 MB `mermaid/npm-test/`,
+137 MB `js/node_modules/`); kept `common.js`, `custom-reveal.js`, `sortable-tables.js`, `graphre.js`,
+`nomnoml.js`, mermaid dist, all CSS/img.
+
+**Security** (ADR D14) — HTTP middleware returns 403 for non-localhost requests (checks `Host`
+header loopback name OR loopback client peer). Explicit `AWIWI_ALLOW_REMOTE=1` env var overrides,
+enabling remote access if needed. No login/session machinery. Secret-named files (regex `secret|credential`
+stem) blank their body off-localhost.
+
+**Plugin integration** (`lua/awiwi/server.lua`, T17) — spawns via `uv run uvicorn awiwi.app:app
+--host <host> --port <port>` (cwd `server/`, env `AWIWI_HOME` set); config.json written by
+`start_server` before spawn.
+
+Toolchain: ruff, basedpyright, pytest (no external service dependencies).

@@ -30,19 +30,20 @@ local function default_code_root()
   return vim.fs.dirname(vim.fs.dirname(vim.fs.dirname(source)))
 end
 
---- Bug #5 ADR: the vimscript original launched `server/.venv/bin/flask run`,
---- but `server/app.py` no longer exists (moved to `server.old/`, replaced by
---- an in-progress FastAPI app under `server/`, see CLAUDE.md). Reproducing
---- the dead Flask command line byte-for-byte would just launch a command
---- that immediately fails. This default targets the *new* FastAPI server via
---- `uv run uvicorn` instead (entrypoint module name `app:app` is a
---- placeholder pending the FastAPI app landing under `server/` — override
---- via `M.config.cmd_builder` once the real entrypoint is known; T9's
---- `:Awiwi server start` dispatch does not need to change either way).
+--- Bug #5 ADR (superseded by T17, see handovers/server-rewrite/T16-app-assembly.md
+--- and T17-entrypoint-pin.md): the vimscript original launched
+--- `server/.venv/bin/flask run`, but `server/app.py` no longer exists (moved
+--- to `server.old/`). The FastAPI rewrite has since landed under
+--- `server/src/awiwi/app.py` (module-level `app = create_app()`), so this
+--- default now targets the real entrypoint `awiwi.app:app` via
+--- `uv run uvicorn`, with `AWIWI_HOME` threaded through the env so the
+--- launched process discovers the same notes home as this nvim instance
+--- (still overridable via `M.config.cmd_builder`).
 function M.default_cmd_builder(host, port)
   return {
-    cmd = { "uv", "run", "uvicorn", "app:app", "--host", host, "--port", tostring(port) },
+    cmd = { "uv", "run", "uvicorn", "awiwi.app:app", "--host", host, "--port", tostring(port) },
     cwd = pathlib.join(default_code_root(), "server"),
+    env = { AWIWI_HOME = vim.g.awiwi_home },
   }
 end
 

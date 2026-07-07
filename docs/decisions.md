@@ -250,4 +250,75 @@ all other ex commands still get the split flag. Supersedes the preservation clau
 
 ---
 
-**High-water mark: D12**
+## D13 — Keep python-markdown with trimmed extensions + local mermaid/strikethrough (2026-07-07)
+
+**Context.** Server rewrite (T13–T17) replaces Flask `server.old/app.py` with FastAPI. Existing app
+renders notes with python-markdown library + legacy third-party extensions (`md_mermaid`,
+`markdown_strikethrough`, dead `nomnoml` Python extension). Extensions list also includes dead
+`meta` (never read) and legacy `markdown-strikethrough` package is unmaintained.
+
+**Decision.** Rewrite keeps python-markdown engine (trimmed extension set: fenced_code, codehilite,
+def_list, footnotes, nl2br, sane_lists, toc, tables, attr_list) to preserve corpus semantics —
+notes authored against nl2br line-break behavior; switching to CommonMark would visibly change
+years of notes. Dropped: `meta`, unmaintained third-party `md_mermaid`/`markdown_strikethrough`.
+Replacement: two tiny local preprocessor extensions (`_MermaidExtension`, `_StrikethroughExtension`)
+with identical visible output (mermaid divs, `<del>` tags), implemented more idiomatically than legacy.
+Also deleted: legacy `;match(N);` non-ASCII escaping hack (proven unnecessary by round-trip unit tests
+with umlauts/emoji).
+
+**Consequences.** Server app renders markdown identically to legacy; mermaid/strikethrough behavior
+exact; no corpus-wide re-render needed. Dead metadata never used; no loss of feature. Code simpler
+(local processors, no third-party extension deps). `server/src/awiwi/mdrender.py` implements;
+`server/tests/test_mdrender.py` proves output fidelity.
+
+---
+
+## D14 — Drop auth/login + checkclock; localhost-only access with AWIWI_ALLOW_REMOTE escape hatch (2026-07-07)
+
+**Context.** Legacy Flask app included auth login machinery (`auth` file, `passlib`, session handling)
+that never worked (empty `auth` file, random secret regenerated at start, no functional logic). Also
+had `checkclock` feature (qtile schedule integration) and "localhost bypass" — a feature that tried
+to skip auth for localhost connections. User assessed as: feature set out of scope for viewer, code
+fragile/broken, simplify.
+
+**Decision.** Server rewrite drops auth entirely (no login, /logout, sessions, passlib). Instead:
+**localhost-only access by default** — HTTP middleware returns 403 for non-localhost requests
+(checks `Host` header loopback name OR loopback client peer). Explicit env var override
+`AWIWI_ALLOW_REMOTE=1` enables remote access if operator needs it. Checkclock feature dropped
+entirely (no work-schedule coupling in viewer). Satisfies user decision (2026-07-07) for a personal,
+single-user tool.
+
+**Consequences.** No login UI, no session management, no auth bugs. Remote access possible but
+requires explicit opt-in. Notes accessible only over localhost by default, closing the (broken) auth
+gap. Config key `AWIWI_ALLOW_REMOTE` goes in `Settings` (env `AWIWI_ALLOW_REMOTE`); middleware
+reads it once at lifespan and applies 403 guard to every request (with override check). Simpler than
+legacy auth, more secure default (deny remote, require explicit allow).
+
+---
+
+## D15 — AWIWI_HOME env-var home discovery + entrypoint awiwi.app:app pinned (2026-07-07)
+
+**Context.** Config bootstrap problem: `config.json` (plugin output) lives *inside* home directory,
+so the server can't bootstrap home discovery from `config.json` (chicken-and-egg). Legacy Flask used
+env vars `FLASK_ROOT`, `FLASK_HOST`, `FLASK_PORT`. Lua plugin `:Awiwi serve` already uses
+`default_cmd_builder` to construct the launch command (`lua/awiwi/server.lua`, T7, ADR D5); that
+function returned a `{cmd, cwd, env}` table structure with env field unpopulated. Server.lua also
+needed real `awiwi.app:app` entrypoint (T16 assembled it; T17 must pin it).
+
+**Decision.** Plugin launcher threads `AWIWI_HOME` env var into the spawned uvicorn process:
+`lua/awiwi/server.lua`'s `default_cmd_builder(host, port)` now returns env = `{AWIWI_HOME = vim.g.awiwi_home}`;
+`vim.system` at `start_server` call site threads that env into the child process (pre-existing plumbing,
+just needs populating). Server-side `config.py:Settings` (pydantic-settings) makes `home: Path` field
+**required**, sourced from env var `AWIWI_HOME` — fail-fast validation (missing env → `ValidationError`).
+Entrypoint: `lua/awiwi/server.lua` `default_cmd_builder` pinned to real `awiwi.app:app` (module-level
+ASGI app in `server/src/awiwi/app.py`, landed T16). Doc comment updated to note this supersedes ADR
+D5's placeholder clause.
+
+**Consequences.** Home discovery purely env-driven (no config.json bootstrap needed). Launcher control
+is clean (pass env vars, avoid process-wide `vim.env` mutations). Server dies fast if `AWIWI_HOME`
+unset, not on first config read — clear failure mode. Entrypoint no longer a placeholder; real app
+ready. `start_server` call site needs no changes (env plumbing already threaded).
+
+---
+
+**High-water mark: D15**
