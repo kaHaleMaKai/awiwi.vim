@@ -2,15 +2,19 @@
 name = "awiwi"
 version = "0.1.0"
 description = "Server for Awīwī journaling system."
-readme = "README.md"
 requires-python = ">=3.13"
 # Production dependencies are pinned to minor versions (~=) to prevent
 # silent breaking upgrades on fresh installs. Run `uv sync` after any
 # intentional upgrade and update the specifier here.
 dependencies = [
-  "fastapi",#
+  "fastapi",
   "pydantic",
   "pydantic-settings",
+  "jinja2",
+  "markdown",
+  "pygments",
+  "uvicorn",
+  "python-multipart",
 ]
 
 [dependency-groups]
@@ -19,37 +23,12 @@ dev = [
     "pytest-cov",
     "ruff",
     "basedpyright",
+    "httpx",
 ]
 
 [build-system]
 requires = ["uv_build>=0.9.10, <0.10.0", "wheel"]
 build-backend = "uv_build"
-
-[tool.mypy]
-python_version = "3.12"
-strict = true
-plugins = ["mypy_django_plugin.main"]
-
-cache_dir = "~/.cache/mypy"
-
-show_column_numbers = true
-show_error_codes = true
-show_error_context = true
-
-[[tool.mypy.overrides]]
-module = [
-    "environ.*",
-    "ldap3.*",
-    "recurrence.*",
-    "mozilla_django_oidc.*",
-    "celery.*",
-    "weasyprint.*",
-    "redis.*",
-    "fastmcp.*",
-    "docker.*",
-    "filelock.*",
-]
-ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 pythonpath = ["src", "."]
