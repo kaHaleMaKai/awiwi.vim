@@ -98,6 +98,8 @@ Flags (journal/asset/recipe): `+create`, `+new`, `+hnew`, `+vnew`, `-new`, `+tab
 list-/checkbox-aware insert + due-date redraw; `<C-y>` checkbox; `<C-f>` time; `<C-q>` redact;
 `<C-v>` paste; i_`<C-s>` `Awiwi link `; i_`<C-b>` `Awiwi asset create`; `gj` asset→journal;
 `A` todo append (`.todo` filetype). Abbreviations: `:shrug: :arrow: :check: :cross:` (buffer-local iabbrevs).
+Cmdline c_`<C-x>`/c_`<C-v>` append ` +hnew`/` +vnew` and submit — suppressed when the command
+starts with an `:Awiwi` abbreviation (guard inversion fixed per ADR D12).
 
 ## Data & persistence
 

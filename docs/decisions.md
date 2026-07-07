@@ -236,4 +236,18 @@ are a separate decision.
 
 ---
 
-**High-water mark: D11**
+## D12 — split_screen guard corrected: suppress on `:Awiwi` commands (2026-07-07)
+
+**Context.** D11 preserved the vimscript's inverted `<C-x>`/`<C-v>` cmdline guard
+(`match(...) == 1`, which never fires) verbatim in `lua/awiwi/init.lua`, pending a human decision.
+
+**Decision.** The user directed: correct the inverted mapping. The guard now checks
+`match(...) == 0`, so the split flag (`+hnew`/`+vnew`) is **not** injected when the command line
+starts with an `:Awiwi` abbreviation (`Aw`, `Awi`, `Awiw`, `Awiwi`) — the originally stated intent.
+
+**Consequences.** `<C-x>`/`<C-v>` on `:Awiwi …` command lines now submit the command unchanged;
+all other ex commands still get the split flag. Supersedes the preservation clause of D11.
+
+---
+
+**High-water mark: D12**

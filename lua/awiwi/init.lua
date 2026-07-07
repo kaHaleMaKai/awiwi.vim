@@ -1131,16 +1131,15 @@ function M.append_to_line()
   vim.cmd("startinsert")
 end
 
---- Preserved-but-inverted `<C-x>`/`<C-v>` cmdline guard (§79, human ADR):
---- vimscript's `match(words[0], '^Aw\%[iwi]$') == 1` never fires (a match at
---- string start returns 0, not 1), so the flag is injected even for `:Awiwi`
---- commands. Reproduced faithfully — do NOT redesign.
+--- `<C-x>`/`<C-v>` cmdline guard (§79): suppress the split flag on `:Awiwi`
+--- commands. The vimscript checked `match(...) == 1`, which never fires (a
+--- match at string start returns 0) — corrected per D12.
 function M._split_screen_result(cmdtype, cmdline, direction)
   if cmdtype ~= ":" then
     return ""
   end
   local words = vim.split(vim.trim(cmdline), "%s+")
-  if vim.fn.match(words[1] or "", "^Aw\\%[iwi]$") == 1 then
+  if vim.fn.match(words[1] or "", "^Aw\\%[iwi]$") == 0 then
     return ""
   end
   return direction == "h" and " +hnew" or " +vnew"

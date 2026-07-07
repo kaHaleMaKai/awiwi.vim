@@ -1,6 +1,12 @@
 # State — Lua rewrite
 
-_Updated: 2026-07-06 (26th run) — **T11 UNBLOCKED and CLOSED**: user added the nvim allowlist entries to `.claude/settings.json`; test gate alive again (baseline 458 green). B13 landed via its scripted red/green plan (spec de-stubbed → E117 red → lazy `require("awiwi")` in `hi.lua` → 458 green), committed `a7edcdc` through the kb-detect gate (architecture.md hi row updated by kb-curator). That was the last vimscript interop in `lua/`. **No transactional task remains — only user-side items** (PENDING-ADR D11 decision, dogfood gaps, drafts fate), so `task.done` touched per the outer-loop protocol._
+_Updated: 2026-07-07 (27th run) — **T12 CLOSED, flow complete**: user resolved PENDING-ADR D11 by
+directing "correct the inverted split_screen mapping". Fixed red/green: spec flipped to intended
+behavior (`:Awiwi` cmdlines get no split flag) → red → `lua/awiwi/init.lua` guard `== 1` → `== 0`
+→ 458 green. ADR D12 recorded (supersedes D11's preservation clause); architecture.md mappings
+section documents the corrected guard. No transactions remain._
+
+_Previous (26th run) — **T11 UNBLOCKED and CLOSED**: user added the nvim allowlist entries to `.claude/settings.json`; test gate alive again (baseline 458 green). B13 landed via its scripted red/green plan (spec de-stubbed → E117 red → lazy `require("awiwi")` in `hi.lua` → 458 green), committed `a7edcdc` through the kb-detect gate (architecture.md hi row updated by kb-curator). That was the last vimscript interop in `lua/`. **No transactional task remains — only user-side items** (PENDING-ADR D11 decision, dogfood gaps, drafts fate), so `task.done` touched per the outer-loop protocol._
 
 ## Transactions
 
@@ -18,6 +24,7 @@ _Updated: 2026-07-06 (26th run) — **T11 UNBLOCKED and CLOSED**: user added the
 - [x] T10.1 — dogfood round-1 fixes (85df511) — user findings `handovers/done/T10-dog-food.md`; two root causes fixed inline (orchestrator, red/green, 3 new specs, suite 457 green): (1) `date.deps.journal_dates` seam wired to `get_all_journal_files` — `:Awiwi journal previous|next`/`gn`/`gp` threw AwiwiDateError because nothing ever injected `options.files`; (2) `vim.treesitter.start(buf, "markdown")` in ftplugin — port had deleted `syntax/awiwi.vim` without starting any base markdown layer ("fences/markers don't work"). "redacted only after set ft" NOT reproduced headlessly — re-check in dogfood round 2 (details in init.md `## Dogfood round 1`)
 - [x] T10.2 — dogfood round-2 fix (2878c5f) — round 2 confirmed gn/gp/ge + syntax fixed; one new finding: links rendered raw instead of concealed `▶name (…)`. Conceal extmarks were correct but nothing set `'conceallevel'` (legacy relied on user's global config, syn.md Port notes). Fix: window-local `conceallevel=2` in ftplugin (user-sanctioned improvement); spec + headless screen-scrape verify (`▶pancakes …`); suite 458 green (details in init.md `## Dogfood round 2`)
 - [x] T11 — drain deferred-bugs queue (a7edcdc) — COORD-1 closed (clean), B13 fixed red/green (last vimscript interop in `lua/` removed), suite 458 green. PENDING-ADR (D11) carried out of T11 as a user-decision item — the queue holds nothing else automatable
+- [x] T12 — split_screen guard corrected (2026-07-07) — user resolved D11 ("correct the inverted mapping"); red/green: spec flipped to intended behavior → red → `init.lua` guard `== 1`→`== 0` → 458 green; ADR D12 recorded, architecture.md mappings updated
 
 Cadence per transaction: S.1 recon (vim-archaeologist) → S.2 port (lua-port-engineer, red/green TDD) → S.3 verify (qa-verifier PASS/FAIL) → S.4 curate+commit (kb-curator, pre-commit kb-detect gate). Full suite `nvim --clean --headless -l tests/run.lua` after each.
 
@@ -38,14 +45,13 @@ Cadence per transaction: S.1 recon (vim-archaeologist) → S.2 port (lua-port-en
 - [x] B11 — `tests/asset_spec.lua` — `with_write_spy` "restored" the startup buffer that `:edit` had renamed in place, leaking a `2026-07-05`-dated asset buffer as current into later spec files; `open_asset_sink` spec silently depended on that leaked buffer for its `:write`. Masked while wall-clock date == 2026-07-05; broke the suite on rollover. Fixed inline by orchestrator (park on fresh scratch buffer + wipe asset buffers; swallow stubbed sink write) — found in T6b's full-suite run
 - [x] B12 — `tests/server_spec.lua` — config.json spec leaked `g:awiwi_link_color`/`search_engine`/`screensaver` into later spec files, breaking syn's default-color assertions. Fixed inline by orchestrator (c0fef93) — found in T6b's full-suite run
 - [x] B-INIT-1..5 — five façade bugs found by T10 recon (see `handovers/done/lua-port/init.md` bug ledger) — fixed in T10 port; B-INIT-6 (`g:awiwi_history_length` no-op) documented as ADR D10, deliberately inert
-- [ ] PENDING-ADR — `split_screen` `<C-x>/<C-v>` inverted guard: shipped behavior preserved verbatim in `lua/awiwi/init.lua` (recorded as D11); needs a human decision on intended behavior, then fix in T11
+- [x] PENDING-ADR — `split_screen` `<C-x>/<C-v>` inverted guard — **resolved in T12 (2026-07-07)**: user directed correction; guard fixed to `== 0` (ADR D12), spec updated, suite 458 green
 - (new bugs found during implementation are appended here by any agent: `- [ ] B<n> — <file:line> — <one-liner> — found in T<x>; fix-in-port|post-port`)
 
 ## What the next session needs
 
-- **All transactions T0–T11 closed; remaining items are user-only:**
-  1. **PENDING-ADR (D11):** `split_screen` `<C-x>/<C-v>` inverted guard — shipped behavior preserved verbatim in `lua/awiwi/init.lua`. User decides intended behavior, then keep-as-convention (check it off, note in D11) or fix under a new ADR.
-  2. `.claude/settings.json` has uncommitted nvim allowlist entries (user's own edit that unblocked T11) — commit or keep local as preferred.
+- **All transactions T0–T12 closed; remaining items are user-only:**
+  1. `.claude/settings.json` has uncommitted nvim allowlist entries (user's own edit that unblocked T11) — commit or keep local as preferred.
 - Dogfood items never user-tested (machine lacked xclip/fzf/drawio; server app not built yet): clipboard paste, real fzf/telescope pickers, airline/entitlement, drawio export, `:Awiwi serve` — verify opportunistically now that master is live; file findings like `handovers/done/T10-dog-food.md`.
 - Untracked `autoload/awiwi/ask.vim`/`bookmarks.vim` drafts in the main checkout are untouched (dropped modules per skill) — user decides their fate.
 - Plan: `~/.claude/plans/plan-the-migration-from-declarative-castle.md` (design decisions D1 treesitter arch, asset⇄cmd break, telescope pickers, dropped modules, bug policy).
