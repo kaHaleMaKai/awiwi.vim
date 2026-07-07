@@ -13,7 +13,7 @@ Keep this truthful — when behavior changes, this file changes in the same comm
 | ------------- | --------------------------------------- | -------------------------------------------- |
 | Plugin        | `lua/awiwi/`, `ftplugin/awiwi.lua`, `ftdetect/awiwi.lua` | ported to Lua (T10 switchover complete) |
 | Lua modules   | `lua/awiwi/*.lua`                       | complete (str, path, date, util, asset, hi, server, syn, markers, cmd, picker, init — all modules ported by T10) |
-| Server/viewer | `server/src/awiwi/` (FastAPI + Pydantic) | in progress — config module (Settings, PluginConfig) complete; app module coming, replacing `server.old/` |
+| Server/viewer | `server/src/awiwi/` (FastAPI + Pydantic) | in progress — config module (Settings, PluginConfig) complete; domain leaf modules (content, checkbox, search) complete (T14); app module coming, replacing `server.old/` |
 | Legacy server | `server.old/` (Flask + Jinja)           | reference only                               |
 
 There is **no `plugin/` directory**. `:Awiwi` and all mappings are registered per-buffer in
