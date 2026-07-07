@@ -18,6 +18,8 @@
       "Bash(head:*)",
       "Bash(ls:*)",
       "Bash(mkdir:*)",
+      "Bash(nvim --clean:*)",
+      "Bash(nvim --clean --headless:*)",
       "Bash(rg:*)",
       "Bash(sort:*)",
       "Bash(sqlite3:*)",
