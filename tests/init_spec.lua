@@ -231,6 +231,20 @@ describe("open_file", function()
       vim.cmd("silent! only")
     end)
   end)
+
+  it("new: template seeds a genuinely new file and places the cursor", function()
+    local f = vim.fn.tempname() .. ".md"
+    awiwi.open_file(f, { template = { "# 2024-06-01", "", "## " }, template_cursor = 3 })
+    eq({ "# 2024-06-01", "", "## " }, vim.api.nvim_buf_get_lines(0, 0, -1, false))
+    eq(3, vim.api.nvim_win_get_cursor(0)[1])
+  end)
+
+  it("new: template is skipped when the file already exists", function()
+    local f = vim.fn.tempname() .. ".md"
+    vim.fn.writefile({ "already here" }, f)
+    awiwi.open_file(f, { template = { "# should not appear" } })
+    eq({ "already here" }, vim.api.nvim_buf_get_lines(0, 0, -1, false))
+  end)
 end)
 
 -- ===========================================================================
@@ -269,6 +283,24 @@ describe("edit_journal", function()
       end)
       awiwi.edit_journal("2024-06-01", {})
       eq(true, seen.create_dirs)
+    end)
+  end)
+
+  it("new: passes a day-header template for open_file to seed", function()
+    sandbox(function(set)
+      local seen
+      set(awiwi, "open_file", function(_, o)
+        seen = o
+      end)
+      set(date, "get_today", function()
+        return "2024-06-01"
+      end)
+      set(date, "get_own_date", function()
+        error("AwiwiDateError: nope", 0)
+      end)
+      awiwi.edit_journal("2024-06-01", {})
+      eq({ "# 2024-06-01", "", "## " }, seen.template)
+      eq(3, seen.template_cursor)
     end)
   end)
 

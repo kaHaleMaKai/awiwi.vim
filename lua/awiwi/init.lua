@@ -209,7 +209,16 @@ function M.open_file(file, options)
     jump_mod = ""
   end
 
+  local is_new = options.template and vim.fn.filereadable(file) == 0
   M.deps.exec(string.format("%s %s %s", cmd, jump_mod, file))
+
+  if is_new then
+    vim.api.nvim_buf_set_lines(0, 0, -1, false, options.template)
+    if options.template_cursor then
+      vim.api.nvim_win_set_cursor(0, { options.template_cursor, 0 })
+      vim.cmd("startinsert!")
+    end
+  end
 end
 
 -- ---------------------------------------------------------------------------
@@ -233,6 +242,8 @@ function M.edit_journal(date_expr, options)
     err(('trying to open file for future date "%s" without +create option'):format(d))
     return
   end
+  options.template = { ("# %s"):format(d), "", "## " }
+  options.template_cursor = 3
   M.open_file(file, options)
 end
 

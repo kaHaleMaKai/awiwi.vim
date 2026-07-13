@@ -48,7 +48,7 @@ were deleted in T10; this table reflects the current Lua state.
 
 | module         | responsibility |
 | -------------- | -------------- |
-| `init.lua`     | façade: journals, links, asset paste, **file-based active-task timer** (`data/task.log`), quickfix TOC, active-task timer resume; bootstraps dirs + log files; reexports leaf-module APIs; wires ftplugin/init |
+| `init.lua`     | façade: journals, links, asset paste, **file-based active-task timer** (`data/task.log`), quickfix TOC, active-task timer resume; bootstraps dirs + log files; reexports leaf-module APIs; wires ftplugin/init; `edit_journal` seeds a brand-new journal file (`open_file`'s `template`/`template_cursor` options) with a `# YYYY-MM-DD` / `## ` header and drops into insert mode on the heading line — existing files are left untouched |
 | `cmd.lua`      | subcommand dispatch (`run`) + completion; `show_tasks`, sessions, drawio export; routes through `picker.lua` seam; `:Awiwi search` now via `picker.grep` (ADR D8) |
 | `picker.lua`   | unified picker seam: `vim.ui.select` default, telescope auto-upgrade (ADR D7); three types: `select`, `files`, `grep` |
 | `asset.lua`    | create/open/link assets under `assets/YYYY/MM/DD/`; owns `M.types` (asset⇄cmd cycle broken); pure-Lua random id; open side-effect-free (ADR D4); injectable deps |
