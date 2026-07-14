@@ -62,7 +62,10 @@ export interface MetaPayload {
 
 export interface CheckboxPatchRequest {
   path: string;
-  line_nr: number;
+  // NB: the frozen contract and the backend `CheckboxPatchBody` both name this
+  // `line_no` (see T23.2-api-routes.md); the scaffold's `line_nr` was a typo
+  // that would 422 on the server.
+  line_no: number;
   checked: boolean;
   line_hash: string;
 }
