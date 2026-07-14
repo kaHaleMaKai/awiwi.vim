@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>todo — awiwi</title>
 <link rel="stylesheet" href="tokens.css">
+<script src="mockup.js"></script>
 <style>
   .todo-section + .todo-section { margin-top: var(--space-6); }
   .todo-row { display: flex; align-items: flex-start; gap: var(--space-3); padding: var(--space-2) var(--space-2); border-bottom: 1px solid var(--border-subtle); }
@@ -31,8 +32,8 @@
       <span class="ws-dot is-live" aria-hidden="true"></span> Live
     </div>
     <div class="theme-toggle" role="group" aria-label="Theme">
-      <button class="is-active" type="button">Dark</button>
-      <button type="button">Light</button>
+      <button type="button" data-set-theme="dark" class="is-active">Dark</button>
+      <button type="button" data-set-theme="light">Light</button>
     </div>
   </header>
 

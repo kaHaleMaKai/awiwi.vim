@@ -11,14 +11,17 @@ Open any `.html` file directly in a browser (`file://` works — no server neede
 xdg-open mockups/journal.html
 ```
 
-All pages share `tokens.css` via a relative link, plus the display webfont in `fonts/`.
+All pages share `tokens.css` and `mockup.js` via relative links, plus the display
+webfont in `fonts/`. The header theme toggle flips any page live (persisted in
+localStorage, ~250ms cross-fade); redacted spans reveal on click; the table
+copy-menu copies as Markdown/CSV/HTML and closes on pick.
 
 ## Pages
 
 | File | What it shows |
 |---|---|
 | `journal.html` | Daily journal: TOC rail, prev/next day nav, checklist, `#tag`/`@@mention`, redacted span, python code block with copy button, table with copy-menu (Markdown/CSV/HTML), mermaid placeholder, WS-dot legend |
-| `journal-light.html` | Same page, `data-theme="light"` (daylight-noir) |
+| `journal-light.html` | Same page, static `data-theme="light"` snapshot (daylight-noir) |
 | `dir-root.html` | Root index: `journal/`, `assets/`, `recipes/` + recent files |
 | `dir-journal-month.html` | Month listing with alternate-week background banding |
 | `todo.html` | Task log grouped by Overdue / Today / Upcoming |

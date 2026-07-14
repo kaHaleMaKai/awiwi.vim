@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>deploy-notes.txt — awiwi</title>
 <link rel="stylesheet" href="tokens.css">
+<script src="mockup.js"></script>
 <style>
   .file-pre { counter-reset: line; }
   .file-line { display: flex; }
@@ -41,8 +42,8 @@
       <span class="ws-dot is-live" aria-hidden="true"></span> Live
     </div>
     <div class="theme-toggle" role="group" aria-label="Theme">
-      <button class="is-active" type="button">Dark</button>
-      <button type="button">Light</button>
+      <button type="button" data-set-theme="dark" class="is-active">Dark</button>
+      <button type="button" data-set-theme="light">Light</button>
     </div>
   </header>
 
@@ -68,15 +69,5 @@
     </div>
   </main>
 </div>
-<script>
-  document.querySelectorAll('.copy-btn').forEach(function (btn) {
-    btn.addEventListener('click', function () {
-      var original = btn.textContent;
-      btn.textContent = 'Copied';
-      btn.classList.add('is-copied');
-      setTimeout(function () { btn.textContent = original; btn.classList.remove('is-copied'); }, 1400);
-    });
-  });
-</script>
 </body>
 </html>

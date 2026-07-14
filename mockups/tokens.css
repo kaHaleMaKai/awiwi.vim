@@ -119,6 +119,20 @@ table { border-collapse: collapse; width: 100%; }
   --color-success: var(--neon-emerald);
   --color-link: var(--neon-cyan);
 
+  /* -- code / syntax-highlight roles --
+     Mirrors the dual-theme structure the real app will use with Shiki
+     (shiki css-variables theme): one var per token role, re-toned by the
+     [data-theme='light'] block. Swap .tok-* class names for Shiki's when
+     wiring real highlighting; keep this variable indirection. */
+  --code-bg: var(--bg-sunken);
+  --code-fg: var(--text-secondary);
+  --tok-comment: var(--smoke-400);
+  --tok-keyword: var(--brass-400);
+  --tok-string: var(--neon-emerald);
+  --tok-function: var(--neon-cyan-dim);
+  --tok-constant: var(--neon-amber);
+  --tok-plain: var(--text-secondary);
+
   /* -- radii: 2-4px only, ever -- */
   --radius-sm: 2px;
   --radius-md: 4px;
@@ -135,13 +149,13 @@ table { border-collapse: collapse; width: 100%; }
 
   /* -- typographic scale -- */
   --font-display: 'Cinzel', 'Copperplate', 'Copperplate Gothic Std', serif;
-  --font-body: Georgia, 'Iowan Old Style', 'Palatino Linotype', serif;
+  --font-body: Verdana, 'DejaVu Sans', Geneva, Tahoma, 'Segoe UI', sans-serif;
   --font-ui: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   --font-mono: ui-monospace, 'Cascadia Mono', 'JetBrains Mono', monospace;
 
   --text-xs: 11px;
   --text-sm: 13px;
-  --text-base: 15px;
+  --text-base: 14px; /* Verdana runs wide — 14px Verdana ≈ 15-16px of other faces */
   --text-md: 17px;
   --text-lg: 20px;
   --text-xl: 26px;
@@ -192,11 +206,43 @@ table { border-collapse: collapse; width: 100%; }
   --bg-current: rgba(10, 111, 107, 0.08);
   --shadow-noir: 0 20px 60px rgba(80, 60, 30, 0.18), 0 2px 0 rgba(80, 60, 30, 0.12);
   --shadow-focus-cyan: 0 0 0 1px var(--neon-cyan), 0 0 8px rgba(10, 111, 107, 0.4);
+
+  /* sunken surfaces (code blocks, mermaid/drawio canvases) must re-tone in
+     light mode: --ink-950 stays constant per spec, so the *semantic* alias
+     is re-pointed to a paper-family leaf instead. */
+  --bg-sunken: var(--ink-800);
+
+  /* light-mode syntax token overrides — every value AA-checked (>= 4.5:1)
+     against --bg-sunken (#f2e8d2): keyword uses the darker brass-300 leaf
+     (6.6:1; light brass-400 is only 3.7:1), function uses light neon-cyan
+     (4.9:1; --neon-cyan-dim stays constant across themes and only hits
+     3.2:1 on paper). comment/string/constant/plain re-tone automatically
+     via their re-toned leaves (5.5 / 10.1 / 4.9 / 9.0). */
+  --tok-keyword: var(--brass-300);
+  --tok-function: var(--neon-cyan);
 }
 
 @media (prefers-reduced-motion: reduce) {
   :root { --dur-fast: 0ms; --dur-med: 0ms; }
   *, *::before, *::after { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+}
+
+/* Theme-switch transition: the toggle script stamps .theme-transition on
+   <html> for ~350ms around the data-theme flip, cross-fading colors.
+   Scoped to no-preference so prefers-reduced-motion switches instantly. */
+@media (prefers-reduced-motion: no-preference) {
+  html.theme-transition,
+  html.theme-transition *,
+  html.theme-transition *::before,
+  html.theme-transition *::after {
+    transition:
+      background-color 250ms var(--ease-standard),
+      color 250ms var(--ease-standard),
+      border-color 250ms var(--ease-standard),
+      fill 250ms var(--ease-standard),
+      stroke 250ms var(--ease-standard),
+      box-shadow 250ms var(--ease-standard) !important;
+  }
 }
 
 /* === BASE === */
@@ -421,17 +467,28 @@ hr { border: 0; border-top: 1px solid var(--border-subtle); }
 .tag { color: var(--accent-brass-strong); font-weight: 600; }
 .mention { color: var(--accent-cyan); font-weight: 600; }
 
-/* -- redaction -- */
+/* -- redaction (click to reveal) --
+   Obscured by default; a click (or Enter/Space) toggles .is-revealed.
+   The server embeds the real value in the DOM when running on localhost
+   (non-remote mode) — the frontend only toggles visibility. */
 .redacted {
   background: var(--ink-600);
   color: transparent;
   border-radius: var(--radius-sm);
   padding: 0 var(--space-1);
-  cursor: help;
+  cursor: pointer;
   user-select: none;
-  transition: background var(--dur-fast) var(--ease-standard);
+  transition: background var(--dur-fast) var(--ease-standard),
+              color var(--dur-fast) var(--ease-standard);
 }
-.redacted:hover, .redacted:focus-visible { background: var(--brass-900); }
+.redacted:hover { background: var(--brass-900); }
+.redacted:focus-visible { outline: none; box-shadow: var(--shadow-focus-cyan); }
+.redacted.is-revealed {
+  color: var(--text-primary);
+  background: rgba(201, 162, 75, 0.16);
+  border: 1px dashed var(--accent-brass-deep);
+  user-select: text;
+}
 
 /* -- rows / lists -- */
 .row {
@@ -518,7 +575,7 @@ hr { border: 0; border-top: 1px solid var(--border-subtle); }
 /* -- code blocks -- */
 .code-block {
   position: relative;
-  background: var(--bg-sunken);
+  background: var(--code-bg);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
   overflow: hidden;
@@ -529,7 +586,7 @@ hr { border: 0; border-top: 1px solid var(--border-subtle); }
   justify-content: space-between;
   padding: var(--space-2) var(--space-3);
   border-bottom: 1px solid var(--border-subtle);
-  background: var(--bg-surface);
+  background: var(--bg-surface-raised);
   font-size: var(--text-xs);
   color: var(--text-muted);
   letter-spacing: 0.05em;
@@ -541,7 +598,7 @@ hr { border: 0; border-top: 1px solid var(--border-subtle); }
   overflow-x: auto;
   font-size: var(--text-sm);
   line-height: var(--leading-normal);
-  color: var(--text-secondary);
+  color: var(--code-fg);
 }
 .copy-btn {
   display: inline-flex;
@@ -559,13 +616,15 @@ hr { border: 0; border-top: 1px solid var(--border-subtle); }
 .copy-btn:focus-visible { outline: none; box-shadow: var(--shadow-focus-cyan); }
 .copy-btn.is-copied { color: var(--color-success); border-color: var(--color-success); }
 
-/* syntax token colors (hand-authored placeholder for Shiki) */
-.tok-comment { color: var(--text-muted); font-style: italic; }
-.tok-keyword { color: var(--accent-brass-strong); }
-.tok-string { color: var(--color-success); }
-.tok-function { color: var(--accent-cyan-dim); }
-.tok-constant { color: var(--neon-amber); }
-.tok-plain { color: var(--text-secondary); }
+/* syntax token colors (hand-authored placeholder for Shiki).
+   Bound to the --tok-* role vars so the [data-theme='light'] block
+   re-tones code without any per-page or per-class overrides. */
+.tok-comment { color: var(--tok-comment); font-style: italic; }
+.tok-keyword { color: var(--tok-keyword); }
+.tok-string { color: var(--tok-string); }
+.tok-function { color: var(--tok-function); }
+.tok-constant { color: var(--tok-constant); }
+.tok-plain { color: var(--tok-plain); }
 
 /* -- copy menu (tables) -- */
 .copy-menu { position: relative; display: inline-block; }

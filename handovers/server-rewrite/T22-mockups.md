@@ -47,7 +47,8 @@ Other token groups: 8px spacing scale (`--space-1`…`--space-8`, 4/8/12/16/24/3
 type scale (`--text-xs`…`--text-2xl`), `--radius-sm:2px` / `--radius-md:4px` (nothing
 rounder — enforced by the spec, "2–4px radii only, ever"), `--shadow-noir`,
 `--shadow-focus-cyan`, motion (`--dur-fast:100ms`, `--dur-med:180ms`, zeroed under
-`prefers-reduced-motion`).
+`prefers-reduced-motion`), and the code/syntax role vars (`--code-bg`, `--code-fg`,
+`--tok-comment/keyword/string/function/constant/plain` — see revision item 2 below).
 
 ### Component recipes already built (reuse, don't re-invent)
 
@@ -82,20 +83,23 @@ generic `serif` at the end of `--font-display`. Used only for `.page-title` and
 `h1`–`h3` (per the spec: "page titles/headers only"). No network gap — the download
 succeeded; nothing to flag here.
 
-Body copy: system serif stack (`--font-body`, Georgia/Iowan/Palatino) for prose
-readability. UI chrome (header, buttons, chips, breadcrumbs): system sans
-(`--font-ui`). Code: `--font-mono` (`ui-monospace, 'Cascadia Mono', 'JetBrains Mono', monospace`)
-exactly per spec.
+Body copy: **Verdana** (user decision, feedback round 1 — "much more legible"):
+`--font-body: Verdana, 'DejaVu Sans', Geneva, Tahoma, 'Segoe UI', sans-serif`
+(DejaVu Sans is the metric-compatible Linux stand-in). Because Verdana runs wide,
+`--text-base` was dropped from 15px to 14px — 14px Verdana reads like 15–16px of
+most other faces; keep this pairing if the body font ever changes again. UI chrome
+(header, buttons, chips, breadcrumbs): system sans (`--font-ui`). Code: `--font-mono`
+(`ui-monospace, 'Cascadia Mono', 'JetBrains Mono', monospace`) exactly per spec.
 
 ### Design decisions worth knowing
 
-- **No JS framework, minimal inline `<script>`** — these are static mockups, not the
-  real Svelte app. Two small vanilla-JS bits exist purely so the design checkpoint
-  can *see* the interaction: (1) copy-button click → "Copied" label swap +
-  `.is-copied` class for ~1.4s (`journal.html`, `journal-light.html`,
-  `asset-text.html`); (2) copy-menu (Markdown/CSV/HTML dropdown) open/close toggle
-  on `.u-hidden` (`journal.html`/`journal-light.html`). Both are trivially
-  discardable — the real SPA will drive these from Svelte state, not this script.
+- **No JS framework; one shared demo script** — these are static mockups, not the
+  real Svelte app. All interactive demos live in `mockups/mockup.js`, loaded in
+  `<head>` (non-deferred, so the persisted theme applies before first paint) by
+  every page: theme toggle + persistence, code-block copy buttons, table copy-menu,
+  and redaction reveal. The script is mockup-only and discardable — but the
+  *behavior specs* it demonstrates (revision items 2–5 below) are the contract the
+  real SPA implements from.
 - **Lightbox is CSS-only** (`asset-image.html`): a hidden `<input type="checkbox"
   id="lightbox-toggle">` at the top of `<body>`, opened by a `<label for=…>` wrapping
   the thumbnail, closed by another `<label for=…>` inside the overlay. Pattern:
@@ -120,6 +124,62 @@ exactly per spec.
   the TOC rail below the article at `max-width: 900px` — the only explicit
   responsive breakpoint. Not extensively tested below ~800px beyond that breakpoint;
   worth a pass when this becomes real, interactive markup.
+
+### Design revisions — user feedback round 1 (2026-07-14, all applied)
+
+The user reviewed the first mockup set and requested five changes. All are
+implemented in the mockups; the S25 frontend engineers implement the real SPA
+from these specs:
+
+1. **Body font is Verdana** (see Font section above). Cinzel stays for page
+   titles/headers only; mono stack unchanged.
+
+2. **Code blocks are dual-theme via CSS variables.** New semantic role vars in
+   tokens.css: `--code-bg`, `--code-fg`, and `--tok-comment/keyword/string/
+   function/constant/plain`. The `[data-theme='light']` block re-points
+   `--bg-sunken` to `--ink-800` (#f2e8d2 — this also fixes the mermaid/drawio
+   placeholder canvases, which share the sunken role) and overrides exactly two
+   token roles: `--tok-keyword: var(--brass-300)` (light brass-400 only hits
+   3.7:1) and `--tok-function: var(--neon-cyan)` (`--neon-cyan-dim` is
+   theme-constant and only 3.2:1 on paper). All six light token colors are
+   AA-verified ≥4.5:1 on #f2e8d2 (comment 5.45, keyword 6.60, string 10.13,
+   function 4.93, constant 4.86, plain 8.97 — computed, not eyeballed).
+   **Real-app note:** use Shiki's css-variables theme so each token role maps to
+   one CSS var, exactly mirroring this structure — theme switching then costs
+   zero re-highlighting. The flip must live in the theme block in app.css, never
+   in per-page/per-component overrides.
+
+3. **Table copy-menu behavior spec:** clicking the trigger opens the format
+   menu (Markdown / CSV / HTML); clicking a format (a) serializes the adjacent
+   table to that format, (b) writes it to the clipboard, (c) **closes the menu**,
+   and (d) flashes "Copied ✓" on the trigger for ~1.4s. Click-outside closes the
+   menu without copying. The mockup's serializers in mockup.js (`toMarkdown`/
+   `toCsv`/`toHtml`, incl. CSV quote-escaping) are a reasonable reference
+   implementation; clipboard write is try/catch'd because `file://` pages may
+   lack clipboard permission — the demo still shows the Copied state.
+
+4. **Redaction is click-to-reveal.** Contract: on localhost (the only normal
+   deployment, i.e. non-remote mode) the **server embeds the original value in
+   the DOM**, obscured by CSS (`.redacted`: ink-600 block, transparent text,
+   `user-select: none`); the frontend only toggles visibility. Click or
+   Enter/Space toggles `.is-revealed` (text shown on a faint brass tint with a
+   dashed brass border, `user-select: text` restored), with `role="button"`,
+   `tabindex="0"`, `aria-pressed`, and a title that flips between "Click to
+   reveal"/"Click to redact". In a future remote mode the server must *omit*
+   the value entirely — never rely on the CSS obscuring for actual secrecy.
+
+5. **Live theme switching with transition.** The header toggle now really flips
+   the theme on every page: set `data-theme` on `<html>`, persist as
+   localStorage key **`awiwi-theme`**. Around the flip, a `.theme-transition`
+   class is stamped on `<html>` for ~350ms; tokens.css defines a 250ms
+   cross-fade (background-color/color/border-color/fill/stroke/box-shadow)
+   scoped to that class and wrapped in `@media (prefers-reduced-motion:
+   no-preference)` — reduced-motion users get an instant switch. The transition
+   rule is class-gated on purpose: leaving permanent transitions on `*` would
+   fight the per-component `--dur-fast` transitions and animate initial paint.
+   The static `*-light.html` snapshot pages carry `data-theme-fixed` on `<html>`,
+   which makes the script skip the persisted-theme restore on load (they stay
+   light snapshots) while their toggle still works live.
 
 ### Gaps / things NOT done here (explicitly out of scope for T22)
 
@@ -147,11 +207,12 @@ exactly per spec.
 N/A — static design artifacts, no test suite. Verified manually: every page's
 `<div>` open/close tag counts balance (`grep -c` sanity check), all three woff2 font
 files downloaded as valid WOFF2 (`file` confirmed), all 12 required pages plus
-README present.
+README present, `mockup.js` passes `node --check`, and the light-mode syntax token
+contrast ratios were computed programmatically (WCAG relative-luminance formula).
 
 ## Status
 
-status: done
+status: done (incl. feedback round 1 revisions)
 updated: 2026-07-14
 commit: see ledger (orchestrator commits)
 
@@ -160,6 +221,7 @@ commit: see ledger (orchestrator commits)
 ```
 mockups/
   tokens.css
+  mockup.js
   README.md
   fonts/
     cinzel-400.woff2

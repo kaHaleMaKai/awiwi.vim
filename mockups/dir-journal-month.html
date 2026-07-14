@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>journal/2026/07 — awiwi</title>
 <link rel="stylesheet" href="tokens.css">
+<script src="mockup.js"></script>
 <style>
   .week-band { padding: var(--space-2); margin-bottom: var(--space-1); }
   .week-label { font-size: var(--text-xs); color: var(--text-muted); letter-spacing: .06em; text-transform: uppercase; padding: var(--space-1) var(--space-2); }
@@ -35,8 +36,8 @@
       <span class="ws-dot is-live" aria-hidden="true"></span> Live
     </div>
     <div class="theme-toggle" role="group" aria-label="Theme">
-      <button class="is-active" type="button">Dark</button>
-      <button type="button">Light</button>
+      <button type="button" data-set-theme="dark" class="is-active">Dark</button>
+      <button type="button" data-set-theme="light">Light</button>
     </div>
   </header>
 
