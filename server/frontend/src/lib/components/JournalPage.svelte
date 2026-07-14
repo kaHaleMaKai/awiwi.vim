@@ -5,6 +5,7 @@
   import { getJournal, ApiError, type DocPayload } from "../api";
   import { breadcrumbs, fallbackCrumbs, withCurrent } from "../breadcrumbs.svelte";
   import { beautifyDate } from "../format";
+  import { useLiveDoc } from "../ws.svelte";
   import MarkdownView from "./MarkdownView.svelte";
   import EmptyState from "./EmptyState.svelte";
 
@@ -35,6 +36,24 @@
   $effect(() => {
     load(date);
   });
+
+  // Live sync: re-subscribes whenever the watch_path changes (route nav),
+  // unsubscribes on teardown. `watchPath` is `$derived` so this doesn't
+  // resubscribe on every WS-pushed content update, only on a real nav.
+  const watchPath = $derived(doc?.watch_path);
+  const live = useLiveDoc(
+    () => watchPath,
+    {
+      onDoc: (payload) => {
+        doc = payload;
+      },
+      onDeleted: () => {
+        doc = null;
+        notFound = true;
+      },
+      refetch: () => load(date),
+    },
+  );
 </script>
 
 {#if notFound}
@@ -80,6 +99,7 @@
         onCheckboxStale={() => load(date)}
         onCheckboxSuccess={(mtimeNs) => {
           if (doc) doc.mtime_ns = mtimeNs;
+          live.ackMtime(mtimeNs);
         }}
       />
     </article>

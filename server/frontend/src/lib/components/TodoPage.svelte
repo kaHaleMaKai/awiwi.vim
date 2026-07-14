@@ -7,6 +7,7 @@
   // this gets the same sticky TOC rail as JournalPage.
   import { getTodo, ApiError, type DocPayload } from "../api";
   import { breadcrumbs, fallbackCrumbs, withCurrent } from "../breadcrumbs.svelte";
+  import { useLiveDoc } from "../ws.svelte";
   import MarkdownView from "./MarkdownView.svelte";
   import EmptyState from "./EmptyState.svelte";
 
@@ -32,6 +33,21 @@
   $effect(() => {
     load();
   });
+
+  const watchPath = $derived(doc?.watch_path);
+  const live = useLiveDoc(
+    () => watchPath,
+    {
+      onDoc: (payload) => {
+        doc = payload;
+      },
+      onDeleted: () => {
+        doc = null;
+        notFound = true;
+      },
+      refetch: load,
+    },
+  );
 </script>
 
 {#if notFound}
@@ -50,6 +66,7 @@
         onCheckboxStale={load}
         onCheckboxSuccess={(mtimeNs) => {
           if (doc) doc.mtime_ns = mtimeNs;
+          live.ackMtime(mtimeNs);
         }}
       />
     </article>

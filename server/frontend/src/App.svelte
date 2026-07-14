@@ -2,6 +2,7 @@
   import { onMount } from "svelte";
   import { router } from "./lib/router.svelte";
   import { breadcrumbs } from "./lib/breadcrumbs.svelte";
+  import { ws } from "./lib/ws.svelte";
   import Breadcrumbs from "./lib/components/Breadcrumbs.svelte";
   import SearchBar from "./lib/components/SearchBar.svelte";
   import ThemeToggle from "./lib/components/ThemeToggle.svelte";
@@ -15,7 +16,13 @@
   import Search from "./routes/Search.svelte";
   import NotFound from "./routes/NotFound.svelte";
 
-  onMount(() => router.start());
+  onMount(() => {
+    router.start();
+    // Connect eagerly (not lazily on first doc subscribe) so the header's
+    // ConnectionDot reflects real server reachability on every page, not
+    // just doc-viewing ones. `ws.subscribe()` is idempotent about this too.
+    ws.connect();
+  });
 </script>
 
 <div class="app-shell">
@@ -24,7 +31,7 @@
     <Breadcrumbs crumbs={breadcrumbs.crumbs} />
     <div class="spacer"></div>
     <SearchBar />
-    <ConnectionDot />
+    <ConnectionDot status={ws.status} />
     <ThemeToggle />
   </header>
 

@@ -4,6 +4,7 @@
   // assets, arbitrary markdown under `/dir/...`-browsable directories.
   import { getDoc, ApiError, type DocPayload } from "../api";
   import { breadcrumbs, fallbackCrumbs, withCurrent } from "../breadcrumbs.svelte";
+  import { useLiveDoc } from "../ws.svelte";
   import MarkdownView from "./MarkdownView.svelte";
   import TextFileView from "./TextFileView.svelte";
   import ImageView from "./ImageView.svelte";
@@ -42,6 +43,21 @@
 
   const filename = $derived(path.split("/").pop() ?? path);
   const backHref = $derived(doc?.journal_date ? `/journal/${doc.journal_date}` : null);
+
+  const watchPath = $derived(doc?.watch_path);
+  const live = useLiveDoc(
+    () => watchPath,
+    {
+      onDoc: (payload) => {
+        doc = payload;
+      },
+      onDeleted: () => {
+        doc = null;
+        notFound = true;
+      },
+      refetch: () => load(path),
+    },
+  );
 </script>
 
 {#if notFound}
@@ -83,6 +99,7 @@
         onCheckboxStale={() => load(path)}
         onCheckboxSuccess={(mtimeNs) => {
           if (doc) doc.mtime_ns = mtimeNs;
+          live.ackMtime(mtimeNs);
         }}
       />
     </div>
