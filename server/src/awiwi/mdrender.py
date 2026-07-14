@@ -1,4 +1,4 @@
-"""Markdown rendering pipeline: pre-filters + python-markdown + Pygments.
+"""Markdown rendering pipeline: pre-filters + python-markdown.
 
 Pure module: no FastAPI imports, no filesystem-path policy (that's
 `content.py`'s job, see T14 handover). Everything here takes text in and
@@ -11,6 +11,16 @@ Ported and *assessed* from `server.old/app.py` (Flask) + its dropped
 per the design brief (`~/.claude/plans/we-want-to-replace-jaunty-engelbart.md`,
 T15 entry). Notable divergences are called out on the relevant docstring and
 summarized in the handover.
+
+T23.3 (ADR D13): `render_markdown`'s fenced code blocks no longer go through
+`CodeHiliteExtension`/Pygments -- the future Svelte SPA highlights code
+client-side with Shiki, so the server now emits clean, semantic
+`<pre><code class="language-x">` markup (HTML-escaped, no Pygments spans)
+for `render_markdown`/`build_doc_payload`'s `kind == "markdown"` path. Every
+*other* extension and pre-filter is untouched -- byte-identical output.
+`render_file` (raw source files, `kind == "text"`) is a separate, still-
+Pygments-backed path that stays as-is until it's retired in T27; it is not
+part of this divergence.
 """
 
 from __future__ import annotations
@@ -23,7 +33,6 @@ from typing import override
 from markdown import Markdown
 from markdown.extensions import Extension
 from markdown.extensions.attr_list import AttrListExtension
-from markdown.extensions.codehilite import CodeHiliteExtension
 from markdown.extensions.def_list import DefListExtension
 from markdown.extensions.fenced_code import FencedCodeExtension
 from markdown.extensions.footnotes import FootnoteExtension
@@ -56,6 +65,85 @@ _REDACTION_MARKER = "!!redacted"
 # vim-modeline sniff for source rendering, e.g. "-- vim: ft=pgsql." -> pgsql.
 _MODELINE_RE = re.compile(r"(?:vim: ft=)(\S+?)([\s.])")
 LEXER_MAP = {"pgsql": "sql"}
+
+# Shiki-style lowercase language ids, keyed by lowercase file extension
+# (without the leading dot). Deliberately a short, curated list of the
+# source kinds awiwi notes actually link out to, not an exhaustive alias
+# table -- the future SPA's `lang.ts` mirrors this exact map, so keep the
+# two in sync by hand if either grows.
+_EXT_LANG_MAP: dict[str, str] = {
+    "py": "python",
+    "sh": "bash",
+    "bash": "bash",
+    "zsh": "bash",
+    "lua": "lua",
+    "vim": "vim",
+    "js": "javascript",
+    "mjs": "javascript",
+    "cjs": "javascript",
+    "jsx": "jsx",
+    "ts": "typescript",
+    "tsx": "tsx",
+    "json": "json",
+    "yaml": "yaml",
+    "yml": "yaml",
+    "toml": "toml",
+    "md": "markdown",
+    "markdown": "markdown",
+    "sql": "sql",
+    "html": "html",
+    "htm": "html",
+    "css": "css",
+    "c": "c",
+    "h": "c",
+    "cpp": "cpp",
+    "cc": "cpp",
+    "cxx": "cpp",
+    "hpp": "cpp",
+    "rs": "rust",
+    "go": "go",
+    "xml": "xml",
+    "ini": "ini",
+    "cfg": "ini",
+    "conf": "ini",
+}
+
+
+def _modeline_language(text: str) -> str | None:
+    """Sniff a vim modeline (`vim: ft=<lang>`) language name out of `text`,
+    e.g. `-- vim: ft=pgsql.` -> `"pgsql"` (alias resolution, e.g. `pgsql` ->
+    `sql`, is each caller's job -- `render_file` resolves via `LEXER_MAP` for
+    Pygments, `guess_language` via the same `LEXER_MAP` for a Shiki id).
+    Shared so the sniff regex/logic lives in exactly one place.
+    """
+    m = _MODELINE_RE.search(text)
+    return m.group(1) if m else None
+
+
+def guess_language(path: Path | str, text: str | None = None) -> str | None:
+    """Best-effort Shiki-style language id for `path` (+ optional `text`),
+    used as the client-side syntax-highlighting hint for non-markdown text
+    files (`DocPayload.language`).
+
+    Precedence mirrors `render_file`'s Pygments lexer lookup: a vim modeline
+    found in `text` (`vim: ft=<lang>`, `LEXER_MAP` alias applied, e.g.
+    `pgsql` -> `sql`) wins over a guess from `path`'s filename. `Dockerfile`-
+    style filenames (no extension to key off) are recognized by name;
+    everything else is looked up in `_EXT_LANG_MAP` by lowercase extension.
+
+    Returns `None` when nothing matches -- an explicitly fine, expected
+    outcome (the frontend sniffs too), not an error.
+    """
+    if text is not None:
+        modeline_lang = _modeline_language(text)
+        if modeline_lang is not None:
+            return LEXER_MAP.get(modeline_lang, modeline_lang).lower()
+
+    name = Path(path).name.lower()
+    if name.startswith("dockerfile"):
+        return "dockerfile"
+    ext = Path(path).suffix.lstrip(".").lower()
+    return _EXT_LANG_MAP.get(ext)
 
 
 @dataclass(frozen=True)
@@ -153,8 +241,8 @@ class _MermaidPreprocessor(Preprocessor):
     mermaid.js (loaded client-side by the templates) renders in place.
 
     Must run at a higher priority than `FencedCodeExtension`'s preprocessor
-    (registered at 25), or fenced_code/codehilite would swallow the block as
-    an ordinary (and unrecognized-language) code fence first.
+    (registered at 25), or fenced_code would swallow the block as an
+    ordinary (and unrecognized-language) code fence first.
     """
 
     _FENCE: re.Pattern[str] = re.compile(r"^```mermaid\s*$")
@@ -213,7 +301,6 @@ def _new_markdown() -> Markdown:
         output_format="html",
         extensions=[
             FencedCodeExtension(),
-            CodeHiliteExtension(css_class="highlight", guess_lang=False),
             DefListExtension(),
             FootnoteExtension(),
             Nl2BrExtension(),
@@ -283,11 +370,10 @@ def render_file(text: str, filename: str | Path | None = None) -> RenderedDoc:
     instead.
     """
     lexer: Lexer | None = None
-    m = _MODELINE_RE.search(text)
-    if m:
-        lexer_name = m.group(1)
+    modeline_lang = _modeline_language(text)
+    if modeline_lang is not None:
         try:
-            lexer = get_lexer_by_name(LEXER_MAP.get(lexer_name, lexer_name))
+            lexer = get_lexer_by_name(LEXER_MAP.get(modeline_lang, modeline_lang))
         except ClassNotFound:
             lexer = None
     if lexer is None and filename is not None:

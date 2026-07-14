@@ -181,8 +181,9 @@ def test_recipe_markdown_render(client: Client) -> None:
     assert resp.status_code == 200
     body = resp.text
     assert "Boil water" in body
-    # fenced python block highlighted by codehilite/pygments.
-    assert 'class="highlight"' in body
+    # T23.3: fenced python block renders as clean, Shiki-ready markup --
+    # no server-side CodeHilite/Pygments markup baked in.
+    assert 'class="language-python"' in body
 
 
 def test_recipe_source_pygments_render(client: Client) -> None:

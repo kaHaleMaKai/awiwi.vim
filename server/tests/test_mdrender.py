@@ -6,8 +6,10 @@ Pure text-in/text-out module -- no filesystem/`notes_home` fixture needed.
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from awiwi.checkbox import hash_line
-from awiwi.mdrender import RenderedDoc, render_file, render_markdown
+from awiwi.mdrender import RenderedDoc, guess_language, render_file, render_markdown
 
 
 class TestTitleExtraction:
@@ -129,11 +131,79 @@ class TestMermaid:
         assert "highlight" not in doc.html
         assert "<code>" not in doc.html
 
-    def test_ordinary_fenced_code_still_highlighted(self):
+    def test_ordinary_fenced_code_not_treated_as_mermaid(self):
         text = "```python\nprint('hi')\n```\n"
         doc = render_markdown(text)
         assert 'class="mermaid"' not in doc.html
-        assert "highlight" in doc.html
+        assert '<pre><code class="language-python">' in doc.html
+
+
+class TestFencedCode:
+    """T23.3 (ADR D13): fenced code renders as clean, semantic HTML for
+    client-side Shiki highlighting -- no CodeHilite/Pygments markup baked
+    in server-side. Every other extension (mermaid, strikethrough, toc,
+    etc.) is covered separately and stays byte-identical."""
+
+    def test_fence_with_language_gets_language_class(self):
+        text = "```python\nprint('hi')\n```\n"
+        doc = render_markdown(text)
+        assert "<pre><code class=\"language-python\">print('hi')" in doc.html
+        assert "</code></pre>" in doc.html
+        assert "highlight" not in doc.html
+
+    def test_fence_without_language_gets_bare_pre_code(self):
+        text = "```\nplain block\n```\n"
+        doc = render_markdown(text)
+        assert "<pre><code>plain block" in doc.html
+        assert "language-" not in doc.html
+
+    def test_fence_content_is_html_escaped(self):
+        text = "```html\n<script>alert('x')</script>\n```\n"
+        doc = render_markdown(text)
+        assert "<script>" not in doc.html
+        assert "&lt;script&gt;alert" in doc.html
+
+
+class TestGuessLanguage:
+    """T23.3: `guess_language` is the Shiki-id hint for `DocKind.text`
+    payloads -- extension map + shared vim-modeline sniff."""
+
+    def test_common_extensions_map_to_shiki_ids(self):
+        assert guess_language("script.py") == "python"
+        assert guess_language("deploy.sh") == "bash"
+        assert guess_language("init.lua") == "lua"
+        assert guess_language("plugin.vim") == "vim"
+        assert guess_language("app.js") == "javascript"
+        assert guess_language("app.ts") == "typescript"
+        assert guess_language("data.json") == "json"
+        assert guess_language("config.yaml") == "yaml"
+        assert guess_language("config.yml") == "yaml"
+        assert guess_language("pyproject.toml") == "toml"
+        assert guess_language("notes.md") == "markdown"
+        assert guess_language("schema.sql") == "sql"
+
+    def test_dockerfile_recognized_by_name(self):
+        assert guess_language("Dockerfile") == "dockerfile"
+        assert guess_language("dockerfile") == "dockerfile"
+        assert guess_language(Path("build") / "Dockerfile.prod") == "dockerfile"
+
+    def test_unknown_extension_returns_none(self):
+        assert guess_language("data.unknownext") is None
+
+    def test_modeline_wins_over_filename(self):
+        text = "-- vim: ft=sql.\nSELECT 1;\n"
+        assert guess_language("notes.txt", text=text) == "sql"
+
+    def test_modeline_lexer_map_alias(self):
+        text = "-- vim: ft=pgsql.\nSELECT 1;\n"
+        assert guess_language("notes.txt", text=text) == "sql"
+
+    def test_modeline_without_match_falls_back_to_filename(self):
+        text = "just some text, no modeline here\n"
+        assert guess_language("script.py", text=text) == "python"
+
+    def test_path_object_accepted(self):
+        assert guess_language(Path("script.py")) == "python"
 
 
 class TestStrikethrough:

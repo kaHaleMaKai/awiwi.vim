@@ -24,15 +24,11 @@ from __future__ import annotations
 import calendar
 import mimetypes
 import re
-from collections.abc import Sequence
 from datetime import date
 from pathlib import Path
 
-from pygments.lexers import get_lexer_for_filename  # pyright: ignore[reportUnknownVariableType]
-from pygments.util import ClassNotFound
-
 from awiwi.content import get_prev_and_next_journal, make_breadcrumbs, parse_date
-from awiwi.mdrender import render_markdown
+from awiwi.mdrender import guess_language, render_markdown
 from awiwi.schemas import (
     BreadcrumbPayload,
     DirEntry,
@@ -89,20 +85,6 @@ def _journal_nav_for(path: Path, doc_type: DocType, home: Path) -> NavPayload | 
         return None
     prev, next_ = get_prev_and_next_journal(day, home)
     return NavPayload(prev=prev, next=next_)
-
-
-def _guess_language(path: Path) -> str | None:
-    """Best-effort Pygments lexer alias from `path`'s filename/extension
-    alone (no vim-modeline sniff -- that's `mdrender.render_file`'s job for
-    the *rendering* path; here we only want a lightweight client-side-
-    highlighting hint, and `None` is an explicitly fine outcome per the
-    design contract)."""
-    try:
-        lexer = get_lexer_for_filename(str(path))
-    except ClassNotFound:
-        return None
-    aliases: Sequence[str] = lexer.aliases
-    return str(aliases[0]) if aliases else str(lexer.name)
 
 
 def _blanked(
@@ -213,7 +195,7 @@ def build_doc_payload(path: Path, home: Path, *, is_localhost: bool) -> DocPaylo
         raw_url = f"/api/raw/{watch_path}"
     elif kind == "text":
         text = raw_text
-        language = _guess_language(path)
+        language = guess_language(path, text=raw_text)
     else:  # binary
         raw_url = f"/api/raw/{watch_path}"
 
