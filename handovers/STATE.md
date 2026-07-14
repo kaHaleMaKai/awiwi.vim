@@ -1,6 +1,27 @@
 # State — Lua rewrite
 
-_Updated: 2026-07-14 (31st run) — **T18–T20 inline images complete (plan
+_Updated: 2026-07-14 (32nd run) — **T22–T24 of the server re-imagining complete (plan
+`re-imagne-the-server-completely-wild-parnas.md`): Noir-Deco mockups + full SPA backend
+(JSON API, redaction embed, live sync). PAUSED at the plan's user checkpoint — mockup
+review gates T25 (Svelte frontend).** Landed: T22 mockups d5d62f8 + feedback round 1
+60a00f5 (Verdana body, dual-theme code blocks, copy-menu close, redaction click-reveal,
+live theme toggle w/ transition) + strikethrough spec 2cc2f31; S23.1 payload layer
+1690275 (schemas/docs/httputil, DocPayload contract); S23.2 /api routers e309150
+(doc/dir/journal/todo/meta, /api/raw ETag+304+secret-403, PATCH /api/checkbox relpath
+protocol 409-on-stale, /api/search fixed|regex+scopes — frozen contract in
+T23.2-api-routes.md); S23.3 mdrender CodeHilite drop 1a24c25 (clean language-x fences
+for client-side Shiki, guess_language ext-map+modeline); S23.4 redaction embed f3bb1aa
+(span/div.redacted obscured values, uuid-token post-convert planting, AWIWI_ALLOW_REMOTE
+strips — user-feedback-driven); T24 live sync 18bccbe (watch.py DocWatcher +
+GET /api/ws + checkbox broadcast, watchfiles/websockets deps). Server suite 231 green,
+ruff/basedpyright clean throughout, every commit through kb-detect. **Next: user reviews
+mockups (open mockups/README.md); on approval run T25 (S25.1 scaffold → S25.2 enhance
+[opus] → S25.3 views → S25.4 search+WS, serialized, all in server/frontend/), then T26
+cutover [opus], then T27 cleanup + KB rewrite (ADRs D18+). Handovers:
+handovers/server-rewrite/T22–T24*.md. Known caveat: WS broadcasts assume localhost
+trust (noted in architecture.md watch.py row)._
+
+_Previous (31st run) — **T18–T20 inline images complete (plan
 `implement-inline-image-rendering-robust-pnueli.md`)**: kitty inline-image rendering via
 snacks.nvim as optional auto-upgrade dependency (ADR D17, same seam pattern as D7 telescope).
 T18 extracted `asset.resolve_image_link` + tightened `open_link`'s image branch (garbage paths now
