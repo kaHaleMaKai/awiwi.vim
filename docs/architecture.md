@@ -60,6 +60,7 @@ were deleted in T10; this table reflects the current Lua state.
 | `str.lua`      | string helpers (startswith/endswith/contains/is_empty); case-sensitive (intentional per ADR D2); leaf, widely used |
 | `syn.lua`      | treesitter/extmark syntax layer: markdown+markdown_inline queries, link conceal, marker/redaction/Redmine line patterns outside code mask; typos fixed (ADR D6); wired via ftplugin FileType autocmd (T10), repainted on `BufEnter`/`BufModifiedSet` like `hi`'s horizontal lines (ADR D16); paints awiwi *extras* only — base markdown styling (headings/fences/emphasis) comes from `vim.treesitter.start(buf, "markdown")` in the ftplugin (T10.1) |
 | `markers.lua`  | marker vocabulary (TODO/FIXME/ONHOLD/DUE/@due/@incident/…); rg/vim escaping; `g:awiwi_custom_*_markers` overrides |
+| `img.lua`      | optional inline-image rendering via snacks.nvim `image` (silent auto-upgrade, ADR D7 seam pattern): `attach(buf)` no-ops false without snacks or when `g:awiwi_inline_images` is `false`/`0`; registers `markdown` treesitter lang for awiwi filetypes (load-bearing for snacks' doc scan); chains (never clobbers) `snacks.image.config.resolve` so `/assets/YYYY-MM-DD/name` embeds resolve to the asset tree via `asset.resolve_image_link` |
 
 ## Command surface
 
@@ -127,7 +128,8 @@ Two backends; **the shipped one is file-based**.
 **Optional:** `g:awiwi_history_length` (currently a no-op — log never rotates; ADR D10),
 `awiwi_server_port` (5823), `awiwi_autostart_server` (host), `awiwi_jump_to_end`, `awiwi_image_opener`
 (`['xdg-open']`), `awiwi_external_dirs` (dict of external markdown dirs), `awiwi_use_entitlement`
-(+`_opts` for entitlement.nvim title decoration), `awiwi_custom_<type>_markers` (marker overrides).
+(+`_opts` for entitlement.nvim title decoration), `awiwi_custom_<type>_markers` (marker overrides),
+`awiwi_inline_images` (default enabled; `false`/`0` forces plain-link fallback even with snacks.nvim installed).
 
 **Removed/deprecated:** `awiwi_search_engine` (no longer used — all search via `picker.lua`),
 `awiwi_screensaver`, `awiwi_task_update_frequency` (removed in Lua port).
