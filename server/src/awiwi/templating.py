@@ -13,7 +13,14 @@ depended on:
   match shipped behavior.
 - **the `beautify_if_date` filter**, ported from `server.old/app.py`.
 
-`theme_from_cookie` and `is_localhost` port the legacy same-named helpers.
+`theme_from_cookie` ports the legacy same-named helper.
+
+`is_localhost`/`get_home` used to live here too; as of T23.1 they moved to
+`httputil.py` (neither is a presentation concern -- the JSON API builders in
+`docs.py` need `is_localhost` for the secret-content gate without pulling in
+Jinja). Re-exported below, unchanged, so existing `from awiwi.templating
+import get_home, is_localhost` call sites keep working (temporary shim, dies
+in T27).
 """
 
 from __future__ import annotations
@@ -25,6 +32,9 @@ from fastapi import Request
 from fastapi.responses import Response
 from fastapi.templating import Jinja2Templates
 
+from awiwi.httputil import get_home as get_home
+from awiwi.httputil import is_localhost as is_localhost
+
 # server/src/awiwi/templating.py -> parents[1] == server/
 _SERVER_ROOT = Path(__file__).resolve().parents[2]
 TEMPLATES_DIR = _SERVER_ROOT / "templates"
@@ -32,7 +42,6 @@ STATIC_DIR = _SERVER_ROOT / "static"
 
 THEME_MODE_KEY = "awiwi.theme-mode"
 _COOKIE_MAX_AGE = 9999999999  # legacy value (server.old/app.py:change_mode)
-_LOCAL_HOSTS = frozenset({"localhost", "127.0.0.1", "::1"})
 
 
 def beautify_if_date(value: object, format: str | None = None) -> object:
@@ -86,29 +95,6 @@ def theme_from_cookie(request: Request) -> str:
     if not mode or mode == "light":
         return "light"
     return "dark"
-
-
-def is_localhost(request: Request) -> bool:
-    """Whether the request originates from localhost.
-
-    Ported from `server.old/app.py:is_localhost` (which keyed off the `Host`
-    header), extended to also accept a loopback client peer. Used both for
-    the app-wide 403 guard and for the secret-file content gate.
-    """
-    host = request.headers.get("host", "").rsplit(":", 1)[0]
-    if host in _LOCAL_HOSTS:
-        return True
-    client = request.client
-    return bool(client and client.host in _LOCAL_HOSTS)
-
-
-def get_home(request: Request) -> Path:
-    """The notes root, stashed on `app.state` by the lifespan (see `app.py`).
-
-    Centralizes the single unavoidable `Any` crossing (`request.app.state` is
-    untyped) so route handlers stay strictly typed.
-    """
-    return request.app.state.home  # pyright: ignore[reportAny]
 
 
 def render(

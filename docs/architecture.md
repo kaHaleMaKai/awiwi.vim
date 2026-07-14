@@ -193,7 +193,10 @@ no non-ASCII escaping hack; ADR D13).
 - `checkbox.py` — line hashing (MD5, legacy-compatible), in-place toggle with domain-specific errors
 - `search.py` — ripgrep arg building, output parsing, hit sorting (todo → journal → asset → recipe)
 - `mdrender.py` — `RenderedDoc`, `render_markdown` (with pre-filters: redaction, checkbox, @tag/@mention, ordinal sup), `render_file` (Pygments + vim-modeline sniff)
-- `templating.py` — Jinja2 setup (autoescape off, for legacy template compatibility)
+- `templating.py` — Jinja2 setup (autoescape off, for legacy template compatibility); re-exports `is_localhost`/`get_home` from `httputil` (shim, dies at SPA cutover)
+- `schemas.py` — SPA API Pydantic models: `DocPayload` (kind markdown|text|image|drawio|binary, `watch_path` = WS subscription key, secret blanking), `DirPayload`/`DirEntry`, `NavPayload`, `BreadcrumbPayload`, `SearchHit` (T23, additive)
+- `docs.py` — payload builders `build_doc_payload`/`build_journal_payload`/`build_dir_payload` on top of `content`/`mdrender`; mirrors `routers/pages.py` dispatch (duplication dies with pages.py at SPA cutover, see T23.1 handover)
+- `httputil.py` — `is_localhost`, `get_home` (relocated from `templating.py`)
 - `app.py` — app factory + module-level `app` (ASGI), lifespan (config load), localhost 403 middleware
 - `routers/pages.py` — pages router (journal, recipes, catch-all, dir index, `/todo`, `/change-mode`)
 - `routers/assets.py` — assets router (MIME dispatch, download disposition, render or serve binary)
