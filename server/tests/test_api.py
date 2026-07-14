@@ -28,16 +28,28 @@ import shutil
 from collections.abc import Iterator
 from datetime import date
 from pathlib import Path
+from typing import cast
 
 import pytest
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from awiwi.checkbox import hash_line
 from awiwi.docs import build_dir_payload, build_doc_payload, build_journal_payload
+from awiwi.watch import DocWatcher
 
 # `client` is typed as `object` in conftest to avoid importing TestClient
 # there; re-narrow here for the type checker (matches test_acceptance.py).
 Client = TestClient
+
+
+def _watcher(client: Client) -> DocWatcher:
+    """`client.app` is typed as the general ASGI-app union (basedpyright
+    resolves it to callables like `FunctionType`/`_WrapASGI2` with no
+    `.state`), not the concrete `FastAPI` instance `conftest.client` actually
+    boots -- narrow it once here rather than at every `TestApiWebsocket`
+    call site."""
+    return cast(FastAPI, client.app).state.watcher  # pyright: ignore[reportAny]
 
 
 class TestJournalPayload:
@@ -592,6 +604,136 @@ class TestApiCheckbox:
         }
         resp = client.patch("/api/checkbox", json=body)
         assert resp.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# T24: `GET /api/ws` live-sync websocket + the checkbox-PATCH broadcast hook.
+#
+# `websocket_connect`'s URL is always joined against a hardcoded
+# "ws://testserver" host (ignores the client's `base_url`), so every call
+# below passes `headers={"host": "localhost"}` explicitly -- otherwise the
+# endpoint's own localhost-only re-check (the app-wide HTTP middleware does
+# not run for the websocket ASGI scope) would close the connection with
+# code 1008 before it's ever accepted.
+#
+# `client.portal` (an `anyio.abc.BlockingPortal`, set by `TestClient.
+# __enter__`) is the *same* event loop the websocket's ASGI task runs on --
+# used to invoke `watcher.broadcast(...)` directly (per the design brief)
+# from this synchronous test thread without cross-loop hazards.
+# ---------------------------------------------------------------------------
+
+
+class TestApiWebsocket:
+    def test_ping_pong(self, client: Client) -> None:
+        with client.websocket_connect("/api/ws", headers={"host": "localhost"}) as ws:
+            ws.send_json({"type": "ping"})
+            assert ws.receive_json() == {"type": "pong"}
+
+    def test_subscribe_then_direct_broadcast_receives_doc_message(
+        self, client: Client
+    ) -> None:
+        with client.websocket_connect("/api/ws", headers={"host": "localhost"}) as ws:
+            ws.send_json({"type": "subscribe", "path": "journal/todos.md"})
+            # Round-trip a ping first so we know the server has already
+            # processed the subscribe message (single task, in order) before
+            # we trigger the broadcast below.
+            ws.send_json({"type": "ping"})
+            assert ws.receive_json() == {"type": "pong"}
+
+            watcher = _watcher(client)
+            assert client.portal is not None
+            client.portal.call(watcher.broadcast, "journal/todos.md")
+
+            msg = ws.receive_json()  # pyright: ignore[reportAny]
+            assert msg["type"] == "doc"
+            assert msg["path"] == "journal/todos.md"
+            assert msg["payload"]["watch_path"] == "journal/todos.md"
+            assert msg["payload"]["kind"] == "markdown"
+
+    def test_unsubscribe_stops_further_broadcasts(self, client: Client) -> None:
+        watcher = _watcher(client)
+        assert client.portal is not None
+        with client.websocket_connect("/api/ws", headers={"host": "localhost"}) as ws:
+            ws.send_json({"type": "subscribe", "path": "journal/todos.md"})
+            ws.send_json({"type": "unsubscribe", "path": "journal/todos.md"})
+            ws.send_json({"type": "ping"})
+            assert ws.receive_json() == {"type": "pong"}
+            assert watcher.subscriber_count("journal/todos.md") == 0
+            client.portal.call(watcher.broadcast, "journal/todos.md")  # must not raise
+
+    def test_malformed_message_gets_error_not_disconnect(self, client: Client) -> None:
+        with client.websocket_connect("/api/ws", headers={"host": "localhost"}) as ws:
+            ws.send_json({"type": "bogus"})
+            msg = ws.receive_json()  # pyright: ignore[reportAny]
+            assert msg["type"] == "error"
+            # Socket must still be alive afterwards.
+            ws.send_json({"type": "ping"})
+            assert ws.receive_json() == {"type": "pong"}
+
+    def test_message_missing_path_gets_error_not_disconnect(self, client: Client) -> None:
+        with client.websocket_connect("/api/ws", headers={"host": "localhost"}) as ws:
+            ws.send_json({"type": "subscribe"})
+            msg = ws.receive_json()  # pyright: ignore[reportAny]
+            assert msg["type"] == "error"
+            ws.send_json({"type": "ping"})
+            assert ws.receive_json() == {"type": "pong"}
+
+    def test_disconnect_drops_all_subscriptions(self, client: Client) -> None:
+        watcher = _watcher(client)
+        with client.websocket_connect("/api/ws", headers={"host": "localhost"}) as ws:
+            ws.send_json({"type": "subscribe", "path": "journal/todos.md"})
+            ws.send_json({"type": "ping"})
+            assert ws.receive_json() == {"type": "pong"}
+            assert watcher.subscriber_count("journal/todos.md") == 1
+        # `with` block's __exit__ blocks until the server-side task (incl.
+        # its `finally: watcher.drop(...)`) has fully completed.
+        assert watcher.subscriber_count("journal/todos.md") == 0
+
+    def test_websocket_refused_when_not_localhost_and_not_allowed(
+        self, client: Client
+    ) -> None:
+        # `client` (acceptance_home, AWIWI_ALLOW_REMOTE unset -> False) with
+        # no Host-header override: `websocket_connect` always joins against
+        # a hardcoded "ws://testserver" host, i.e. this is a non-localhost
+        # handshake by default -- mirrors the app-wide HTTP middleware's own
+        # 403 posture, just re-derived at the websocket layer since that
+        # middleware itself doesn't run for the websocket ASGI scope.
+        from starlette.websockets import WebSocketDisconnect
+
+        with pytest.raises(WebSocketDisconnect):
+            with client.websocket_connect("/api/ws"):
+                pass
+
+    def test_websocket_admitted_when_allow_remote_set(
+        self, remote_client: Client
+    ) -> None:
+        # `remote_client` sets AWIWI_ALLOW_REMOTE=1; its websocket_connect
+        # also defaults to a non-localhost "testserver" Host, so admission
+        # here is proof the endpoint honors `allow_remote`, not localhost.
+        with remote_client.websocket_connect("/api/ws") as ws:
+            ws.send_json({"type": "ping"})
+            assert ws.receive_json() == {"type": "pong"}
+
+    def test_checkbox_patch_broadcasts_to_subscribed_socket(self, client: Client) -> None:
+        with client.websocket_connect("/api/ws", headers={"host": "localhost"}) as ws:
+            ws.send_json({"type": "subscribe", "path": "journal/todos.md"})
+            ws.send_json({"type": "ping"})
+            assert ws.receive_json() == {"type": "pong"}  # subscribe processed first
+
+            line = "* [ ] first todo"
+            body = {
+                "path": "journal/todos.md",
+                "line_no": 2,
+                "line_hash": hash_line(line),
+                "checked": True,
+            }
+            resp = client.patch("/api/checkbox", json=body)
+            assert resp.status_code == 200
+
+            msg = ws.receive_json()  # pyright: ignore[reportAny]
+            assert msg["type"] == "doc"
+            assert msg["path"] == "journal/todos.md"
+            assert msg["payload"]["watch_path"] == "journal/todos.md"
 
 
 @pytest.mark.skipif(shutil.which("rg") is None, reason="ripgrep not installed")

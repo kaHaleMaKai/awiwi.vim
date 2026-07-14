@@ -21,6 +21,8 @@ Wiring notes:
 
 from __future__ import annotations
 
+import asyncio
+import contextlib
 from collections.abc import AsyncGenerator, Awaitable, Callable
 from contextlib import asynccontextmanager
 
@@ -31,6 +33,7 @@ from fastapi.staticfiles import StaticFiles
 from awiwi.config import PluginConfig, Settings
 from awiwi.routers import actions, api, assets, pages
 from awiwi.templating import STATIC_DIR, is_localhost, render
+from awiwi.watch import DocWatcher
 
 
 @asynccontextmanager
@@ -39,7 +42,21 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     app.state.home = settings.home
     app.state.allow_remote = settings.allow_remote
     app.state.plugin_config = PluginConfig.load(settings.home)
-    yield
+
+    # Live sync (T24): a single DocWatcher instance is THE in-memory
+    # subscription registry (see watch.py's module docstring on the
+    # single-process constraint). Its fs-watch loop runs as a background
+    # task for the app's lifetime; cancelled + awaited cleanly on shutdown.
+    watcher = DocWatcher(settings.home)
+    app.state.watcher = watcher
+    watcher_task = asyncio.create_task(watcher.run())
+
+    try:
+        yield
+    finally:
+        _ = watcher_task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await watcher_task
 
 
 def create_app() -> FastAPI:

@@ -25,9 +25,16 @@ import subprocess
 from datetime import date
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as _pkg_version
-from typing import Annotated, Literal
+from typing import Annotated, Literal, cast
 
-from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi import (
+    APIRouter,
+    HTTPException,
+    Query,
+    Request,
+    WebSocket,
+    WebSocketDisconnect,
+)
 from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel
 
@@ -44,6 +51,7 @@ from awiwi.httputil import get_home, is_localhost
 from awiwi.schemas import DirPayload, DocPayload
 from awiwi.schemas import SearchHit as SearchHitPayload
 from awiwi.search import build_rg_args, parse_search_output, sort_hits
+from awiwi.watch import DocWatcher
 
 router = APIRouter(prefix="/api")
 
@@ -257,7 +265,9 @@ class CheckboxPatchResult(BaseModel):
 
 
 @router.patch("/checkbox")
-def api_update_checkbox(request: Request, body: CheckboxPatchBody) -> CheckboxPatchResult:
+async def api_update_checkbox(
+    request: Request, body: CheckboxPatchBody
+) -> CheckboxPatchResult:
     home = get_home(request)
     target = safe_resolve(body.path, home)
     if target is None:
@@ -269,6 +279,14 @@ def api_update_checkbox(request: Request, body: CheckboxPatchBody) -> CheckboxPa
     except (HashMismatchError, AlreadyInStateError, NotACheckboxLineError) as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     mtime_ns = target.stat().st_mtime_ns
+
+    # Broadcast directly here (not just relying on the fs watcher) so every
+    # other tab subscribed to this doc updates deterministically and
+    # immediately -- doesn't depend on watchfiles' debounce/latency, and
+    # stays testable without any real filesystem-watching timing.
+    watcher = _get_watcher(request)
+    await watcher.broadcast(body.path)
+
     return CheckboxPatchResult(success=True, line_hash=body.line_hash, mtime_ns=mtime_ns)
 
 
@@ -321,6 +339,112 @@ def api_search(
         )
         for h in hits
     ]
+
+
+# ---------------------------------------------------------------------------
+# GET /api/ws -- live-sync websocket
+# ---------------------------------------------------------------------------
+#
+# Frozen wire protocol (see handovers/server-rewrite/T24-live-sync.md for
+# the full field-by-field spec):
+#   client -> server: {"type":"subscribe","path":<watch_path>}
+#                     {"type":"unsubscribe","path":<watch_path>}
+#                     {"type":"ping"}
+#   server -> client: {"type":"doc","path":...,"payload":<DocPayload JSON>}
+#                     {"type":"deleted","path":...}
+#                     {"type":"pong"}
+#                     {"type":"error","detail":"..."} -- unknown/malformed
+#                     messages get this instead of killing the socket.
+#
+# `app.py`'s `localhost_only` HTTP middleware does NOT run for the
+# websocket ASGI scope (`@app.middleware("http")` only wraps "http"
+# requests), so this endpoint re-derives the same posture itself before
+# accepting the connection -- otherwise a websocket would bypass the
+# localhost-only gate that every other /api/* route gets for free.
+
+# `starlette.requests.Request` and `starlette.websockets.WebSocket` are both
+# `HTTPConnection` subclasses (same `.app`/`.headers`/`.client` shape) but
+# aren't type-compatible with each other -- these two helpers accept either
+# via a union rather than casting one to the other, and centralize the
+# same unavoidable `Any` crossing `httputil.get_home` documents (`.app.state`
+# is untyped) so call sites below stay strictly typed.
+
+
+def _get_watcher(conn: Request | WebSocket) -> DocWatcher:
+    return conn.app.state.watcher  # pyright: ignore[reportAny]
+
+
+def _get_allow_remote(conn: Request | WebSocket) -> bool:
+    return bool(conn.app.state.allow_remote)  # pyright: ignore[reportAny]
+
+
+def _ws_is_localhost(websocket: WebSocket) -> bool:
+    """`httputil.is_localhost`, retyped for `WebSocket` -- verbatim
+    duplicate logic (not a shared import, same pattern as this module's
+    `_SECRET_RE` duplication above), since `is_localhost`'s own signature
+    is pinned to `Request` and a `WebSocket` isn't safely castable to it."""
+    host = websocket.headers.get("host", "").rsplit(":", 1)[0]
+    if host in {"localhost", "127.0.0.1", "::1"}:
+        return True
+    client = websocket.client
+    return bool(client and client.host in {"localhost", "127.0.0.1", "::1"})
+
+
+@router.websocket("/ws")
+async def api_ws(websocket: WebSocket) -> None:
+    if not (_get_allow_remote(websocket) or _ws_is_localhost(websocket)):
+        await websocket.close(code=1008)
+        return
+
+    await websocket.accept()
+    watcher = _get_watcher(websocket)
+    try:
+        while True:
+            try:
+                data = await websocket.receive_json()  # pyright: ignore[reportAny]
+            except ValueError:
+                await websocket.send_json(
+                    {"type": "error", "detail": "malformed JSON message"}
+                )
+                continue
+
+            if not isinstance(data, dict):
+                await websocket.send_json(
+                    {"type": "error", "detail": "expected a JSON object message"}
+                )
+                continue
+            data = cast(dict[str, object], data)
+
+            msg_type = data.get("type")
+            if msg_type == "subscribe":
+                path = data.get("path")
+                if isinstance(path, str):
+                    watcher.subscribe(path, websocket)
+                else:
+                    await websocket.send_json(
+                        {"type": "error", "detail": "subscribe requires a string 'path'"}
+                    )
+            elif msg_type == "unsubscribe":
+                path = data.get("path")
+                if isinstance(path, str):
+                    watcher.unsubscribe(path, websocket)
+                else:
+                    await websocket.send_json(
+                        {
+                            "type": "error",
+                            "detail": "unsubscribe requires a string 'path'",
+                        }
+                    )
+            elif msg_type == "ping":
+                await websocket.send_json({"type": "pong"})
+            else:
+                await websocket.send_json(
+                    {"type": "error", "detail": f"unknown message type: {msg_type!r}"}
+                )
+    except WebSocketDisconnect:
+        pass
+    finally:
+        watcher.drop(websocket)
 
 
 # ---------------------------------------------------------------------------
