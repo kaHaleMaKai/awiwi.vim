@@ -5,7 +5,9 @@ _Updated: 2026-07-14 (32nd run) — **T22–T24 of the server re-imagining compl
 (JSON API, redaction embed, live sync). PAUSED at the plan's user checkpoint — mockup
 review gates T25 (Svelte frontend).** Landed: T22 mockups d5d62f8 + feedback round 1
 60a00f5 (Verdana body, dual-theme code blocks, copy-menu close, redaction click-reveal,
-live theme toggle w/ transition) + strikethrough spec 2cc2f31; S23.1 payload layer
+live theme toggle w/ transition) + strikethrough spec 2cc2f31 + feedback rounds 3–4
+c83952d/04159ea (rail 310px, zero-drift sticky below fixed-height header — user-verified
+fixed; specs in T22 handover item 7); S23.1 payload layer
 1690275 (schemas/docs/httputil, DocPayload contract); S23.2 /api routers e309150
 (doc/dir/journal/todo/meta, /api/raw ETag+304+secret-403, PATCH /api/checkbox relpath
 protocol 409-on-stale, /api/search fixed|regex+scopes — frozen contract in
