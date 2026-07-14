@@ -135,6 +135,20 @@ describe("ftplugin", function()
     ok(vim.fn.maparg("gj", "n") ~= "", "gj missing on asset buffer")
   end)
 
+  it("probes the inline-image backend on ftplugin load (T20, ADR D17)", function()
+    local img = require("awiwi.img")
+    local orig = img.deps.require
+    local probed = {}
+    img.deps.require = function(name)
+      probed[#probed + 1] = name
+      error("not installed: " .. name) -- no snacks -> attach must stay a silent no-op
+    end
+    local ok_open = pcall(open_awiwi_buffer)
+    img.deps.require = orig
+    ok(ok_open, "ftplugin errored with the image backend missing")
+    eq("snacks", probed[1])
+  end)
+
   it("repaints marker highlighting after edits, not just at initial load", function()
     open_awiwi_buffer()
     local buf = vim.api.nvim_get_current_buf()

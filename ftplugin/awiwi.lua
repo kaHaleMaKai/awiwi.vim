@@ -184,6 +184,12 @@ pcall(vim.treesitter.start, buf, "markdown")
 syn.setup_highlights()
 syn.attach(buf)
 
+-- Inline images (T19/T20, ADR D17): optional snacks.nvim backend; silently
+-- no-ops without snacks or when g:awiwi_inline_images is false/0.
+-- Deliberately NOT in the awiwiSynRepaint augroup below — snacks manages its
+-- own repaint cycle, and attach is buffer-guarded on the snacks side.
+require("awiwi.img").attach(buf)
+
 -- Repaint trigger (missed in T10): syn.attach() only ran once above, at
 -- initial load, so markers/links/structure typed afterward never got
 -- painted. Mirrors the awiwiHorizontalLines pattern below exactly.

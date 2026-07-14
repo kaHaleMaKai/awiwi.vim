@@ -351,4 +351,35 @@ just now the same known, accepted testing limitation applies uniformly.
 
 ---
 
-**High-water mark: D16**
+## D17 — Inline images via snacks.nvim `image` (optional auto-upgrade), plain-link fallback (2026-07-14)
+
+**Context.** Awiwi writes image embeds as `![name](/assets/YYYY-MM-DD/file)` (asset.lua); until now
+they rendered only in the browser viewer — in nvim the user saw the concealed markdown link. The
+user runs kitty (`xterm-kitty`), whose graphics protocol supports true inline images. Candidate
+backends: image.nvim, hologram, or snacks.nvim's `image` module. **Decision.** snacks.nvim `image`
+as an *optional auto-upgrade* dependency, same seam pattern as the telescope picker (D7): a new
+`lua/awiwi/img.lua` probes `pcall(M.deps.require, "snacks")` and silently falls back to the
+existing plain-link behavior when snacks is missing, the terminal lacks support, or
+`g:awiwi_inline_images` is `false`/`0` (new global, default enabled). snacks needs no `setup()`
+for programmatic use and its `doc.attach(buf)` has no filetype check — it scans the buffer's
+treesitter parser. Rationale over alternatives: snacks is actively maintained, needs zero config,
+degrades silently, and the user was already considering it. **Consequences / recorded
+side-effects.** (1) `img.attach` calls `vim.treesitter.language.register("markdown", {awiwi
+filetypes})` — a session-global mapping; load-bearing because `vim.treesitter.get_parser` otherwise
+fails on `filetype=awiwi` buffers (verified nvim 0.12.4) and snacks' doc scan needs it; harmless
+since ftplugin already starts a markdown parser. (2) `img.attach` mutates
+`snacks.image.config.resolve` by *chaining* — the wrapper tries `asset.resolve_image_link` first
+and falls through to any pre-existing resolver, installed once per module table; a user calling
+`Snacks.setup{image=...}` *after* the first awiwi buffer load keeps the chain (resolver read at
+call time) though other image opts set that late may be missed — rare ordering, accepted. (3)
+T18 tightened `open_link`'s image branch: unresolvable targets (relative, URL, non-date parent
+dir) now error instead of spawning `g:awiwi_image_opener` on a garbage path. (4) snacks' markdown
+`images.scm` also targets ```mermaid/```math fences, so snacks may attempt to render those (needs
+mermaid CLI/latex); to be observed in kitty dogfood (T21). (5) The ftplugin attach is deliberately
+outside the `awiwiSynRepaint` augroup — snacks manages its own repaint. Verified headless against
+a real snacks clone (S19.2 probe): attach true, resolve chain yields `<home>/assets/YYYY/MM/DD/file`.
+
+---
+
+**High-water mark: D17**
+

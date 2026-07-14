@@ -1,6 +1,15 @@
 # State — Lua rewrite
 
-_Updated: 2026-07-07 (30th run) — **T17.1 dogfood fix**: user's first live `:Awiwi serve` crashed at
+_Updated: 2026-07-14 (31st run) — **T18–T20 inline images complete (plan
+`implement-inline-image-rendering-robust-pnueli.md`)**: kitty inline-image rendering via
+snacks.nvim as optional auto-upgrade dependency (ADR D17, same seam pattern as D7 telescope).
+T18 extracted `asset.resolve_image_link` + tightened `open_link`'s image branch (garbage paths now
+error instead of spawning the opener); T19 built `lua/awiwi/img.lua` (enabled/resolve/attach,
+resolver chained never clobbered, fake-backend specs) + verified headless against a real snacks
+clone; T20 wired one attach line into ftplugin (red/green spec) + ADR D17 + docs. Suite 484 green.
+**Remaining: T21 manual kitty dogfood** (checklist in "What the next session needs")._
+
+_Previous (30th run) — **T17.1 dogfood fix**: user's first live `:Awiwi serve` crashed at
 lifespan — PluginConfig rejected the real config.json (`screensaver` is a *name* string like
 "cinnamon", not bool; markers were pipe-joined strings). Root cause twofold: B14, a T10 façade
 regression (`init.lua` rebind dropped legacy `join = false`, so the plugin wrote joined strings
@@ -54,6 +63,10 @@ _Previous (26th run) — **T11 UNBLOCKED and CLOSED**: user added the nvim allow
 - [x] T17 — plugin integration + kb close-out (2026-07-07, S17.1 sonnet + S17.2 kb-curator) — `lua/awiwi/server.lua` entrypoint pinned `awiwi.app:app` + env `AWIWI_HOME=vim.g.awiwi_home` threaded via `vim.system`, 3 new specs → 461 green; docs: `architecture.md` §Server rewritten (module map, route table, config protocol, auth localhost-only + AWIWI_ALLOW_REMOTE, markdown pipeline), ADRs D13–D15 recorded (python-markdown+local extensions, auth dropped+localhost-only, AWIWI_HOME env+entrypoint pin), `docs/INDEX.md` ADR high-water mark D15, `handovers/STATE.md` ledger T16 hash filled + T17 entry + header updated; `kb-detect` passes; server rewrite T13–T17 complete, FastAPI viewer live, user-side only remaining (`:Awiwi serve` dogfood); handover `handovers/server-rewrite/T17-entrypoint-pin.md`; commit 4cc3b97.
 - [x] T17.1 — dogfood config fix (2026-07-07, orchestrator inline, red/green both sides) — B14: `init.lua` get_markers rebind wraps `{ join = false }` so config.json carries marker arrays again (new façade-wiring spec, plugin 462 green); server: `screensaver: str | bool`, `PluginConfig.load` catches ValidationError/OSError → warning + defaults (3 new tests, server 118 green); booted against the user's exact failing config.json → startup complete + 200; handover `handovers/server-rewrite/T17.1-dogfood-config.md`; commit d1f5d3a
 
+- [x] T18 — shared image-path resolver (d7e2ce5, 2026-07-14) — S18.1 `asset.resolve_image_link(target) -> string|nil` (nil for relative/URL/non-date-dir; `deps.get_asset_subpath` seam; 5 specs); S18.2 `init.lua` image branch delegates to it, unresolvable targets `err()` instead of spawning the opener on a garbage path (1 spec). Suite 472 green. Handovers `handovers/inline-images/S18.{1,2}.md`
+- [x] T19 — `awiwi.img` module (fa03247, 2026-07-14) — optional inline images via snacks.nvim (ADR D17): `enabled()` honors `g:awiwi_inline_images`, `attach(buf)` probes snacks through `deps.require` seam, registers markdown treesitter lang for awiwi filetypes (load-bearing), chains `snacks.image.config.resolve` onto `asset.resolve_image_link`; 11 fake-backend specs, suite 483 green; S19.2 headless probe against real snacks clone all green (attach true, chain resolves, `require("snacks.image") == Snacks.image` confirmed). Handovers `handovers/inline-images/S19.{1,2}.md`
+- [x] T20 — wiring + ADR + docs (<pending>, 2026-07-14) — one `require("awiwi.img").attach(buf)` in `ftplugin/awiwi.lua` after `syn.attach` (outside awiwiSynRepaint augroup, by design); red/green ftplugin spec (backend probed, no-snacks stays silent); ADR D17 recorded, `docs/INDEX.md` ADR high-water D15→D17 (was stale), architecture.md img row + `g:awiwi_inline_images` global. Suite 484 green. qa-verifier gate S20.2 over T18–T20
+
 Cadence per transaction: S.1 recon (vim-archaeologist) → S.2 port (lua-port-engineer, red/green TDD) → S.3 verify (qa-verifier PASS/FAIL) → S.4 curate+commit (kb-curator, pre-commit kb-detect gate). Full suite `nvim --clean --headless -l tests/run.lua` after each.
 
 ## Deferred bugs
@@ -79,7 +92,17 @@ Cadence per transaction: S.1 recon (vim-archaeologist) → S.2 port (lua-port-en
 
 ## What the next session needs
 
-- **All transactions T0–T12 closed and dogfood-verified; remaining items are user-only:**
+- **T21 — kitty dogfood checklist for inline images (user, manual, in a real kitty session):**
+  1. Get snacks.nvim on the rtp — e.g. `nvim --cmd 'set rtp+=/tmp/snacks.nvim'` (a shallow clone
+     from S19.2 sits at `/tmp/snacks.nvim`) or install it properly via the plugin manager.
+  2. Open a journal page containing `![name](/assets/YYYY-MM-DD/file.png)` → image should render
+     inline (kitty unicode placeholders; capped at snacks defaults `doc.max_width=80`/`max_height=40` cells).
+  3. Fallback checks — each must show the plain concealed link exactly as before: (a) no snacks on
+     rtp; (b) `:let g:awiwi_inline_images = v:false` before opening; (c) non-kitty terminal / zellij.
+  4. Observe: snacks' markdown queries also target ```mermaid/```math fences — it may try to render
+     those (needs mermaid CLI/latex). Note behavior; recorded as accepted side effect in ADR D17.
+  5. Report findings → new `T20.x` fix transactions if anything's off, else T21 closes the flow.
+- **All transactions T0–T20 closed (T18–T20 await T21 dogfood); older remaining items are user-only:**
   1. `.claude/settings.json` nvim allowlist entries — **committed** (handover just wasn't updated at the time).
 - Dogfood results (2026-07-07, user's live config):
   - `<C-v>` clipboard image paste — **verified working** (X11+xclip). The earlier "no mapping" was a `--clean` artifact only: `--clean` skips config so the plugin isn't on rtp and `g:awiwi_home` is unset → `ftdetect/awiwi.lua:6-8` bails → ft stays markdown → no buffer maps. In-config ft is `awiwi` and the map at `ftplugin/awiwi.lua:100` → `init.lua:655` → `asset.lua` fires. No code change.

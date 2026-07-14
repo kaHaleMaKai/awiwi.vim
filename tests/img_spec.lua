@@ -142,8 +142,10 @@ describe("img.attach", function()
   it("happy path: attaches, calls doc.attach with bufnr, registers markdown parser", function()
     local image_mod, rec = fake_snacks_image()
     with_env({ require = fake_require(image_mod) }, function()
+      -- no `filetype = "awiwi"` here: that would fire the real ftplugin,
+      -- whose own attach call (T20 wiring) double-counts against the fake.
+      -- attach() has no filetype check; ftplugin wiring is ftplugin_spec's job.
       local buf = vim.api.nvim_create_buf(false, true)
-      vim.bo[buf].filetype = "awiwi"
       local result = img.attach(buf)
       eq(true, result)
       eq({ buf }, rec.attach_calls)
