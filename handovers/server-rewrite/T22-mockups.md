@@ -189,13 +189,18 @@ from these specs:
    toggling on applies it, toggling off removes it, and a 409-revert restores
    the correct style with the reverted state.
 
-7. **Rail: 310px wide, sticky below the header** (feedback round 3).
+7. **Rail: 310px wide, sticky below the header, zero-drift** (feedback rounds 3–4).
    `.layout-with-rail` column is 310px (was 260px). `aside.rail` is
-   `position: sticky; top: calc(--header-h + --space-5)` with
-   `max-height: calc(100vh - --header-h - 2*--space-5); overflow-y: auto` —
-   only the article scrolls; a taller-than-viewport rail scrolls internally
-   (without the cap, sticky never engages). `--header-h` (56px) approximates
-   the sticky `.app-header` height — keep them in sync in the SPA. The narrow
+   `position: sticky; top: calc(--header-h + --space-6)` with
+   `max-height: calc(100vh - --header-h - --space-6 - --space-5);
+   overflow-y: auto` — only the article scrolls; a taller-than-viewport rail
+   scrolls internally (without the cap, sticky never engages visually).
+   `.app-header` is pinned to exactly `--header-h` (60px, border-box; vertical
+   padding dropped, `align-items: center` does the job), and the rail's sticky
+   `top` equals its NATURAL offset (header + the main's `u-mt-6`/`--space-6`
+   margin) so it pins immediately with zero drift — any mismatch reads as
+   "scrolls a little, then sticks" (user flagged exactly this). Keep the
+   header-height token and the real header in sync in the SPA. The narrow
    breakpoint resets the rail to static flow with no height cap.
 
 ### Gaps / things NOT done here (explicitly out of scope for T22)
