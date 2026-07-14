@@ -181,6 +181,14 @@ from these specs:
    which makes the script skip the persisted-theme restore on load (they stay
    light snapshots) while their toggle still works live.
 
+6. **Task checkboxes: strikethrough follows live state** (feedback round 2).
+   The mockups render the strikethrough from the *initial* checked state only
+   and don't update it on toggle — known mockup artifact, deliberately not
+   fixed. In the real SPA (S25.2 checkbox wiring) the done-styling
+   (strikethrough/dimming) must be bound to the checkbox's *current* state:
+   toggling on applies it, toggling off removes it, and a 409-revert restores
+   the correct style with the reverted state.
+
 ### Gaps / things NOT done here (explicitly out of scope for T22)
 
 - No build step, no bundler, no Svelte — plain HTML+CSS+trivial JS as specified.
