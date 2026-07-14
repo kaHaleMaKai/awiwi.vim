@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { router } from "./lib/router.svelte";
-  import type { BreadcrumbPayload } from "./lib/api";
+  import { breadcrumbs } from "./lib/breadcrumbs.svelte";
   import Breadcrumbs from "./lib/components/Breadcrumbs.svelte";
   import SearchBar from "./lib/components/SearchBar.svelte";
   import ThemeToggle from "./lib/components/ThemeToggle.svelte";
@@ -16,16 +16,12 @@
   import NotFound from "./routes/NotFound.svelte";
 
   onMount(() => router.start());
-
-  // Placeholder trail until S25.3 wires real DocPayload.breadcrumbs per
-  // route view (each fetched doc carries its own `breadcrumbs` field).
-  let crumbs = $derived<BreadcrumbPayload[]>([{ name: "awiwi", target: "/" }]);
 </script>
 
 <div class="app-shell">
   <header class="app-header">
     <a href="/" class="brand">AWIWI</a>
-    <Breadcrumbs {crumbs} />
+    <Breadcrumbs crumbs={breadcrumbs.crumbs} />
     <div class="spacer"></div>
     <SearchBar />
     <ConnectionDot />

@@ -731,6 +731,16 @@ hr { border: 0; border-top: 1px solid var(--border-subtle); }
   min-height: 180px;
 }
 
+/* -- rendered markdown body (MarkdownView's `.markdown-body` wrapper) --
+   Ported from mockups/journal.html's `.journal-body` (T25.3: same content,
+   renamed to match the container class MarkdownView actually emits). */
+.markdown-body h2 { font-size: var(--text-lg); margin-top: var(--space-6); scroll-margin-top: 72px; }
+.markdown-body h3 { font-size: var(--text-md); margin-top: var(--space-5); scroll-margin-top: 72px; }
+.markdown-body p, .markdown-body ul, .markdown-body ol { margin-top: var(--space-3); }
+.markdown-body ul { padding-left: var(--space-5); list-style: disc; }
+.markdown-body ol { padding-left: var(--space-5); }
+.markdown-body img { max-width: 100%; border-radius: var(--radius-sm); }
+
 /* -- TOC / rail -- */
 .toc { font-size: var(--text-sm); }
 .toc a { display: block; padding: var(--space-1) 0; color: var(--text-muted); border-left: 2px solid transparent; padding-left: var(--space-3); }

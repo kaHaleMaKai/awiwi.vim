@@ -1,13 +1,21 @@
-<!-- Stub route view for "/recipes/*". Filled in by S25.3. -->
+<!-- Route view "/recipes/*". Per the backend's breadcrumb contract
+  (make_breadcrumbs always targets `/dir/...` for directories — see
+  server.old's own `/recipes/<path>` route, which only ever rendered a
+  content *file*), a recipe directory is browsed via `/dir/recipes/...`;
+  `/recipes/*` itself is always a single recipe file, except the bare
+  "/recipes" root (empty `rest`), which has no file to show and falls back
+  to a directory listing. -->
 <script lang="ts">
+  import DirPage from "../lib/components/DirPage.svelte";
+  import DocPage from "../lib/components/DocPage.svelte";
   interface Props {
     rest: string;
   }
   let { rest }: Props = $props();
 </script>
 
-<section class="stack">
-  <span class="deco-title">Recipes</span>
-  <h1 class="page-title u-mt-2">/{rest}</h1>
-  <p>Recipe rendering lands in S25.2/S25.3.</p>
-</section>
+{#if rest}
+  <DocPage path={`recipes/${rest}`} />
+{:else}
+  <DirPage path="recipes" />
+{/if}

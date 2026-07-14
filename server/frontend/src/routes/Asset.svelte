@@ -1,14 +1,12 @@
-<!-- Stub route view for "/assets/:date/:file". Filled in by S25.3. -->
+<!-- Route view "/assets/:date/:file". -->
 <script lang="ts">
+  import DocPage from "../lib/components/DocPage.svelte";
   interface Props {
     date: string;
     file: string;
   }
   let { date, file }: Props = $props();
+  const path = $derived(`assets/${date.split("-").join("/")}/${file}`);
 </script>
 
-<section class="stack">
-  <span class="deco-title">Asset</span>
-  <h1 class="page-title u-mt-2">{file}</h1>
-  <p>Owning journal day: {date}. Asset rendering lands in S25.2/S25.3.</p>
-</section>
+<DocPage {path} />
