@@ -559,3 +559,50 @@ describe("asset.get_all_asset_files", function()
     with_home(function() eq({}, asset.get_all_asset_files()) end)
   end)
 end)
+
+-- awiwi.asset.resolve_image_link ------------------------------------------
+
+describe("asset.resolve_image_link", function()
+  it("resolves an absolute target whose parent dir is a YYYY-MM-DD date", function()
+    with_home(function(home)
+      eq(
+        home .. "/assets/2024/03/05/pic.png",
+        asset.resolve_image_link("/assets/2024-03-05/pic.png")
+      )
+      eq(
+        home .. "/assets/2024/03/05/pic.png",
+        asset.resolve_image_link("/x/2024-03-05/pic.png")
+      )
+    end)
+  end)
+
+  it("returns nil for a relative target", function()
+    with_home(function()
+      eq(nil, asset.resolve_image_link("2024-03-05/pic.png"))
+      eq(nil, asset.resolve_image_link("./img.png"))
+    end)
+  end)
+
+  it("returns nil for an http(s) URL", function()
+    with_home(function()
+      eq(nil, asset.resolve_image_link("http://example.com/pic.png"))
+      eq(nil, asset.resolve_image_link("https://example.com/pic.png"))
+    end)
+  end)
+
+  it("returns nil when the absolute target's parent dir is not a date", function()
+    with_home(function()
+      eq(nil, asset.resolve_image_link("/tmp/pic.png"))
+    end)
+  end)
+
+  it("resolves through the M.deps.get_asset_subpath() seam", function()
+    with_home(function()
+      local orig = asset.deps.get_asset_subpath
+      asset.deps.get_asset_subpath = function() return "/custom/assets" end
+      local result = asset.resolve_image_link("/assets/2024-03-05/pic.png")
+      asset.deps.get_asset_subpath = orig
+      eq("/custom/assets/2024/03/05/pic.png", result)
+    end)
+  end)
+end)

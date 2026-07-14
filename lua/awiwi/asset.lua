@@ -436,6 +436,31 @@ function M.open_asset_by_name(date_expr, name, opts)
   end
 end
 
+--- Resolves an `image`-type link `target` to its on-disk asset path, iff
+--- `target` is an absolute filesystem path whose parent directory component
+--- is a `YYYY-MM-DD` date (e.g. `/assets/2024-03-05/pic.png` or
+--- `/x/2024-03-05/pic.png`) — returns
+--- `M.deps.get_asset_subpath()/2024/03/05/pic.png`. Returns `nil` for
+--- anything else: relative targets (no leading `/`), `http(s)://` URLs, or
+--- absolute targets whose parent directory isn't a `YYYY-MM-DD` date (e.g.
+--- `/tmp/pic.png`).
+---
+--- Pure: no side effects, no filesystem access, no `vim.g` reads — goes
+--- through `M.deps.get_asset_subpath()` like every other path builder in
+--- this module (mirrors the join pattern at `M.get_asset_path`).
+function M.resolve_image_link(target)
+  if not pathlib.is_absolute(target) then
+    return nil
+  end
+  local dir = vim.fn.fnamemodify(target, ":h:t")
+  local y, m, d = dir:match("^(%d%d%d%d)%-(%d%d)%-(%d%d)$")
+  if not y then
+    return nil
+  end
+  local fname = vim.fn.fnamemodify(target, ":t")
+  return pathlib.join(M.deps.get_asset_subpath(), y, m, d, fname)
+end
+
 --- fzf/telescope-picker sink shape: `expr` is `"date:name"`. Currently only
 --- wired in a commented-out fzf sink (dead in the shipped binary today) —
 --- kept live per the brief, it becomes T9's telescope-picker sink callback.

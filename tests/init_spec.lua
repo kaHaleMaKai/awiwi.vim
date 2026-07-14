@@ -742,6 +742,26 @@ describe("open_link", function()
     end)
   end)
 
+  it("45: image type with unresolvable target -> err, no opener spawn", function()
+    sandbox(function(set)
+      set(vim.g, "awiwi_home", "/h")
+      set(vim.g, "awiwi_image_opener", { "feh" })
+      set(util, "get_link_under_cursor", function()
+        return { type = "image", target = "/tmp/pic.png" }
+      end)
+      local sys = {}
+      set(awiwi.deps, "system", fake_system(sys, "system"))
+      local errs = {}
+      set(vim.api, "nvim_err_writeln", function(m)
+        errs[#errs + 1] = m
+      end)
+      awiwi.open_link({})
+      eq(0, #sys)
+      ok(#errs > 0, "expected an error message")
+      ok(errs[1]:find("/tmp/pic.png", 1, true) ~= nil, "error should name the target")
+    end)
+  end)
+
   it("44: empty type -> single error, no side effects (B-INIT-4)", function()
     sandbox(function(set)
       set(util, "get_link_under_cursor", function()

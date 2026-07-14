@@ -557,10 +557,11 @@ function M.open_link(options, link_arg)
     end
     M.open_file(dest, options)
   elseif t == "image" then
-    local dir = vim.fn.fnamemodify(link.target, ":h:t")
-    local date_part = table.concat(vim.split(dir, "-", { plain = true }), "/")
-    local fname = vim.fn.fnamemodify(link.target, ":t")
-    local dest = path.join(vim.g.awiwi_home, "assets", date_part, fname)
+    local dest = asset.resolve_image_link(link.target)
+    if not dest then
+      err(('cannot open link: "%s"'):format(tostring(link.target)))
+      return
+    end
     local opener = vim.deepcopy(vim.g.awiwi_image_opener or { "xdg-open" })
     opener[#opener + 1] = dest
     M.deps.system(opener)
