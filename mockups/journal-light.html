@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>2026-07-14 (daylight-noir) — awiwi</title>
+<link rel="stylesheet" href="tokens.css">
+<style>
+  .journal-body h2 { font-size: var(--text-lg); margin-top: var(--space-6); scroll-margin-top: 72px; }
+  .journal-body h3 { font-size: var(--text-md); margin-top: var(--space-5); scroll-margin-top: 72px; }
+  .journal-body p, .journal-body ul { margin-top: var(--space-3); }
+  .journal-body ul { padding-left: var(--space-5); list-style: disc; }
+  .rail-section + .rail-section { margin-top: var(--space-6); }
+  .ws-legend { display: flex; flex-direction: column; gap: var(--space-2); font-size: var(--text-xs); color: var(--text-muted); }
+  .ws-legend .cluster { gap: var(--space-2); }
+</style>
+</head>
+<body>
+<div class="app-shell">
+  <header class="app-header">
+    <a href="dir-root.html" class="brand">AWIWI</a>
+    <nav class="breadcrumbs" aria-label="Breadcrumb">
+      <a href="dir-root.html">journal</a><span class="sep">›</span>
+      <a href="dir-journal-month.html">2026</a><span class="sep">›</span>
+      <a href="dir-journal-month.html">07</a><span class="sep">›</span>
+      <span class="current">14</span>
+    </nav>
+    <div class="spacer"></div>
+    <div class="header-search">
+      <input class="input" type="search" placeholder="Search notes… ( / )" aria-label="Search all notes">
+    </div>
+    <div class="ws-indicator" title="Live sync connected">
+      <span class="ws-dot is-live" aria-hidden="true"></span> Live
+    </div>
+    <div class="theme-toggle" role="group" aria-label="Theme">
+      <button type="button" onclick="location.href='journal.html'">Dark</button>
+      <button class="is-active" type="button">Light</button>
+    </div>
+  </header>
+
+  <main class="container-wide u-mt-6">
+    <div class="layout-with-rail">
+      <article class="stack">
+        <div>
+          <span class="deco-title">Daily Journal</span>
+          <h1 class="page-title u-mt-2">Tuesday, July 14 2026</h1>
+        </div>
+        <div class="deco-rule"></div>
+
+        <nav class="day-nav" aria-label="Adjacent days">
+          <a href="#">
+            <span class="day-nav-label">&larr; Prev</span>
+            <span class="day-nav-date">Mon, Jul 13</span>
+          </a>
+          <a href="#" class="day-nav-next">
+            <span class="day-nav-label">Next &rarr;</span>
+            <span class="day-nav-date">Wed, Jul 15</span>
+          </a>
+        </nav>
+
+        <div class="journal-body">
+          <section id="morning">
+            <h2>Morning</h2>
+            <p>Slow start. Coffee, then triage of overnight alerts. Nothing on fire. Synced with
+            <span class="mention">@@lars</span> about the rollout plan for
+            <span class="tag">#project-awiwi</span> — we agreed to ship the SPA mockups before
+            touching the FastAPI router.</p>
+          </section>
+
+          <section id="work">
+            <h2>Work</h2>
+            <p>Spent most of the day on the viewer redesign. The staging credentials are
+            <span class="redacted" tabindex="0" title="redacted">sk-live-9f2a...c001</span> — do not
+            paste these into the shared channel again.</p>
+
+            <h3 id="standup-notes">Standup notes</h3>
+            <ul>
+              <li>Server rewrite: FastAPI + Pydantic, T13&ndash;T17 complete.</li>
+              <li>Lua port: leaf modules done, <span class="tag">#cmd</span> façade in progress.</li>
+              <li>Design checkpoint today — Noir-Deco token review.</li>
+            </ul>
+
+            <div class="code-block u-mt-4">
+              <div class="code-toolbar">
+                <span>resolve_image_link.py</span>
+                <button class="copy-btn" type="button" aria-label="Copy code">Copy</button>
+              </div>
+              <pre><span class="tok-comment"># resolve an asset image path relative to the note</span>
+<span class="tok-keyword">def</span> <span class="tok-function">resolve_image_link</span>(note_path: <span class="tok-constant">str</span>, rel: <span class="tok-constant">str</span>) -&gt; <span class="tok-constant">str</span>:
+    <span class="tok-keyword">if</span> rel.startswith(<span class="tok-string">"assets/"</span>):
+        <span class="tok-keyword">return</span> os.path.join(AWIWI_HOME, rel)
+    base = os.path.dirname(note_path)
+    <span class="tok-keyword">return</span> os.path.normpath(os.path.join(base, rel))</pre>
+            </div>
+          </section>
+
+          <section id="reading">
+            <h2>Reading</h2>
+            <p>Notes from <span class="tag">#recipes/sourdough-starter</span> — the hydration table
+            below is worth keeping handy.</p>
+
+            <div class="u-mt-4">
+              <div class="spread">
+                <span class="u-muted" style="font-size: var(--text-xs); letter-spacing:.06em; text-transform:uppercase;">Hydration table</span>
+                <div class="copy-menu">
+                  <button class="copy-btn" type="button" aria-haspopup="true" aria-expanded="false">Copy ▾</button>
+                  <div class="copy-menu-list u-hidden" role="menu">
+                    <button type="button" role="menuitem">as Markdown</button>
+                    <button type="button" role="menuitem">as CSV</button>
+                    <button type="button" role="menuitem">as HTML</button>
+                  </div>
+                </div>
+              </div>
+              <table class="data-table u-mt-2">
+                <thead><tr><th>Flour (g)</th><th>Water (g)</th><th>Hydration</th></tr></thead>
+                <tbody>
+                  <tr><td>500</td><td>350</td><td>70%</td></tr>
+                  <tr><td>500</td><td>375</td><td>75%</td></tr>
+                  <tr><td>500</td><td>400</td><td>80%</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section id="tasks">
+            <h2>Tasks</h2>
+            <div class="stack" style="gap: 2px;">
+              <label class="task-item is-done">
+                <input type="checkbox" checked>
+                <span class="task-label">Draft Noir-Deco token file</span>
+              </label>
+              <label class="task-item is-done">
+                <input type="checkbox" checked>
+                <span class="task-label">Pick + license display webfont</span>
+              </label>
+              <label class="task-item">
+                <input type="checkbox">
+                <span class="task-label">Review mockups with @@lars</span>
+              </label>
+              <label class="task-item">
+                <input type="checkbox">
+                <span class="task-label">Wire mermaid rendering into asset pages</span>
+              </label>
+            </div>
+          </section>
+
+          <section id="diagram">
+            <h2>Diagram</h2>
+            <p>Rough sketch of the request flow (rendered client-side by mermaid.js in the real app):</p>
+            <div class="mermaid-box u-mt-3" role="img" aria-label="Mermaid diagram placeholder">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="8.5" y="14" width="7" height="7" rx="1"/><path d="M6.5 10v2a2 2 0 0 0 2 2h1"/><path d="M17.5 10v2a2 2 0 0 0-2 2h-1"/></svg>
+              <span>mermaid diagram renders here — flowchart TD</span>
+            </div>
+          </section>
+        </div>
+      </article>
+
+      <aside class="rail">
+        <div class="rail-section">
+          <div class="deco-title">On this page</div>
+          <nav class="toc u-mt-2">
+            <a href="#morning" class="is-active">Morning</a>
+            <a href="#work">Work</a>
+            <a href="#standup-notes" class="toc-h3">Standup notes</a>
+            <a href="#reading">Reading</a>
+            <a href="#tasks">Tasks</a>
+            <a href="#diagram">Diagram</a>
+          </nav>
+        </div>
+        <div class="rail-section">
+          <div class="deco-title">Sync status legend</div>
+          <div class="ws-legend u-mt-2">
+            <div class="cluster"><span class="ws-dot is-live"></span> Live — connected, edits stream in real time</div>
+            <div class="cluster"><span class="ws-dot is-reconnecting"></span> Reconnecting — attempting to restore</div>
+            <div class="cluster"><span class="ws-dot is-down"></span> Down — no connection, viewing cached copy</div>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </main>
+</div>
+<script>
+  document.querySelectorAll('.copy-btn').forEach(function (btn) {
+    if (btn.hasAttribute('aria-haspopup')) return;
+    btn.addEventListener('click', function () {
+      var original = btn.textContent;
+      btn.textContent = 'Copied';
+      btn.classList.add('is-copied');
+      setTimeout(function () { btn.textContent = original; btn.classList.remove('is-copied'); }, 1400);
+    });
+  });
+  document.querySelectorAll('.copy-menu > .copy-btn[aria-haspopup]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var list = btn.nextElementSibling;
+      var open = list.classList.toggle('u-hidden') === false;
+      btn.setAttribute('aria-expanded', String(open));
+    });
+  });
+</script>
+</body>
+</html>

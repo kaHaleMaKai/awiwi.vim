@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>todo — awiwi</title>
+<link rel="stylesheet" href="tokens.css">
+<style>
+  .todo-section + .todo-section { margin-top: var(--space-6); }
+  .todo-row { display: flex; align-items: flex-start; gap: var(--space-3); padding: var(--space-2) var(--space-2); border-bottom: 1px solid var(--border-subtle); }
+  .todo-row:last-child { border-bottom: none; }
+  .todo-row:hover { background: var(--bg-hover); }
+  .todo-meta { display: flex; gap: var(--space-2); margin-top: 4px; }
+  .todo-badge { font-size: var(--text-xs); padding: 1px var(--space-2); border-radius: var(--radius-sm); border: 1px solid var(--border-default); color: var(--text-muted); }
+  .todo-badge.overdue { color: var(--color-error); border-color: var(--color-error); }
+  .todo-badge.today { color: var(--neon-amber); border-color: var(--neon-amber); }
+</style>
+</head>
+<body>
+<div class="app-shell">
+  <header class="app-header">
+    <a href="dir-root.html" class="brand">AWIWI</a>
+    <nav class="breadcrumbs" aria-label="Breadcrumb">
+      <span class="current">todo</span>
+    </nav>
+    <div class="spacer"></div>
+    <div class="header-search">
+      <input class="input" type="search" placeholder="Search notes… ( / )" aria-label="Search all notes">
+    </div>
+    <div class="ws-indicator" title="Live sync connected">
+      <span class="ws-dot is-live" aria-hidden="true"></span> Live
+    </div>
+    <div class="theme-toggle" role="group" aria-label="Theme">
+      <button class="is-active" type="button">Dark</button>
+      <button type="button">Light</button>
+    </div>
+  </header>
+
+  <main class="container u-mt-6">
+    <span class="deco-title">Task Log</span>
+    <h1 class="page-title u-mt-2">Todo</h1>
+    <div class="deco-rule u-mt-4"></div>
+
+    <div class="cluster u-mt-5">
+      <button class="chip is-active" type="button" aria-pressed="true">Open</button>
+      <button class="chip" type="button" aria-pressed="false">Done</button>
+      <button class="chip" type="button" aria-pressed="false">All</button>
+    </div>
+
+    <div class="deco-card u-mt-5 todo-section">
+      <div class="deco-title">Overdue</div>
+      <div class="stack u-mt-2" style="gap:0;">
+        <label class="todo-row">
+          <input type="checkbox" class="u-mt-2">
+          <span>
+            <span class="task-label">Reply to server rewrite RFC — <span class="mention">@@lars</span></span>
+            <span class="todo-meta"><span class="todo-badge overdue">due Jul 10</span><span class="todo-badge">journal/2026-07-08</span></span>
+          </span>
+        </label>
+      </div>
+    </div>
+
+    <div class="deco-card u-mt-5 todo-section">
+      <div class="deco-title">Today</div>
+      <div class="stack u-mt-2" style="gap:0;">
+        <label class="todo-row">
+          <input type="checkbox" class="u-mt-2">
+          <span>
+            <span class="task-label">Review mockups with @@lars</span>
+            <span class="todo-meta"><span class="todo-badge today">due Jul 14</span><span class="todo-badge">journal/2026-07-14</span></span>
+          </span>
+        </label>
+        <label class="todo-row">
+          <input type="checkbox" checked class="u-mt-2">
+          <span>
+            <span class="task-label" style="text-decoration:line-through;color:var(--text-muted);">Draft Noir-Deco token file</span>
+            <span class="todo-meta"><span class="todo-badge">journal/2026-07-14</span></span>
+          </span>
+        </label>
+      </div>
+    </div>
+
+    <div class="deco-card u-mt-5 todo-section">
+      <div class="deco-title">Upcoming</div>
+      <div class="stack u-mt-2" style="gap:0;">
+        <label class="todo-row">
+          <input type="checkbox" class="u-mt-2">
+          <span>
+            <span class="task-label">Wire mermaid rendering into asset pages <span class="tag">#project-awiwi</span></span>
+            <span class="todo-meta"><span class="todo-badge">due Jul 18</span><span class="todo-badge">journal/2026-07-14</span></span>
+          </span>
+        </label>
+        <label class="todo-row">
+          <input type="checkbox" class="u-mt-2">
+          <span>
+            <span class="task-label">Bake sourdough per <span class="tag">#recipes/sourdough-starter</span></span>
+            <span class="todo-meta"><span class="todo-badge">due Jul 20</span></span>
+          </span>
+        </label>
+      </div>
+    </div>
+  </main>
+</div>
+</body>
+</html>

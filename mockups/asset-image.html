@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>architecture-sketch.png — awiwi</title>
+<link rel="stylesheet" href="tokens.css">
+<style>
+  #lightbox-toggle { display: none; }
+  .lightbox-overlay { display: none; }
+  #lightbox-toggle:checked ~ .lightbox-overlay { display: flex; }
+  .asset-figure { text-align: center; }
+  .asset-figure img { border-radius: var(--radius-md); border: 1px solid var(--border-default); box-shadow: var(--shadow-noir); margin-inline: auto; cursor: zoom-in; }
+  .placeholder-art {
+    width: 100%; max-width: 640px; height: 360px; margin-inline: auto;
+    border-radius: var(--radius-md); border: 1px solid var(--border-default);
+    background:
+      linear-gradient(135deg, var(--bg-surface-raised) 25%, transparent 25%) 0 0/24px 24px,
+      linear-gradient(225deg, var(--bg-surface-raised) 25%, transparent 25%) 0 0/24px 24px,
+      var(--bg-inset);
+    display: flex; align-items: center; justify-content: center; color: var(--text-muted);
+    cursor: zoom-in;
+  }
+  .lightbox-frame .placeholder-art { max-width: min(90vw, 1100px); height: 70vh; cursor: default; }
+</style>
+</head>
+<body>
+<input type="checkbox" id="lightbox-toggle">
+
+<div class="app-shell">
+  <header class="app-header">
+    <a href="dir-root.html" class="brand">AWIWI</a>
+    <nav class="breadcrumbs" aria-label="Breadcrumb">
+      <a href="dir-root.html">assets</a><span class="sep">›</span>
+      <a href="#">2026</a><span class="sep">›</span>
+      <a href="#">07</a><span class="sep">›</span>
+      <a href="#">14</a><span class="sep">›</span>
+      <span class="current">architecture-sketch.png</span>
+    </nav>
+    <div class="spacer"></div>
+    <div class="header-search">
+      <input class="input" type="search" placeholder="Search notes… ( / )" aria-label="Search all notes">
+    </div>
+    <div class="ws-indicator" title="Live sync connected">
+      <span class="ws-dot is-live" aria-hidden="true"></span> Live
+    </div>
+    <div class="theme-toggle" role="group" aria-label="Theme">
+      <button class="is-active" type="button">Dark</button>
+      <button type="button">Light</button>
+    </div>
+  </header>
+
+  <main class="container u-mt-6">
+    <a class="link" href="journal.html" style="font-size: var(--text-sm);">&larr; Back to journal/2026-07-14</a>
+
+    <div class="spread u-mt-4">
+      <div>
+        <span class="deco-title">Asset · Image</span>
+        <h1 class="page-title u-mt-2">architecture-sketch.png</h1>
+      </div>
+      <label class="btn btn-primary" for="lightbox-toggle" style="cursor:pointer;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+        View fullscreen
+      </label>
+    </div>
+    <div class="deco-rule u-mt-4"></div>
+
+    <figure class="asset-figure u-mt-6">
+      <label for="lightbox-toggle" style="display:block; cursor:zoom-in;">
+        <div class="placeholder-art">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M3 7a2 2 0 0 1 2-2h3l1.5-2h5L16 5h3a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><circle cx="12" cy="13" r="3.5"/></svg>
+        </div>
+      </label>
+      <figcaption class="u-mt-3 u-muted" style="font-size: var(--text-sm);">Request flow sketch — client, FastAPI router, mdrender pipeline, WS broadcaster. Click to zoom.</figcaption>
+    </figure>
+
+    <div class="card u-mt-6">
+      <div class="spread">
+        <span class="u-muted" style="font-size: var(--text-xs); letter-spacing:.06em; text-transform:uppercase;">File info</span>
+      </div>
+      <div class="u-mt-3" style="display:grid; grid-template-columns: 140px 1fr; row-gap: var(--space-2); font-size: var(--text-sm);">
+        <span class="u-muted">Path</span><span class="u-mono">assets/2026/07/14/architecture-sketch.png</span>
+        <span class="u-muted">Size</span><span>812 KB</span>
+        <span class="u-muted">Dimensions</span><span>1920 × 1080</span>
+        <span class="u-muted">Linked from</span><a class="link" href="journal.html">journal/2026-07-14</a>
+      </div>
+    </div>
+  </main>
+</div>
+
+<label class="lightbox-overlay" for="lightbox-toggle">
+  <div class="lightbox-frame" onclick="event.stopPropagation()">
+    <div class="placeholder-art">
+      <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M3 7a2 2 0 0 1 2-2h3l1.5-2h5L16 5h3a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><circle cx="12" cy="13" r="3.5"/></svg>
+    </div>
+    <label class="lightbox-close" for="lightbox-toggle" aria-label="Close" style="cursor:pointer;">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg>
+    </label>
+    <div class="lightbox-caption">architecture-sketch.png &middot; 1920 × 1080 &middot; 812 KB</div>
+  </div>
+</label>
+</body>
+</html>

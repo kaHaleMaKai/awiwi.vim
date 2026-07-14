@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>journal/2026/07 — awiwi</title>
+<link rel="stylesheet" href="tokens.css">
+<style>
+  .week-band { padding: var(--space-2); margin-bottom: var(--space-1); }
+  .week-label { font-size: var(--text-xs); color: var(--text-muted); letter-spacing: .06em; text-transform: uppercase; padding: var(--space-1) var(--space-2); }
+  .day-row { display: flex; align-items: center; justify-content: space-between; padding: var(--space-2) var(--space-3); border-radius: var(--radius-sm); }
+  .day-row:hover { background: var(--bg-hover); }
+  .day-row.is-current { background: var(--bg-current); }
+  .day-row.is-current .day-date { color: var(--accent-cyan); }
+  .day-row.is-future .day-date, .day-row.is-future .day-summary { color: var(--text-muted); }
+  .day-date { font-weight: 600; color: var(--text-primary); width: 8em; flex: none; }
+  .day-summary { color: var(--text-tertiary); flex: 1; font-size: var(--text-sm); }
+  .day-wordcount { color: var(--text-muted); font-size: var(--text-xs); width: 5em; text-align: right; flex: none; }
+</style>
+</head>
+<body>
+<div class="app-shell">
+  <header class="app-header">
+    <a href="dir-root.html" class="brand">AWIWI</a>
+    <nav class="breadcrumbs" aria-label="Breadcrumb">
+      <a href="dir-root.html">journal</a><span class="sep">›</span>
+      <a href="#">2026</a><span class="sep">›</span>
+      <span class="current">07</span>
+    </nav>
+    <div class="spacer"></div>
+    <div class="header-search">
+      <input class="input" type="search" placeholder="Search notes… ( / )" aria-label="Search all notes">
+    </div>
+    <div class="ws-indicator" title="Live sync connected">
+      <span class="ws-dot is-live" aria-hidden="true"></span> Live
+    </div>
+    <div class="theme-toggle" role="group" aria-label="Theme">
+      <button class="is-active" type="button">Dark</button>
+      <button type="button">Light</button>
+    </div>
+  </header>
+
+  <main class="container u-mt-6">
+    <span class="deco-title">Journal</span>
+    <h1 class="page-title u-mt-2">July 2026</h1>
+    <div class="deco-rule u-mt-4"></div>
+
+    <div class="u-mt-5">
+      <div class="week-band">
+        <div class="week-label">Week 27</div>
+        <a class="day-row" href="journal.html"><span class="day-date">Mon, Jul 06</span><span class="day-summary">Kickoff notes for the SPA rewrite; reviewed T13&ndash;T17 scaffold.</span><span class="day-wordcount">412 w</span></a>
+        <a class="day-row" href="journal.html"><span class="day-date">Tue, Jul 07</span><span class="day-summary">FastAPI router pass, mdrender pipeline notes.</span><span class="day-wordcount">298 w</span></a>
+        <a class="day-row" href="journal.html"><span class="day-date">Wed, Jul 08</span><span class="day-summary">No entry.</span><span class="day-wordcount">&mdash;</span></a>
+        <a class="day-row" href="journal.html"><span class="day-date">Thu, Jul 09</span><span class="day-summary">Inline images ADR discussion, snacks.nvim wiring.</span><span class="day-wordcount">551 w</span></a>
+        <a class="day-row" href="journal.html"><span class="day-date">Fri, Jul 10</span><span class="day-summary">Weekly review + task log cleanup.</span><span class="day-wordcount">204 w</span></a>
+      </div>
+
+      <div class="week-band">
+        <div class="week-label">Week 28</div>
+        <a class="day-row" href="journal.html"><span class="day-date">Mon, Jul 13</span><span class="day-summary">Design system kickoff — Noir-Deco palette drafted.</span><span class="day-wordcount">387 w</span></a>
+        <a class="day-row is-current" href="journal.html"><span class="day-date">Tue, Jul 14</span><span class="day-summary">Mockup pages, token file, font licensing.</span><span class="day-wordcount">440 w</span></a>
+        <a class="day-row is-future" href="journal.html"><span class="day-date">Wed, Jul 15</span><span class="day-summary">Not written yet.</span><span class="day-wordcount">&mdash;</span></a>
+        <a class="day-row is-future" href="journal.html"><span class="day-date">Thu, Jul 16</span><span class="day-summary">Not written yet.</span><span class="day-wordcount">&mdash;</span></a>
+        <a class="day-row is-future" href="journal.html"><span class="day-date">Fri, Jul 17</span><span class="day-summary">Not written yet.</span><span class="day-wordcount">&mdash;</span></a>
+      </div>
+    </div>
+  </main>
+</div>
+</body>
+</html>

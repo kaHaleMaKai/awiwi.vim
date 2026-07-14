@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>deploy-notes.txt — awiwi</title>
+<link rel="stylesheet" href="tokens.css">
+<style>
+  .file-pre { counter-reset: line; }
+  .file-line { display: flex; }
+  .file-line::before {
+    counter-increment: line;
+    content: counter(line);
+    display: inline-block;
+    width: 3em;
+    flex: none;
+    text-align: right;
+    margin-right: var(--space-4);
+    color: var(--text-muted);
+    user-select: none;
+  }
+  .file-line.hl { background: var(--bg-current); }
+</style>
+</head>
+<body>
+<div class="app-shell">
+  <header class="app-header">
+    <a href="dir-root.html" class="brand">AWIWI</a>
+    <nav class="breadcrumbs" aria-label="Breadcrumb">
+      <a href="dir-root.html">assets</a><span class="sep">›</span>
+      <a href="#">2026</a><span class="sep">›</span>
+      <a href="#">07</a><span class="sep">›</span>
+      <a href="#">14</a><span class="sep">›</span>
+      <span class="current">deploy-notes.txt</span>
+    </nav>
+    <div class="spacer"></div>
+    <div class="header-search">
+      <input class="input" type="search" placeholder="Search notes… ( / )" aria-label="Search all notes">
+    </div>
+    <div class="ws-indicator" title="Live sync connected">
+      <span class="ws-dot is-live" aria-hidden="true"></span> Live
+    </div>
+    <div class="theme-toggle" role="group" aria-label="Theme">
+      <button class="is-active" type="button">Dark</button>
+      <button type="button">Light</button>
+    </div>
+  </header>
+
+  <main class="container-wide u-mt-6">
+    <span class="deco-title">Asset · Text file</span>
+    <h1 class="page-title u-mt-2">deploy-notes.txt</h1>
+    <div class="deco-rule u-mt-4"></div>
+
+    <div class="code-block u-mt-6">
+      <div class="code-toolbar">
+        <span>assets/2026/07/14/deploy-notes.txt · 52 lines · bash</span>
+        <button class="copy-btn" type="button" aria-label="Copy full file">Copy file</button>
+      </div>
+      <pre class="file-pre"><span class="file-line"><span class="tok-comment"># staging deploy — rotate secrets after this run</span></span><span class="file-line"><span class="tok-keyword">set</span> -euo pipefail</span><span class="file-line"></span><span class="file-line"><span class="tok-function">deploy</span>() {</span><span class="file-line">  <span class="tok-keyword">local</span> env=<span class="tok-string">"$1"</span></span><span class="file-line">  echo <span class="tok-string">"deploying to ${env}..."</span></span><span class="file-line">  uv run alembic upgrade head</span><span class="file-line">  uv run uvicorn server.app:app --host <span class="tok-constant">0.0.0.0</span> --port <span class="tok-constant">8420</span></span><span class="file-line">}</span><span class="file-line"></span><span class="file-line hl"><span class="tok-keyword">export</span> AWIWI_TOKEN=<span class="tok-string">"sk-live-9f2a...c001"</span>  <span class="tok-comment"># rotate before next deploy</span></span><span class="file-line"><span class="tok-keyword">export</span> AWIWI_HOME=<span class="tok-string">"/srv/awiwi"</span></span><span class="file-line"></span><span class="file-line"><span class="tok-function">deploy</span> staging</span></pre>
+    </div>
+
+    <div class="card u-mt-6">
+      <div class="u-mt-1" style="display:grid; grid-template-columns: 140px 1fr; row-gap: var(--space-2); font-size: var(--text-sm);">
+        <span class="u-muted">Path</span><span class="u-mono">assets/2026/07/14/deploy-notes.txt</span>
+        <span class="u-muted">Size</span><span>1.4 KB</span>
+        <span class="u-muted">Linked from</span><a class="link" href="search.html">search results</a>
+      </div>
+    </div>
+  </main>
+</div>
+<script>
+  document.querySelectorAll('.copy-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var original = btn.textContent;
+      btn.textContent = 'Copied';
+      btn.classList.add('is-copied');
+      setTimeout(function () { btn.textContent = original; btn.classList.remove('is-copied'); }, 1400);
+    });
+  });
+</script>
+</body>
+</html>

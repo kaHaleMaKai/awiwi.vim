@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>awiwi home — awiwi</title>
+<link rel="stylesheet" href="tokens.css">
+<style>
+  .dir-icon { color: var(--accent-brass); flex: none; }
+  .dir-icon.file { color: var(--text-muted); }
+</style>
+</head>
+<body>
+<div class="app-shell">
+  <header class="app-header">
+    <a href="dir-root.html" class="brand">AWIWI</a>
+    <nav class="breadcrumbs" aria-label="Breadcrumb">
+      <span class="current">home</span>
+    </nav>
+    <div class="spacer"></div>
+    <div class="header-search">
+      <input class="input" type="search" placeholder="Search notes… ( / )" aria-label="Search all notes">
+    </div>
+    <div class="ws-indicator" title="Live sync connected">
+      <span class="ws-dot is-live" aria-hidden="true"></span> Live
+    </div>
+    <div class="theme-toggle" role="group" aria-label="Theme">
+      <button class="is-active" type="button">Dark</button>
+      <button type="button">Light</button>
+    </div>
+  </header>
+
+  <main class="container u-mt-6">
+    <span class="deco-title">Awiwi Home</span>
+    <h1 class="page-title u-mt-2">g:awiwi_home</h1>
+    <div class="deco-rule u-mt-4"></div>
+
+    <div class="card u-mt-6">
+      <a class="row" href="dir-journal-month.html">
+        <span class="cluster">
+          <svg class="dir-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 3v3M16 3v3"/></svg>
+          <span class="row-title">journal/</span>
+        </span>
+        <span class="row-meta">daily journals · 2019–2026</span>
+      </a>
+      <a class="row" href="asset-image.html">
+        <span class="cluster">
+          <svg class="dir-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 7a2 2 0 0 1 2-2h3l1.5-2h5L16 5h3a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><circle cx="12" cy="13" r="3.5"/></svg>
+          <span class="row-title">assets/</span>
+        </span>
+        <span class="row-meta">images, text files, drawio diagrams</span>
+      </a>
+      <a class="row" href="asset-drawio.html" style="border-bottom:none;">
+        <span class="cluster">
+          <svg class="dir-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 19.5V6a2 2 0 0 1 2-2h8.5L20 8.5V18a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2.5Z"/><path d="M14 4v4.5H18.5"/></svg>
+          <span class="row-title">recipes/</span>
+        </span>
+        <span class="row-meta">nested how-tos, linkable from any note</span>
+      </a>
+    </div>
+
+    <div class="u-mt-6">
+      <span class="deco-title">Recent files</span>
+      <div class="card u-mt-2">
+        <a class="row is-current" href="journal.html">
+          <span class="cluster">
+            <svg class="dir-icon file" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 2h9l5 5v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2Z"/><path d="M15 2v5h5"/></svg>
+            <span class="row-title">journal/2026/07/2026-07-14.md</span>
+          </span>
+          <span class="row-meta">edited just now</span>
+        </a>
+        <a class="row" href="asset-text.html">
+          <span class="cluster">
+            <svg class="dir-icon file" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 2h9l5 5v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2Z"/><path d="M15 2v5h5"/></svg>
+            <span class="row-title">assets/2026/07/14/deploy-notes.txt</span>
+          </span>
+          <span class="row-meta">2 hours ago</span>
+        </a>
+        <a class="row" href="download.html" style="border-bottom:none;">
+          <span class="cluster">
+            <svg class="dir-icon file" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 2h9l5 5v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2Z"/><path d="M15 2v5h5"/></svg>
+            <span class="row-title">assets/2026/07/12/backup.tar.gz</span>
+          </span>
+          <span class="row-meta">2 days ago · 4.1 MB</span>
+        </a>
+      </div>
+    </div>
+  </main>
+</div>
+</body>
+</html>

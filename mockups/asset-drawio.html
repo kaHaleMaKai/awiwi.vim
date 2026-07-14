@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>request-flow.drawio — awiwi</title>
+<link rel="stylesheet" href="tokens.css">
+<style>
+  .drawio-canvas {
+    width: 100%; min-height: 420px;
+    border-radius: var(--radius-md); border: 1px dashed var(--border-strong);
+    background:
+      linear-gradient(var(--border-subtle) 1px, transparent 1px) 0 0/24px 24px,
+      linear-gradient(90deg, var(--border-subtle) 1px, transparent 1px) 0 0/24px 24px,
+      var(--bg-sunken);
+    display: flex; align-items: center; justify-content: center; flex-direction: column; gap: var(--space-3);
+    color: var(--text-muted);
+  }
+  .drawio-toolbar { display:flex; gap: var(--space-2); }
+</style>
+</head>
+<body>
+<div class="app-shell">
+  <header class="app-header">
+    <a href="dir-root.html" class="brand">AWIWI</a>
+    <nav class="breadcrumbs" aria-label="Breadcrumb">
+      <a href="dir-root.html">assets</a><span class="sep">›</span>
+      <a href="#">2026</a><span class="sep">›</span>
+      <a href="#">07</a><span class="sep">›</span>
+      <a href="#">14</a><span class="sep">›</span>
+      <span class="current">request-flow.drawio</span>
+    </nav>
+    <div class="spacer"></div>
+    <div class="header-search">
+      <input class="input" type="search" placeholder="Search notes… ( / )" aria-label="Search all notes">
+    </div>
+    <div class="ws-indicator" title="Live sync connected">
+      <span class="ws-dot is-live" aria-hidden="true"></span> Live
+    </div>
+    <div class="theme-toggle" role="group" aria-label="Theme">
+      <button class="is-active" type="button">Dark</button>
+      <button type="button">Light</button>
+    </div>
+  </header>
+
+  <main class="container-wide u-mt-6">
+    <div class="spread">
+      <div>
+        <span class="deco-title">Asset · Diagram</span>
+        <h1 class="page-title u-mt-2">request-flow.drawio</h1>
+      </div>
+      <div class="drawio-toolbar">
+        <button class="btn" type="button">Open in draw.io</button>
+        <button class="btn btn-primary" type="button">Download .drawio</button>
+      </div>
+    </div>
+    <div class="deco-rule u-mt-4"></div>
+
+    <div class="drawio-canvas u-mt-6">
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="2" y="4" width="7" height="5" rx="1"/><rect x="15" y="4" width="7" height="5" rx="1"/><rect x="8.5" y="15" width="7" height="5" rx="1"/><path d="M5.5 9v3a2 2 0 0 0 2 2h1"/><path d="M18.5 9v3a2 2 0 0 0-2 2h-1"/></svg>
+      <span>drawio canvas renders here (mxgraph, client-side)</span>
+      <span class="u-muted" style="font-size: var(--text-xs);">Interactive pan/zoom + shape selection in the real viewer</span>
+    </div>
+
+    <div class="card u-mt-6">
+      <div class="u-mt-1" style="display:grid; grid-template-columns: 140px 1fr; row-gap: var(--space-2); font-size: var(--text-sm);">
+        <span class="u-muted">Path</span><span class="u-mono">assets/2026/07/14/request-flow.drawio</span>
+        <span class="u-muted">Size</span><span>6.8 KB</span>
+        <span class="u-muted">Shapes</span><span>14</span>
+      </div>
+    </div>
+  </main>
+</div>
+</body>
+</html>
