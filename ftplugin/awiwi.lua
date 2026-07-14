@@ -183,6 +183,28 @@ vim.api.nvim_create_autocmd("BufModifiedSet", {
 pcall(vim.treesitter.start, buf, "markdown")
 syn.setup_highlights()
 syn.attach(buf)
+
+-- Repaint trigger (missed in T10): syn.attach() only ran once above, at
+-- initial load, so markers/links/structure typed afterward never got
+-- painted. Mirrors the awiwiHorizontalLines pattern below exactly.
+local synRepaint = vim.api.nvim_create_augroup("awiwiSynRepaint", { clear = true })
+vim.api.nvim_create_autocmd("BufEnter", {
+  group = synRepaint,
+  pattern = "*.md",
+  callback = function()
+    syn.attach(0)
+  end,
+})
+vim.api.nvim_create_autocmd("BufModifiedSet", {
+  group = synRepaint,
+  pattern = "*.md",
+  callback = function()
+    if not vim.bo.modified then
+      syn.attach(0)
+    end
+  end,
+})
+
 vim.api.nvim_create_autocmd({ "BufUnload" }, {
   buffer = buf,
   callback = function()

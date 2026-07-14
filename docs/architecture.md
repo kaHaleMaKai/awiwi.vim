@@ -58,7 +58,7 @@ were deleted in T10; this table reflects the current Lua state.
 | `path.lua`     | path join/split/relativize/canonicalize; native `path.join()` replaces broken `fn#apply`/`fn#spread` dependency (B10 fix) |
 | `server.lua`   | viewer control: start/stop/logs/serve via `vim.system`, non-blocking `wait_ready`; launches FastAPI server (`awiwi.app:app` entrypoint pinned in T17, env `AWIWI_HOME=<g:awiwi_home>` threaded via `vim.system`; ADR D5 + D15); config.json, xdg-open |
 | `str.lua`      | string helpers (startswith/endswith/contains/is_empty); case-sensitive (intentional per ADR D2); leaf, widely used |
-| `syn.lua`      | treesitter/extmark syntax layer: markdown+markdown_inline queries, link conceal, marker/redaction/Redmine line patterns outside code mask; typos fixed (ADR D6); wired via ftplugin FileType autocmd (T10); paints awiwi *extras* only — base markdown styling (headings/fences/emphasis) comes from `vim.treesitter.start(buf, "markdown")` in the ftplugin (T10.1) |
+| `syn.lua`      | treesitter/extmark syntax layer: markdown+markdown_inline queries, link conceal, marker/redaction/Redmine line patterns outside code mask; typos fixed (ADR D6); wired via ftplugin FileType autocmd (T10), repainted on `BufEnter`/`BufModifiedSet` like `hi`'s horizontal lines (ADR D16); paints awiwi *extras* only — base markdown styling (headings/fences/emphasis) comes from `vim.treesitter.start(buf, "markdown")` in the ftplugin (T10.1) |
 | `markers.lua`  | marker vocabulary (TODO/FIXME/ONHOLD/DUE/@due/@incident/…); rg/vim escaping; `g:awiwi_custom_*_markers` overrides |
 
 ## Command surface

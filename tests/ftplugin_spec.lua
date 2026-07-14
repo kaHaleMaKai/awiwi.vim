@@ -134,4 +134,25 @@ describe("ftplugin", function()
     vim.bo.filetype = "awiwi.asset"
     ok(vim.fn.maparg("gj", "n") ~= "", "gj missing on asset buffer")
   end)
+
+  it("repaints marker highlighting after edits, not just at initial load", function()
+    open_awiwi_buffer()
+    local buf = vim.api.nvim_get_current_buf()
+    local syn = require("awiwi.syn")
+
+    vim.api.nvim_buf_set_lines(buf, -1, -1, false, { "@change added after ftplugin load" })
+    -- simulate autosave completing (awiwiAutosave: InsertLeave/CursorHold -> silent w),
+    -- which flips 'modified' back to false and should trigger a syn repaint.
+    vim.bo.modified = false
+    vim.api.nvim_exec_autocmds("BufModifiedSet", { buffer = buf })
+
+    local marks = vim.api.nvim_buf_get_extmarks(buf, syn.ns_markers, 0, -1, { details = true })
+    local found = false
+    for _, m in ipairs(marks) do
+      if m[4].hl_group == "awiwiChange" then
+        found = true
+      end
+    end
+    ok(found, "@change added after the initial ftplugin load was never repainted")
+  end)
 end)

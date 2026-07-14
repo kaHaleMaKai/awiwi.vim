@@ -321,4 +321,34 @@ ready. `start_server` call site needs no changes (env plumbing already threaded)
 
 ---
 
-**High-water mark: D15**
+## D16 — syn.lua repaint wiring: mirror hlines' BufEnter+BufModifiedSet pair (2026-07-14)
+
+**Context.** `lua/awiwi/syn.lua`'s `M.attach()` paints marker/link/structure highlighting
+(`@change`/`@issue`/`@bug`/`@incident` among others, T6b/T10) but is idempotent-by-design for
+repeated calls — its own doc comment says so. `ftplugin/awiwi.lua` only ever called `syn.attach(buf)`
+once, at initial ftplugin load, with no repaint trigger, unlike the sibling `hi.draw_horizontal_lines()`
+concern which gets a `BufEnter` + `BufModifiedSet` autocmd pair (`awiwiHorizontalLines` augroup). Result:
+any marker/tag typed or edited after opening a buffer was never (re)painted — confirmed live in a real
+session via `:Inspect` showing zero marker extmarks on tags added after the initial load, while one
+stale extmark (from content present at load time) remained. Untested because `tests/syn_spec.lua` only
+unit-tests `syn.attach()` directly; no spec exercised the ftplugin-level repaint trigger wiring.
+
+**Decision.** Added a `BufEnter` + `BufModifiedSet` autocmd pair for `syn.attach(0)` in
+`ftplugin/awiwi.lua` (`awiwiSynRepaint` augroup), mirroring the `hlines` pattern exactly (same
+`pattern = "*.md"` + `clear=true`-recreated-augroup idiom, same event pair, same
+`if not vim.bo.modified` guard on `BufModifiedSet`) rather than `TextChanged`/`TextChangedI`, since
+`syn.attach()` does a full buffer rescan and per-keystroke reruns would be an unvalidated new
+performance profile. `syn.lua` itself needed no change.
+
+**Consequences.** Marker/tag/link/structure highlighting now stays live across edits+autosave, same
+cadence as header rules already had. Note for future work: `BufModifiedSet` (and `TextChanged`) do not
+fire from simulated headless input (`nvim_input`/`vim.wait`) or from direct `vim.bo.modified`
+assignment in batch/scripted execution — only `nvim_exec_autocmds(...)` manually fires the registered
+callback. Tests for this class of event must drive the autocmd via `nvim_exec_autocmds`, matching the
+existing `BufWinEnter` re-trigger test idiom in `tests/ftplugin_spec.lua`; this also means the
+`hlines`/due-dates repaint mechanisms were never actually exercised end-to-end by the suite either,
+just now the same known, accepted testing limitation applies uniformly.
+
+---
+
+**High-water mark: D16**
