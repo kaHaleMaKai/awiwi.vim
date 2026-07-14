@@ -141,6 +141,7 @@ table { border-collapse: collapse; width: 100%; }
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
+  --header-h: 56px; /* sticky offset for rails; keep in sync with .app-header */
   --space-4: 16px;
   --space-5: 24px;
   --space-6: 32px;
@@ -299,14 +300,23 @@ hr { border: 0; border-top: 1px solid var(--border-subtle); }
 }
 .layout-with-rail {
   display: grid;
-  grid-template-columns: 1fr 260px;
+  grid-template-columns: 1fr 310px;
   gap: var(--space-6);
   align-items: start;
 }
-.layout-with-rail .rail { position: sticky; top: var(--space-5); }
+/* Rail pins below the sticky .app-header while only the article scrolls;
+   taller-than-viewport rails scroll internally (without the max-height cap,
+   sticky never engages visually). --header-h approximates the rendered
+   header height (padding + line + border). */
+.layout-with-rail .rail {
+  position: sticky;
+  top: calc(var(--header-h) + var(--space-5));
+  max-height: calc(100vh - var(--header-h) - 2 * var(--space-5));
+  overflow-y: auto;
+}
 @media (max-width: 900px) {
   .layout-with-rail { grid-template-columns: 1fr; }
-  .layout-with-rail .rail { position: static; }
+  .layout-with-rail .rail { position: static; max-height: none; overflow-y: visible; }
 }
 .stack { display: flex; flex-direction: column; }
 .stack > * + * { margin-top: var(--space-4); }

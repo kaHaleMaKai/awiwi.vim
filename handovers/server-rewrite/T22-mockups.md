@@ -189,6 +189,15 @@ from these specs:
    toggling on applies it, toggling off removes it, and a 409-revert restores
    the correct style with the reverted state.
 
+7. **Rail: 310px wide, sticky below the header** (feedback round 3).
+   `.layout-with-rail` column is 310px (was 260px). `aside.rail` is
+   `position: sticky; top: calc(--header-h + --space-5)` with
+   `max-height: calc(100vh - --header-h - 2*--space-5); overflow-y: auto` —
+   only the article scrolls; a taller-than-viewport rail scrolls internally
+   (without the cap, sticky never engages). `--header-h` (56px) approximates
+   the sticky `.app-header` height — keep them in sync in the SPA. The narrow
+   breakpoint resets the rail to static flow with no height cap.
+
 ### Gaps / things NOT done here (explicitly out of scope for T22)
 
 - No build step, no bundler, no Svelte — plain HTML+CSS+trivial JS as specified.
