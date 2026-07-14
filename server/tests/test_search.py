@@ -27,6 +27,61 @@ class TestBuildRgArgs:
         ]
 
 
+class TestBuildRgArgsExtended:
+    """S23.2: `build_rg_args` grows keyword-only `fixed`/`scopes` params for
+    the new `/api/search` route. Existing positional-only callers (the
+    legacy `POST /search/content` action route) must keep getting the exact
+    same argv as before -- so `fixed` defaults to `False` (no `-F`), not
+    `True`; the API router itself defaults its own `mode` query param to
+    "fixed" and passes `fixed=True` explicitly. See T23.2 handover."""
+
+    def test_default_unchanged_for_legacy_callers(self):
+        assert build_rg_args("needle") == [
+            "rg",
+            "-i",
+            "-U",
+            "--multiline-dotall",
+            "--color=never",
+            "--column",
+            "--line-number",
+            "--no-heading",
+            "-g",
+            "!awiwi*",
+            "needle",
+        ]
+
+    def test_fixed_true_adds_dash_F(self):
+        args = build_rg_args("needle", fixed=True)
+        assert "-F" in args
+        # pattern stays the trailing element
+        assert args[-1] == "needle"
+
+    def test_fixed_false_omits_dash_F(self):
+        assert "-F" not in build_rg_args("needle", fixed=False)
+
+    def test_single_scope_adds_glob(self):
+        args = build_rg_args("needle", scopes=["journal"])
+        assert "journal/**" in args
+        idx = args.index("journal/**")
+        assert args[idx - 1] == "-g"
+
+    def test_multiple_scopes_add_multiple_globs(self):
+        args = build_rg_args("needle", scopes=["journal", "assets"])
+        assert "journal/**" in args
+        assert "assets/**" in args
+        assert "recipes/**" not in args
+
+    def test_no_scopes_means_no_extra_globs(self):
+        args = build_rg_args("needle")
+        assert "journal/**" not in args
+        assert "assets/**" not in args
+        assert "recipes/**" not in args
+
+    def test_pattern_always_trails_even_with_fixed_and_scopes(self):
+        args = build_rg_args("needle", fixed=True, scopes=["recipes"])
+        assert args[-1] == "needle"
+
+
 class TestParseSearchOutput:
     def test_journal_hit(self):
         output = "journal/2026/07/2026-07-01.md:3:5:buy milk today\n"
@@ -124,9 +179,7 @@ class TestSortHits:
             SearchHit(
                 target="recipes/z.md", name="z", line=1, col=1, type="recipe", text=""
             ),
-            SearchHit(
-                target="/assets/x", name="x", line=1, col=1, type="asset", text=""
-            ),
+            SearchHit(target="/assets/x", name="x", line=1, col=1, type="asset", text=""),
             SearchHit(
                 target="/journal/b", name="b", line=1, col=1, type="journal", text=""
             ),

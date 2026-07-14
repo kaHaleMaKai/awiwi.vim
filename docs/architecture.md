@@ -201,6 +201,7 @@ no non-ASCII escaping hack; ADR D13).
 - `routers/pages.py` — pages router (journal, recipes, catch-all, dir index, `/todo`, `/change-mode`)
 - `routers/assets.py` — assets router (MIME dispatch, download disposition, render or serve binary)
 - `routers/actions.py` — actions router (`PATCH /checkbox`, `POST /search/content`)
+- `routers/api.py` — SPA JSON API under `/api` (T23, additive; registered before `pages`; full frozen contract in `handovers/server-rewrite/T23.2-api-routes.md`): `GET /api/journal/{date}`, `/api/todo`, `/api/doc/{path}`, `/api/dir[/{path}]`, `/api/meta`, `/api/raw/{path}` (ETag `{mtime_ns}-{size}`/304, `?download=1`, independent secret 403), `PATCH /api/checkbox` (relpath-addressed, MD5 line-hash protocol unchanged, 409 on stale hash), `GET /api/search?q=&mode=fixed|regex&scope=…` (rg via `build_rg_args(fixed=, scopes=)`), JSON-404 catch-all for unmatched GET `/api/*`
 
 **Route table** (registration: assets → actions → pages; catch-all last; all routed through
 `render_content_file` helper that dispatches on extension: `.md` → `render_markdown`, `.drawio` →

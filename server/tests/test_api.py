@@ -12,16 +12,32 @@ Reuses the shared `notes_home`/`acceptance_home` fixtures from `conftest.py`
 builds small bespoke trees via the builtin `tmp_path` fixture for cases
 those trees don't cover (drawio, genuinely non-UTF-8 binary, a secret-named
 file).
+
+S23.2 additionally exercises the `/api/*` JSON routes end-to-end via the
+`client` fixture (a booted `TestClient`, see `conftest.py`), same pattern as
+`test_acceptance.py`.
 """
 
+# The Starlette TestClient delegates to httpx, whose Response accessors
+# basedpyright resolves as Unknown; silence those (only) file-wide rather
+# than per-line across every request assertion (matches test_acceptance.py).
+# pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false
 from __future__ import annotations
 
+import shutil
+from collections.abc import Iterator
 from datetime import date
 from pathlib import Path
 
 import pytest
+from fastapi.testclient import TestClient
 
+from awiwi.checkbox import hash_line
 from awiwi.docs import build_dir_payload, build_doc_payload, build_journal_payload
+
+# `client` is typed as `object` in conftest to avoid importing TestClient
+# there; re-narrow here for the type checker (matches test_acceptance.py).
+Client = TestClient
 
 
 class TestJournalPayload:
@@ -233,3 +249,316 @@ class TestDirPayload:
         entry = next(e for e in payload.entries if e.name == "pasta.md")
         assert entry.doc_type == "recipe"
         assert entry.relpath == "recipes/cooking/pasta.md"
+
+
+# ---------------------------------------------------------------------------
+# S23.2: `/api/*` JSON route tests. `client` (from conftest.py) is a
+# `TestClient` booted over `acceptance_home`, hitting the app as a real
+# localhost request (base_url="http://localhost"). Secret-file and
+# non-localhost behavior needs its own small tree + a client that flips the
+# `Host` header per-request (see `remote_client` below), since the shared
+# `acceptance_home` fixture has no secret-named file and the shared `client`
+# fixture always looks like localhost.
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def remote_client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Client]:
+    """A `TestClient` with `AWIWI_ALLOW_REMOTE=1` (so the app-wide 403 guard
+    doesn't block us) over a small tree with a secret-named recipe. Tests
+    flip the effective `is_localhost()` outcome per-request by overriding
+    the `Host` header (`is_localhost` keys off it), rather than booting two
+    separate apps."""
+    home = tmp_path
+    (home / "journal").mkdir(parents=True)
+    _ = (home / "journal" / "todos.md").write_text("# TODO\n\n* [ ] first\n")
+    (home / "recipes").mkdir(parents=True)
+    _ = (home / "recipes" / "credentials.md").write_text("# creds\n\napi key: xyz\n")
+    _ = (home / "recipes" / "plain.md").write_text("# Plain\n\nnothing secret.\n")
+
+    monkeypatch.setenv("AWIWI_HOME", str(home))
+    monkeypatch.setenv("AWIWI_ALLOW_REMOTE", "1")
+    from fastapi.testclient import TestClient
+
+    from awiwi.app import create_app
+
+    app = create_app()
+    with TestClient(app, base_url="http://example.com") as test_client:
+        yield test_client
+
+
+class TestApiJournal:
+    def test_journal_payload_shape(self, client: Client) -> None:
+        resp = client.get("/api/journal/2026-07-01")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["kind"] == "markdown"
+        assert data["doc_type"] == "journal"
+        assert 'class="awiwi-checkbox"' in data["html"]
+        assert data["nav"] == {"prev": "2026-06-30", "next": "2026-07-02"}
+        assert data["watch_path"] == "journal/2026/07/2026-07-01.md"
+        assert data["is_secret"] is False
+
+    def test_today_alias_resolves(self, client: Client) -> None:
+        resp = client.get("/api/journal/today")
+        assert resp.status_code == 200
+        today = date.today()
+        assert (
+            resp.json()["watch_path"]
+            == f"journal/{today:%Y}/{today:%m}/{today.isoformat()}.md"
+        )
+
+    def test_invalid_date_is_404_json(self, client: Client) -> None:
+        resp = client.get("/api/journal/not-a-date")
+        assert resp.status_code == 404
+        assert "detail" in resp.json()
+
+    def test_wellformed_but_missing_date_is_404_json(self, client: Client) -> None:
+        resp = client.get("/api/journal/2099-01-01")
+        assert resp.status_code == 404
+        assert "detail" in resp.json()
+
+
+class TestApiTodo:
+    def test_todo_payload(self, client: Client) -> None:
+        resp = client.get("/api/todo")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["doc_type"] == "journal"
+        assert data["kind"] == "markdown"
+        assert 'class="awiwi-checkbox"' in data["html"]
+        assert data["watch_path"] == "journal/todos.md"
+
+
+class TestApiDoc:
+    def test_doc_markdown_by_relpath(self, client: Client) -> None:
+        resp = client.get("/api/doc/recipes/cooking/pasta.md")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["kind"] == "markdown"
+        assert data["doc_type"] == "recipe"
+        assert data["watch_path"] == "recipes/cooking/pasta.md"
+
+    def test_doc_image_has_raw_url(self, client: Client) -> None:
+        resp = client.get("/api/doc/assets/2026/07/01/photo.png")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["kind"] == "image"
+        assert data["doc_type"] == "asset"
+        assert data["journal_date"] == "2026-07-01"
+        assert data["raw_url"] == "/api/raw/assets/2026/07/01/photo.png"
+
+    def test_doc_missing_is_404_json(self, client: Client) -> None:
+        resp = client.get("/api/doc/recipes/nope.md")
+        assert resp.status_code == 404
+        assert "detail" in resp.json()
+
+    def test_doc_traversal_is_404_json(self, client: Client) -> None:
+        resp = client.get("/api/doc/%2e%2e/%2e%2e/etc/passwd")
+        assert resp.status_code == 404
+
+    def test_doc_secret_blanked_when_not_localhost(self, remote_client: Client) -> None:
+        resp = remote_client.get("/api/doc/recipes/credentials.md")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["is_secret"] is True
+        assert data["html"] is None
+        assert data["text"] is None
+        assert data["raw_url"] is None
+
+    def test_doc_secret_visible_on_localhost(self, remote_client: Client) -> None:
+        resp = remote_client.get(
+            "/api/doc/recipes/credentials.md", headers={"host": "localhost"}
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["is_secret"] is True
+        assert data["html"] is not None
+        assert "api key: xyz" in data["html"]
+
+
+class TestApiDir:
+    def test_dir_root(self, client: Client) -> None:
+        resp = client.get("/api/dir")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["breadcrumbs"] == []
+        names = {e["name"] for e in data["entries"]}
+        assert {"journal", "assets", "recipes"} <= names
+
+    def test_dir_subpath(self, client: Client) -> None:
+        resp = client.get("/api/dir/journal")
+        assert resp.status_code == 200
+        by_name = {e["name"]: e for e in resp.json()["entries"]}
+        assert "todo" in by_name
+        assert by_name["todo"]["relpath"] == "journal/todos.md"
+
+    def test_dir_missing_is_404_json(self, client: Client) -> None:
+        resp = client.get("/api/dir/no-such-dir")
+        assert resp.status_code == 404
+        assert "detail" in resp.json()
+
+    def test_dir_traversal_is_404_json(self, client: Client) -> None:
+        resp = client.get("/api/dir/%2e%2e/%2e%2e/etc")
+        assert resp.status_code == 404
+
+
+class TestApiMeta:
+    def test_meta_shape(self, client: Client) -> None:
+        resp = client.get("/api/meta")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["today"] == date.today().isoformat()
+        assert isinstance(data["home"], str) and data["home"]
+        assert isinstance(data["version"], str) and data["version"]
+
+
+class TestApiRaw:
+    def test_raw_serves_bytes_with_etag(self, client: Client) -> None:
+        resp = client.get("/api/raw/scratch.txt")
+        assert resp.status_code == 200
+        assert resp.content == b"scratch file body\n"
+        etag = resp.headers.get("etag")
+        assert etag is not None
+        assert etag.startswith('"') and etag.endswith('"')
+
+    def test_raw_conditional_get_returns_304(self, client: Client) -> None:
+        first = client.get("/api/raw/scratch.txt")
+        etag = first.headers["etag"]
+        second = client.get("/api/raw/scratch.txt", headers={"if-none-match": etag})
+        assert second.status_code == 304
+        assert second.content == b""
+
+    def test_raw_download_sets_content_disposition(self, client: Client) -> None:
+        resp = client.get("/api/raw/assets/2026/07/01/report.pdf?download=1")
+        assert resp.status_code == 200
+        disposition = resp.headers.get("content-disposition", "")
+        assert "attachment" in disposition
+        assert "report.pdf" in disposition
+
+    def test_raw_missing_is_404_json(self, client: Client) -> None:
+        resp = client.get("/api/raw/nope.txt")
+        assert resp.status_code == 404
+        assert "detail" in resp.json()
+
+    def test_raw_traversal_is_404_json(self, client: Client) -> None:
+        resp = client.get("/api/raw/%2e%2e/%2e%2e/etc/passwd")
+        assert resp.status_code == 404
+
+    def test_raw_secret_is_403_off_localhost(self, remote_client: Client) -> None:
+        resp = remote_client.get("/api/raw/recipes/credentials.md")
+        assert resp.status_code == 403
+
+    def test_raw_secret_allowed_on_localhost(self, remote_client: Client) -> None:
+        resp = remote_client.get(
+            "/api/raw/recipes/credentials.md", headers={"host": "localhost"}
+        )
+        assert resp.status_code == 200
+        assert b"api key" in resp.content
+
+
+class TestApiCheckbox:
+    def test_toggle_success_returns_200_with_hash_and_mtime(self, client: Client) -> None:
+        line = "* [ ] first todo"
+        body = {
+            "path": "journal/todos.md",
+            "line_no": 2,
+            "line_hash": hash_line(line),
+            "checked": True,
+        }
+        resp = client.patch("/api/checkbox", json=body)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["success"] is True
+        assert data["line_hash"] == hash_line(line)
+        assert data["mtime_ns"] > 0
+
+    def test_hash_mismatch_is_409(self, client: Client) -> None:
+        body = {
+            "path": "journal/todos.md",
+            "line_no": 2,
+            "line_hash": "deadbeef",
+            "checked": True,
+        }
+        resp = client.patch("/api/checkbox", json=body)
+        assert resp.status_code == 409
+
+    def test_missing_file_is_404(self, client: Client) -> None:
+        body = {
+            "path": "journal/does-not-exist.md",
+            "line_no": 0,
+            "line_hash": "whatever",
+            "checked": True,
+        }
+        resp = client.patch("/api/checkbox", json=body)
+        assert resp.status_code == 404
+
+    def test_line_past_end_of_file_is_404(self, client: Client) -> None:
+        body = {
+            "path": "journal/todos.md",
+            "line_no": 999,
+            "line_hash": "whatever",
+            "checked": True,
+        }
+        resp = client.patch("/api/checkbox", json=body)
+        assert resp.status_code == 404
+
+    def test_path_traversal_is_404(self, client: Client) -> None:
+        body = {
+            "path": "../../etc/passwd",
+            "line_no": 0,
+            "line_hash": "whatever",
+            "checked": True,
+        }
+        resp = client.patch("/api/checkbox", json=body)
+        assert resp.status_code == 404
+
+
+@pytest.mark.skipif(shutil.which("rg") is None, reason="ripgrep not installed")
+class TestApiSearch:
+    def test_fixed_mode_finds_todo_hits(self, client: Client) -> None:
+        resp = client.get("/api/search", params={"q": "first todo"})
+        assert resp.status_code == 200
+        hits = resp.json()
+        assert any(h["type"] == "todo" for h in hits)
+
+    def test_scope_restricts_to_recipes(self, client: Client) -> None:
+        resp = client.get("/api/search", params={"q": "Boil", "scope": "recipes"})
+        assert resp.status_code == 200
+        hits = resp.json()
+        assert len(hits) > 0
+        assert all(h["type"] == "recipe" for h in hits)
+
+    def test_regex_mode_matches_pattern(self, client: Client) -> None:
+        resp = client.get("/api/search", params={"q": "f.rst", "mode": "regex"})
+        assert resp.status_code == 200
+        hits = resp.json()
+        assert any("first" in h["text"] for h in hits)
+
+    def test_fixed_mode_treats_dot_literally(self, client: Client) -> None:
+        # In fixed mode "f.rst" must NOT match "first" (the "." isn't a
+        # wildcard), proving `-F` actually took effect end-to-end.
+        resp = client.get("/api/search", params={"q": "f.rst", "mode": "fixed"})
+        assert resp.status_code == 200
+        assert resp.json() == []
+
+    def test_empty_query_is_422(self, client: Client) -> None:
+        resp = client.get("/api/search", params={"q": ""})
+        assert resp.status_code == 422
+
+    def test_invalid_regex_is_400_not_500(self, client: Client) -> None:
+        resp = client.get("/api/search", params={"q": "(unclosed", "mode": "regex"})
+        assert resp.status_code == 400
+        assert "detail" in resp.json()
+
+    def test_invalid_scope_is_422(self, client: Client) -> None:
+        resp = client.get("/api/search", params={"q": "x", "scope": "bogus"})
+        assert resp.status_code == 422
+
+
+class TestApiUnknownRoute404sAsJson:
+    def test_unknown_api_path_is_json_404_not_html(self, client: Client) -> None:
+        resp = client.get("/api/this-route-does-not-exist")
+        assert resp.status_code == 404
+        assert resp.headers["content-type"].startswith("application/json")
+        assert "detail" in resp.json()

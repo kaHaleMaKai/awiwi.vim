@@ -8,8 +8,10 @@ rewrites `config.json` when it starts a server).
 Wiring notes:
 - **localhost-only guard** (user decision, replaces legacy login/session):
   non-localhost requests get a 403 before routing.
-- **route order**: routers are included assets -> actions -> pages so that
-  `pages`' `/{path:path}` catch-all stays the final registered route.
+- **route order**: routers are included assets -> actions -> api -> pages so
+  that `pages`' `/{path:path}` catch-all stays the final registered route
+  (S23.2's `api` router has its own `/api/{rest:path}` catch-all that must
+  win for anything under `/api/*` first).
 - **StaticFiles** is mounted at `/static` (the templates reference
   `/static/...` verbatim).
 - **FileNotFoundError -> 404**: routes raise the builtin (or
@@ -27,7 +29,7 @@ from fastapi.responses import PlainTextResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from awiwi.config import PluginConfig, Settings
-from awiwi.routers import actions, assets, pages
+from awiwi.routers import actions, api, assets, pages
 from awiwi.templating import STATIC_DIR, is_localhost, render
 
 
@@ -63,6 +65,10 @@ def create_app() -> FastAPI:
 
     app.include_router(assets.router)
     app.include_router(actions.router)
+    # api.router's own "/{rest:path}" catch-all (last route on that router)
+    # must be reached before pages.router's app-wide "/{path:path}" catch-all
+    # for any /api/* path -- so this include must stay before pages'.
+    app.include_router(api.router)
     app.include_router(pages.router)
     return app
 

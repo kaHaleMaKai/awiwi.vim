@@ -13,6 +13,7 @@ Ported and *assessed* from `server.old/app.py`'s `server_search_content` /
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 
 # Matches server.old/app.py:server_search_content's `cmd` list exactly,
@@ -30,11 +31,37 @@ _RG_BASE_ARGS = [
     "!awiwi*",
 ]
 
+# Top-level doc-type directories the JSON `/api/search` route can restrict
+# a search to (S23.2). Order isn't semantically meaningful here -- it just
+# controls the order the `-g` glob pairs are appended.
+SCOPE_DIRS = ("journal", "assets", "recipes")
 
-def build_rg_args(pattern: str) -> list[str]:
+
+def build_rg_args(
+    pattern: str, *, fixed: bool = False, scopes: Sequence[str] | None = None
+) -> list[str]:
     """Build the full ripgrep argv (including the `rg` executable name) for
-    searching the notes tree for `pattern`."""
-    return [*_RG_BASE_ARGS, pattern]
+    searching the notes tree for `pattern`.
+
+    `fixed`/`scopes` are S23.2 additions for the JSON `/api/search` route.
+    `fixed=False` is the *default* deliberately -- it reproduces the exact
+    argv the legacy `POST /search/content` action route has always gotten
+    (positional-only call, `build_rg_args(pattern)`), so that existing
+    caller keeps working byte-for-byte. `fixed=True` appends `-F` (treat
+    `pattern` as a literal string, not a regex). `scopes` -- an iterable of
+    top-level directory names (`"journal"`/`"assets"`/`"recipes"`) --
+    appends one `-g "{scope}/**"` include-glob pair per scope, restricting
+    the search to those directories; `None`/empty means unrestricted (all
+    three). The trailing `pattern` element always stays last.
+    """
+    args = list(_RG_BASE_ARGS)
+    if fixed:
+        args.append("-F")
+    if scopes:
+        for scope in scopes:
+            args.extend(["-g", f"{scope}/**"])
+    args.append(pattern)
+    return args
 
 
 @dataclass(frozen=True)
