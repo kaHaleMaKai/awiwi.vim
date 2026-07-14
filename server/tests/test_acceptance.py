@@ -1,15 +1,21 @@
-"""End-to-end acceptance contract for the assembled FastAPI app (T16).
+"""End-to-end acceptance contract for the assembled FastAPI app.
 
-These are the high-value tests: each one drives a real HTTP request through
-the booted app (via the `client` fixture in conftest.py) and asserts a
-user-observable outcome from the design brief's 10-item acceptance contract.
-They are written before the app/routers exist, so the whole module is RED
-until the implementation lands.
+After the T26 cutover the app is a JSON API (`/api/*`) plus a single-page
+Svelte app served from the committed build (`frontend/dist`): a mounted
+`/_app/*` static tree of hashed assets, and an app-wide catch-all that serves
+`dist/index.html` for every other (non-`/api`) GET so the client-side router
+can resolve the view. The legacy Jinja page/asset/action routes are gone; a
+small set of legacy 302 redirects survives (so old bookmarks still land on an
+SPA-navigable URL).
 
-Legacy behavior reference: `server.old/app.py`. Domain logic under test lives
-in the T13-T15 leaf modules (`awiwi.config`/`content`/`checkbox`/`search`/
-`mdrender`); the routers are thin glue, so these tests exercise the glue +
-route ordering + redirect/cookie fidelity, not the leaf logic again.
+Each test drives a real HTTP request through the booted app (via the `client`
+fixture in conftest.py) and asserts a user-observable outcome:
+
+- page content is asserted against `/api/*` JSON payloads (not rendered HTML);
+- the surviving legacy redirects still 302 to their canonical target;
+- the checkbox flow uses the relpath `PATCH /api/checkbox` protocol;
+- the SPA fallback serves `index.html` for app routes, `/api/*` unknowns 404
+  as JSON, and hashed `/_app/*` assets are served.
 """
 
 # The Starlette TestClient delegates to httpx, whose Response accessors
@@ -32,40 +38,50 @@ from awiwi.checkbox import hash_line
 Client = TestClient
 
 
-# 1. Journal render: body + TOC + prev/next navigation.
-def test_journal_render_toc_and_prevnext(client: Client) -> None:
-    resp = client.get("/journal/2026-07-01")
+# 1. Journal page data: body HTML + TOC + prev/next nav, as a DocPayload.
+def test_api_journal_payload_toc_and_prevnext(client: Client) -> None:
+    resp = client.get("/api/journal/2026-07-01")
     assert resp.status_code == 200
-    body = resp.text
-    assert "visible tail text" in body
+    payload = resp.json()
+    assert payload["doc_type"] == "journal"
+    assert payload["kind"] == "markdown"
+    assert "visible tail text" in payload["html"]
     # TOC block from the `## Tasks` / `## Public Again` headings.
-    assert 'class="toc"' in body
-    # prev/next links across the month boundary and within July.
-    assert "/journal/2026-06-30" in body
-    assert "/journal/2026-07-02" in body
+    assert payload["toc"] and 'class="toc"' in payload["toc"]
+    # prev/next across the month boundary and within July.
+    assert payload["nav"]["prev"] == "2026-06-30"
+    assert payload["nav"]["next"] == "2026-07-02"
 
 
 # 2. today/yesterday aliases resolve to the corresponding journal day.
-def test_journal_today_yesterday_aliases(client: Client) -> None:
+def test_api_journal_today_yesterday_aliases(client: Client) -> None:
     today = date.today().isoformat()
     yesterday = (date.today() - timedelta(days=1)).isoformat()
 
-    resp_today = client.get("/journal/today")
+    resp_today = client.get("/api/journal/today")
     assert resp_today.status_code == 200
-    assert f"Day content for {today}" in resp_today.text
+    assert f"Day content for {today}" in resp_today.json()["html"]
 
-    resp_yesterday = client.get("/journal/yesterday")
+    resp_yesterday = client.get("/api/journal/yesterday")
     assert resp_yesterday.status_code == 200
-    assert f"Day content for {yesterday}" in resp_yesterday.text
+    assert f"Day content for {yesterday}" in resp_yesterday.json()["html"]
 
 
-# 3. Legacy date-URL redirects, kept root-relative (not absolute).
+def test_api_journal_missing_date_404(client: Client) -> None:
+    resp = client.get("/api/journal/2099-01-01")
+    assert resp.status_code == 404
+    assert "application/json" in resp.headers["content-type"]
+
+
+# 3. Surviving legacy date-URL redirects, kept root-relative (not absolute).
 @pytest.mark.parametrize(
     "url",
     [
         "/2026-07-01.md",
         "/07/2026-07-01.md",
         "/2026/07/2026-07-01.md",
+        "/journal/2026-07-01.md",
+        "/journal/2026/07/2026-07-01.md",
     ],
 )
 def test_legacy_date_redirects(client: Client, url: str) -> None:
@@ -76,182 +92,205 @@ def test_legacy_date_redirects(client: Client, url: str) -> None:
     assert not location.startswith("http")  # kept relative
 
 
-def test_journal_md_suffix_redirect(client: Client) -> None:
-    resp = client.get("/journal/2026-07-01.md", follow_redirects=False)
-    assert resp.status_code in (301, 302, 307, 308)
-    assert resp.headers["location"] == "/journal/2026-07-01"
-
-
-# 4. /todo renders journal/todos.md with checkbox inputs and no TOC.
-def test_todo_renders_checkboxes_without_toc(client: Client) -> None:
-    resp = client.get("/todo")
-    assert resp.status_code == 200
-    body = resp.text
-    assert 'type="checkbox"' in body
-    assert "first todo" in body
-    # add_toc=False -> no TOC block on the todo page.
-    assert 'class="toc"' not in body
-
-
-# 5. PATCH /checkbox flips the glyph on disk, with hash guard.
-def test_patch_checkbox_flips_on_disk(client: Client, acceptance_home: Path) -> None:
-    todos = acceptance_home / "journal" / "todos.md"
-    # line index 2 == "* [ ] first todo" (0:"# TODO", 1:"", 2:...).
-    good_hash = hash_line("* [ ] first todo")
-    resp = client.patch(
-        "/checkbox",
-        json={"line_nr": 2, "path": "/todo", "check": True, "hash": good_hash},
-    )
-    assert resp.status_code == 200
-    assert resp.json()["success"] is True
-    assert "* [x] first todo" in todos.read_text()
-
-
-def test_patch_checkbox_hash_mismatch_409(client: Client) -> None:
-    resp = client.patch(
-        "/checkbox",
-        json={"line_nr": 2, "path": "/todo", "check": True, "hash": "deadbeef"},
-    )
-    assert resp.status_code == 409
-
-
-def test_patch_checkbox_missing_line_404(client: Client) -> None:
-    resp = client.patch(
-        "/checkbox",
-        json={"line_nr": 999, "path": "/todo", "check": True, "hash": "x"},
-    )
-    assert resp.status_code == 404
-
-
-def test_patch_checkbox_missing_file_404(client: Client) -> None:
-    resp = client.patch(
-        "/checkbox",
-        json={
-            "line_nr": 0,
-            "path": "/journal/2099-01-01",
-            "check": True,
-            "hash": "x",
-        },
-    )
-    assert resp.status_code == 404
-
-
-# 6. Directory index + breadcrumbs at / and /dir/<path>.
-def test_dir_index_root(client: Client) -> None:
-    resp = client.get("/")
-    assert resp.status_code == 200
-    body = resp.text
-    assert "/dir/journal" in body
-    assert "/dir/recipes" in body
-
-
-def test_dir_index_subdir_with_breadcrumbs(client: Client) -> None:
-    resp = client.get("/dir/journal/2026")
-    assert resp.status_code == 200
-    body = resp.text
-    # month directory listed via calendar month name, linking one level down.
-    assert "/dir/journal/2026/07" in body
-    assert "July" in body
-    # breadcrumb trail back up to the journal root.
-    assert 'href="/dir/journal"' in body
-
-
-# 7. Asset serving: mime type, download disposition, and y/m/d -> dashed redirect.
-def test_asset_image_served_inline(client: Client) -> None:
-    resp = client.get("/assets/2026-07-01/photo.png")
-    assert resp.status_code == 200
-    assert resp.headers["content-type"].startswith("image/png")
-
-
-def test_asset_application_is_downloadable(client: Client) -> None:
-    resp = client.get("/assets/2026-07-01/report.pdf")
-    assert resp.status_code == 200
-    assert "attachment" in resp.headers.get("content-disposition", "")
-
-
 def test_asset_ymd_redirects_to_dashed(client: Client) -> None:
     resp = client.get("/assets/2026/07/01/photo.png", follow_redirects=False)
     assert resp.status_code in (301, 302, 307, 308)
     assert resp.headers["location"] == "/assets/2026-07-01/photo.png"
 
 
-# 8. Recipe markdown render + pygments source render.
-def test_recipe_markdown_render(client: Client) -> None:
-    resp = client.get("/recipes/cooking/pasta.md")
+# 4. /api/todo returns the todos doc with checkbox markup.
+def test_api_todo_has_checkboxes(client: Client) -> None:
+    resp = client.get("/api/todo")
     assert resp.status_code == 200
-    body = resp.text
-    assert "Boil water" in body
-    # T23.3: fenced python block renders as clean, Shiki-ready markup --
-    # no server-side CodeHilite/Pygments markup baked in.
-    assert 'class="language-python"' in body
+    payload = resp.json()
+    assert payload["doc_type"] == "journal"
+    assert 'type="checkbox"' in payload["html"]
+    assert "first todo" in payload["html"]
 
 
-def test_recipe_source_pygments_render(client: Client) -> None:
-    resp = client.get("/recipes/db/schema.sql")
-    assert resp.status_code == 200
-    # modeline `vim: ft=pgsql` -> sql lexer -> pygments highlight container.
-    assert 'class="highlight"' in resp.text
-
-
-# 9. !!redacted sections are hidden from the rendered output.
-def test_redacted_section_hidden(client: Client) -> None:
-    resp = client.get("/journal/2026-07-01")
-    assert resp.status_code == 200
-    body = resp.text
-    assert "super secret data" not in body
-    assert "redacted" in body  # the "_…redacted…_" heading placeholder
-    assert "visible tail text" in body  # section after the redaction resumes
-
-
-# 10. POST /search/content: ripgrep-backed, ordered todo->journal->asset->recipe.
-@pytest.mark.skipif(shutil.which("rg") is None, reason="ripgrep not installed")
-def test_search_content_orders_hits(client: Client) -> None:
-    resp = client.post("/search/content", data={"search-content": "July"})
-    assert resp.status_code == 200
-    body = resp.text
-    # A journal hit for the search term is surfaced with its /journal/ link.
-    assert "/journal/2026-07-01" in body or "/journal/2026-07-02" in body
-
-
-def test_search_content_requires_pattern(client: Client) -> None:
-    resp = client.post("/search/content", data={"search-content": ""})
-    assert resp.status_code == 400
-
-
-# 11. /change-mode cookie semantics + path-traversal requests are blocked.
-def test_change_mode_resets_cookie_and_redirects_to_referrer(client: Client) -> None:
-    client.cookies.set("awiwi.theme-mode", "dark")
-    resp = client.get(
-        "/change-mode",
-        headers={"referer": "/journal/2026-07-01"},
-        follow_redirects=False,
+# 5. PATCH /api/checkbox (relpath protocol) flips the glyph on disk, hash-guarded.
+def test_api_checkbox_flips_on_disk(client: Client, acceptance_home: Path) -> None:
+    todos = acceptance_home / "journal" / "todos.md"
+    # line index 2 == "* [ ] first todo" (0:"# TODO", 1:"", 2:...).
+    good_hash = hash_line("* [ ] first todo")
+    resp = client.patch(
+        "/api/checkbox",
+        json={
+            "path": "journal/todos.md",
+            "line_no": 2,
+            "line_hash": good_hash,
+            "checked": True,
+        },
     )
-    assert resp.status_code in (301, 302, 307, 308)
-    assert resp.headers["location"] == "/journal/2026-07-01"
-    set_cookie = resp.headers.get("set-cookie", "")
-    # Server re-sets (does not toggle) the cookie, with a long max-age.
-    assert "awiwi.theme-mode=dark" in set_cookie
-    assert "Max-Age" in set_cookie
-
-
-def test_change_mode_defaults_to_root_without_referrer(client: Client) -> None:
-    resp = client.get("/change-mode", follow_redirects=False)
-    assert resp.status_code in (301, 302, 307, 308)
-    assert resp.headers["location"] == "/"
-
-
-def test_catch_all_serves_arbitrary_file(client: Client) -> None:
-    resp = client.get("/scratch.txt")
     assert resp.status_code == 200
-    assert "scratch file body" in resp.text
+    body = resp.json()
+    assert body["success"] is True
+    # hash echoes back unchanged (box glyph is stripped before hashing).
+    assert body["line_hash"] == good_hash
+    assert isinstance(body["mtime_ns"], int)
+    assert "* [x] first todo" in todos.read_text()
 
 
-def test_path_traversal_is_blocked(client: Client) -> None:
-    # Encoded `../../etc/passwd`: safe_resolve must refuse to escape home.
-    resp = client.get("/%2e%2e%2f%2e%2e%2fetc%2fpasswd", follow_redirects=False)
+def test_api_checkbox_hash_mismatch_409(client: Client) -> None:
+    resp = client.patch(
+        "/api/checkbox",
+        json={
+            "path": "journal/todos.md",
+            "line_no": 2,
+            "line_hash": "deadbeef",
+            "checked": True,
+        },
+    )
+    assert resp.status_code == 409
+
+
+def test_api_checkbox_missing_line_404(client: Client) -> None:
+    resp = client.patch(
+        "/api/checkbox",
+        json={
+            "path": "journal/todos.md",
+            "line_no": 999,
+            "line_hash": "x",
+            "checked": True,
+        },
+    )
     assert resp.status_code == 404
 
 
+def test_api_checkbox_missing_file_404(client: Client) -> None:
+    resp = client.patch(
+        "/api/checkbox",
+        json={
+            "path": "journal/2099/01/2099-01-01.md",
+            "line_no": 0,
+            "line_hash": "x",
+            "checked": True,
+        },
+    )
+    assert resp.status_code == 404
+
+
+# 6. Directory listing as a DirPayload at root and a subdirectory.
+def test_api_dir_root(client: Client) -> None:
+    resp = client.get("/api/dir")
+    assert resp.status_code == 200
+    names = {e["name"] for e in resp.json()["entries"]}
+    assert "journal" in names
+    assert "recipes" in names
+
+
+def test_api_dir_subdir_with_breadcrumbs(client: Client) -> None:
+    resp = client.get("/api/dir/journal/2026")
+    assert resp.status_code == 200
+    payload = resp.json()
+    # month dirs are presented by calendar name; the relpath is canonical.
+    relpaths = {e["relpath"] for e in payload["entries"]}
+    assert "journal/2026/07" in relpaths
+    # breadcrumb trail back up to the journal root.
+    targets = {c["target"] for c in payload["breadcrumbs"]}
+    assert "/dir/journal" in targets
+
+
+# 7. Asset bytes via /api/raw: mime type + download disposition.
+def test_api_raw_image_served_inline(client: Client) -> None:
+    resp = client.get("/api/raw/assets/2026/07/01/photo.png")
+    assert resp.status_code == 200
+    assert resp.headers["content-type"].startswith("image/png")
+
+
+def test_api_raw_application_download_disposition(client: Client) -> None:
+    resp = client.get("/api/raw/assets/2026/07/01/report.pdf", params={"download": 1})
+    assert resp.status_code == 200
+    assert "attachment" in resp.headers.get("content-disposition", "")
+
+
+# ETag / conditional-GET round-trip on /api/raw.
+def test_api_raw_etag_conditional_304(client: Client) -> None:
+    resp = client.get("/api/raw/assets/2026/07/01/photo.png")
+    assert resp.status_code == 200
+    etag = resp.headers["etag"]
+    assert etag
+    again = client.get(
+        "/api/raw/assets/2026/07/01/photo.png",
+        headers={"If-None-Match": etag},
+    )
+    assert again.status_code == 304
+
+
+# 8. Recipe markdown render + source-file language hint via /api/doc.
+def test_api_doc_recipe_markdown(client: Client) -> None:
+    resp = client.get("/api/doc/recipes/cooking/pasta.md")
+    assert resp.status_code == 200
+    payload = resp.json()
+    assert "Boil water" in payload["html"]
+    # Clean, Shiki-ready markup -- no server-side CodeHilite/Pygments baked in.
+    assert 'class="language-python"' in payload["html"]
+
+
+def test_api_doc_recipe_source_text_with_language(client: Client) -> None:
+    resp = client.get("/api/doc/recipes/db/schema.sql")
+    assert resp.status_code == 200
+    payload = resp.json()
+    assert payload["kind"] == "text"
+    # modeline `vim: ft=pgsql` -> sql language hint (LEXER_MAP alias).
+    assert payload["language"] == "sql"
+    assert "SELECT * FROM foo;" in payload["text"]
+
+
+# 9. !!redacted sections are embedded obscured (localhost, click-revealable),
+#    not stripped, and the section after the redaction still renders.
+def test_api_journal_redacted_section_obscured(client: Client) -> None:
+    resp = client.get("/api/journal/2026-07-01")
+    assert resp.status_code == 200
+    html = resp.json()["html"]
+    assert 'class="redacted"' in html
+    assert "visible tail text" in html  # section after the redaction resumes
+
+
+# 10. /api/search: ripgrep-backed, ordered todo->journal->asset->recipe.
+@pytest.mark.skipif(shutil.which("rg") is None, reason="ripgrep not installed")
+def test_api_search_finds_hits(client: Client) -> None:
+    resp = client.get("/api/search", params={"q": "July"})
+    assert resp.status_code == 200
+    targets = {hit["target"] for hit in resp.json()}
+    assert "/journal/2026-07-01" in targets or "/journal/2026-07-02" in targets
+
+
+def test_api_search_requires_query(client: Client) -> None:
+    resp = client.get("/api/search", params={"q": ""})
+    assert resp.status_code == 422
+
+
+# 11. SPA shell + static assets + JSON 404 for unknown /api paths.
+def test_spa_fallback_serves_index_html(client: Client) -> None:
+    resp = client.get("/journal/2024-01-01")
+    assert resp.status_code == 200
+    assert resp.headers["content-type"].startswith("text/html")
+    assert 'id="app"' in resp.text
+    # served no-cache so a rebuilt dist is always picked up.
+    assert "no-cache" in resp.headers.get("cache-control", "")
+
+
+def test_spa_fallback_serves_root(client: Client) -> None:
+    resp = client.get("/")
+    assert resp.status_code == 200
+    assert resp.headers["content-type"].startswith("text/html")
+    assert 'id="app"' in resp.text
+
+
+def test_app_static_asset_served(client: Client) -> None:
+    resp = client.get("/_app/favicon.svg")
+    assert resp.status_code == 200
+
+
+def test_unknown_api_route_404s_as_json(client: Client) -> None:
+    resp = client.get("/api/nope")
+    assert resp.status_code == 404
+    assert "application/json" in resp.headers["content-type"]
+    assert "detail" in resp.json()
+
+
+# 12. localhost-only guard (and the allow-remote override).
 def test_non_localhost_is_forbidden(
     acceptance_home: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

@@ -8,15 +8,17 @@ rewrites `config.json` when it starts a server).
 Wiring notes:
 - **localhost-only guard** (user decision, replaces legacy login/session):
   non-localhost requests get a 403 before routing.
-- **route order**: routers are included assets -> actions -> api -> pages so
-  that `pages`' `/{path:path}` catch-all stays the final registered route
-  (S23.2's `api` router has its own `/api/{rest:path}` catch-all that must
-  win for anything under `/api/*` first).
-- **StaticFiles** is mounted at `/static` (the templates reference
-  `/static/...` verbatim).
-- **FileNotFoundError -> 404**: routes raise the builtin (or
-  `awiwi.checkbox`/`content` map to it) for missing files; a single handler
-  renders `404.html`.
+- **route order** (T26 cutover): routers are included `api -> redirects` so
+  the `api` router (with its own `/api/{rest:path}` JSON-404 catch-all) wins
+  for anything under `/api/*` before the `redirects` router's app-wide
+  `/{path:path}` SPA catch-all can see it.
+- **StaticFiles** is mounted at `/_app` over the committed Svelte build
+  (`frontend/dist`): the hashed asset URLs the SPA references (`/_app/...`)
+  are content-addressed and long-cacheable. `index.html` itself is served
+  no-cache by the SPA catch-all (`routers/redirects.py`).
+- **FileNotFoundError -> 404 (JSON)**: a stray builtin `FileNotFoundError`
+  reaching the app (the `/api/*` routes catch their own) maps to a JSON 404
+  rather than a 500.
 """
 
 from __future__ import annotations
@@ -27,12 +29,12 @@ from collections.abc import AsyncGenerator, Awaitable, Callable
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
-from fastapi.responses import PlainTextResponse, Response
+from fastapi.responses import JSONResponse, PlainTextResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from awiwi.config import PluginConfig, Settings
-from awiwi.routers import actions, api, assets, pages
-from awiwi.templating import STATIC_DIR, is_localhost, render
+from awiwi.httputil import is_localhost
+from awiwi.routers import api, redirects
 from awiwi.watch import DocWatcher
 
 
@@ -62,8 +64,13 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
 def create_app() -> FastAPI:
     app = FastAPI(lifespan=lifespan)
 
-    if STATIC_DIR.is_dir():
-        app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+    # The committed Svelte build: hashed assets under /_app/*, long-cacheable.
+    if redirects.DIST_DIR.is_dir():
+        app.mount(
+            "/_app",
+            StaticFiles(directory=str(redirects.DIST_DIR)),
+            name="spa_assets",
+        )
 
     @app.middleware("http")
     async def localhost_only(  # pyright: ignore[reportUnusedFunction]
@@ -75,18 +82,16 @@ def create_app() -> FastAPI:
         return await call_next(request)
 
     async def file_not_found(request: Request, exc: Exception) -> Response:
-        _ = exc
-        return render(request, "404.html", {}, status_code=404)
+        _ = (request, exc)
+        return JSONResponse({"detail": "not found"}, status_code=404)
 
     app.add_exception_handler(FileNotFoundError, file_not_found)
 
-    app.include_router(assets.router)
-    app.include_router(actions.router)
-    # api.router's own "/{rest:path}" catch-all (last route on that router)
-    # must be reached before pages.router's app-wide "/{path:path}" catch-all
-    # for any /api/* path -- so this include must stay before pages'.
+    # api.router's own "/api/{rest:path}" catch-all (its last route) must be
+    # reached before redirects.router's app-wide "/{path:path}" SPA catch-all
+    # for any /api/* path -- so this include must stay before redirects'.
     app.include_router(api.router)
-    app.include_router(pages.router)
+    app.include_router(redirects.router)
     return app
 
 

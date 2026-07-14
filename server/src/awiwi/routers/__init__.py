@@ -1,10 +1,15 @@
 """FastAPI routers for the awiwi viewer.
 
-`app.create_app()` includes these in order — assets, then actions, then
-pages — so that `pages`' `/{path:path}` catch-all (the last route in that
-module) stays the final route registered on the app.
+`app.create_app()` includes these in order — `api`, then `redirects` — so
+the `api` router (with its own `/api/{rest:path}` JSON-404 catch-all) resolves
+anything under `/api/*` before the `redirects` router's app-wide
+`/{path:path}` SPA catch-all (its last route) can see it.
+
+The legacy template routers (`pages`, `assets`, `actions`) were dropped in
+the T26 cutover; their modules still exist on disk (deleted in T27) but are
+no longer imported or registered.
 """
 
-from awiwi.routers import actions, assets, pages
+from awiwi.routers import api, redirects
 
-__all__ = ["actions", "assets", "pages"]
+__all__ = ["api", "redirects"]

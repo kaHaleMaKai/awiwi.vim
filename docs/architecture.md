@@ -197,41 +197,33 @@ no non-ASCII escaping hack; ADR D13).
 - `schemas.py` — SPA API Pydantic models: `DocPayload` (kind markdown|text|image|drawio|binary, `watch_path` = WS subscription key, secret blanking), `DirPayload`/`DirEntry`, `NavPayload`, `BreadcrumbPayload`, `SearchHit` (T23, additive)
 - `docs.py` — payload builders `build_doc_payload`/`build_journal_payload`/`build_dir_payload` on top of `content`/`mdrender`; mirrors `routers/pages.py` dispatch (duplication dies with pages.py at SPA cutover, see T23.1 handover)
 - `httputil.py` — `is_localhost`, `get_home` (relocated from `templating.py`)
-- `app.py` — app factory + module-level `app` (ASGI), lifespan (config load), localhost 403 middleware
-- `routers/pages.py` — pages router (journal, recipes, catch-all, dir index, `/todo`, `/change-mode`)
-- `routers/assets.py` — assets router (MIME dispatch, download disposition, render or serve binary)
-- `routers/actions.py` — actions router (`PATCH /checkbox`, `POST /search/content`)
+- `app.py` — app factory + module-level `app` (ASGI), lifespan (config load), localhost 403 middleware; mounts `/_app` StaticFiles over the committed Svelte build (`frontend/dist`); registers routers `api → redirects`; stray `FileNotFoundError` → JSON 404
+- `routers/redirects.py` — legacy 302 redirects (bare-date/`.md`/ymd-asset → canonical SPA URL) + the SPA catch-all `GET /{path:path}` serving `frontend/dist/index.html` no-cache (T26 cutover)
+- `routers/pages.py`, `routers/assets.py`, `routers/actions.py` — **dropped at T26 cutover** (no longer imported/registered; the legacy Jinja page/asset/action routes and `/change-mode` are gone). Module files still on disk, deleted in T27 alongside `templates/`, `static/`, `templating.py`
 - `watch.py` — `DocWatcher` live sync (T24): in-memory `watch_path → {socket}` registry (single-process only — never `--workers`), `broadcast(path)` rebuilds DocPayload and pushes `doc`/`deleted` (doc-vs-deleted decided from live `is_file()`, so nvim atomic writes never emit spurious deletes), `run()` over `watchfiles.awatch(home)` filtering dotfiles/`config.json`; started/cancelled by app lifespan; checkbox PATCH broadcasts directly after toggle. WS wire protocol frozen in `handovers/server-rewrite/T24-live-sync.md`. Caveat: broadcast payloads assume localhost trust — revisit before ever using `AWIWI_ALLOW_REMOTE` seriously
 - `routers/api.py` — SPA JSON API under `/api` (T23, additive; registered before `pages`; full frozen contract in `handovers/server-rewrite/T23.2-api-routes.md`): `GET /api/ws` WebSocket (subscribe/unsubscribe/ping → doc/deleted/pong/error, localhost-gated), `GET /api/journal/{date}`, `/api/todo`, `/api/doc/{path}`, `/api/dir[/{path}]`, `/api/meta`, `/api/raw/{path}` (ETag `{mtime_ns}-{size}`/304, `?download=1`, independent secret 403), `PATCH /api/checkbox` (relpath-addressed, MD5 line-hash protocol unchanged, 409 on stale hash), `GET /api/search?q=&mode=fixed|regex&scope=…` (rg via `build_rg_args(fixed=, scopes=)`), JSON-404 catch-all for unmatched GET `/api/*`
 
-**Route table** (registration: assets → actions → pages; catch-all last; all routed through
-`render_content_file` helper that dispatches on extension: `.md` → `render_markdown`, `.drawio` →
-raw XML, images/binaries → inline/download, else `render_file` Pygments + fallback):
+**Route table** (post-T26-cutover; registration: `api` router → `redirects` router; `/_app` mount
+before both; the `api` router's own `/api/{rest:path}` JSON-404 catch-all wins for `/api/*`, then
+`redirects`' `/{path:path}` SPA catch-all is last of all). All document/content data is served as
+JSON under `/api/*` (see the `routers/api.py` bullet above); everything below is the SPA-serving +
+legacy-redirect surface:
 
 | Method | Path | Behavior |
 |---|---|---|
+| mount | `/_app` | StaticFiles over `frontend/dist` (hashed SPA assets, long-cacheable; mounted before routers) |
+| GET | `/api/*` | JSON API (`routers/api.py`); unknown `/api/*` GET → JSON 404 |
 | GET | `/assets/{year}/{month}/{day}/{file}` | 302 → `/assets/{date}/{file}` (dash-format) |
-| GET | `/assets/{date}/{file}` | asset serve; invalid date → 404; `application/*` (except sql) → download; else render/inline |
-| PATCH | `/checkbox` | JSON `{line_nr,path,check,hash}` → toggle file line; 200/404/409 per domain errors |
-| POST | `/search/content` | form `search-content`; empty → 400; spawn `rg` (cwd home) → render search results |
-| GET | `/change-mode` | set theme cookie, 302 to `Referer` or `/` |
-| GET | `/` | dir index (home root) |
-| GET | `/dir/{path:path}` | dir index + breadcrumbs |
-| GET | `/todo` | render `journal/todos.md`, `title="TODO"`, no TOC |
 | GET | `/journal/{year}/{month}/{file}` | 302 → `/journal/{file-sans-.md}` |
-| GET | `/journal/{date_str}` | journal render (`.md` stripped if present); aliases (today/yesterday/prev); TOC + prev/next nav |
+| GET | `/journal/{date_str}.md` | 302 → `/journal/{date_str}` |
 | GET | `/{d}.md`, `/{m:int}/{d}.md`, `/{y:int}/{m:int}/{d}.md` | legacy date redirects → `/journal/{d}` |
-| GET | `/recipes/{path:path}` | render recipe markdown (or source file, Pygments) |
-| GET | `/{path:path}` | **catch-all (last)**: safe-resolve under home (traversal/absolute → 404), render/serve |
-| mount | `/static` | static files (`server/static/`, pre-mounted before routers) |
-| exc | `FileNotFoundError` | → `404.html` with status 404 |
+| GET | `/{path:path}` | **SPA catch-all (last)**: serves `frontend/dist/index.html` no-cache; client router resolves `/`, `/dir/*`, `/todo`, `/journal/:date`, `/assets/:date/:file`, `/recipes/*`, `/search` |
+| exc | `FileNotFoundError` | → JSON `{"detail": "not found"}`, status 404 |
 
-**Templates & static** — `templates/` (7 files, copied from `server.old/html/`): `base.html.j2`,
-`dir.html.j2`, `journal.html.j2`, `non-journal.html.j2`, `search-content.html.j2`, `todo.html.j2`,
-`404.html` (dropped: `login.html.j2` auth removed, `main.html.j2` dead). `static/` copied+pruned from
-`server.old/static/` (141 MB → 4.5 MB): excluded npm test fixtures (68 MB `mermaid/npm-test/`,
-137 MB `js/node_modules/`); kept `common.js`, `custom-reveal.js`, `sortable-tables.js`, `graphre.js`,
-`nomnoml.js`, mermaid dist, all CSS/img.
+**Frontend build** — the SPA (`frontend/`, Svelte 5 + Vite, base `/_app/`) is built with
+`npm run build`; the resulting `frontend/dist/` is **committed to git** (no Node at serve time),
+marked `linguist-generated -diff` in `.gitattributes` (rebuild, never merge-resolve). `templates/`,
+`static/`, `templating.py`, `routers/{pages,assets,actions}.py` are now dead and get deleted in T27.
 
 **Security** (ADR D14) — HTTP middleware returns 403 for non-localhost requests (checks `Host`
 header loopback name OR loopback client peer). Explicit `AWIWI_ALLOW_REMOTE=1` env var overrides,
