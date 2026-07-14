@@ -25,10 +25,12 @@ part of this divergence.
 
 from __future__ import annotations
 
+import html
 import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import override
+from uuid import uuid4
 
 from markdown import Markdown
 from markdown.extensions import Extension
@@ -177,7 +179,9 @@ def _replace_date_ordinal(text: str) -> str:
     return _ORDINAL_RE.sub(r"\1<sup>\2</sup>", text)
 
 
-def _filter_body(lines: list[str], offset: int) -> list[str]:
+def _filter_body(
+    lines: list[str], offset: int, *, embed_redacted: bool = False
+) -> tuple[list[str], dict[str, str]]:
     """Apply the legacy line-level pre-filters, in order: `!!redacted`
     section hiding, checkbox -> `<input>` injection (hash from
     `awiwi.checkbox.hash_line`), `@tag`/`@@mention` spans, ordinal
@@ -191,29 +195,90 @@ def _filter_body(lines: list[str], offset: int) -> list[str]:
     Ported verbatim from `server.old/app.py:filter_body` (same control flow,
     same regexes), minus the final `.replace("\\n", "")` -- callers here pass
     lines without trailing newlines to begin with (`str.splitlines()`).
+
+    `embed_redacted` (S23.4, ADR-pending): when `True`, the original
+    redacted content is *kept*, HTML-escaped and wrapped in
+    `class="redacted"` markup, right alongside the usual placeholder
+    wording -- for the frontend to click-reveal. `False` (the default)
+    reproduces the legacy stripping behavior byte-identically: nothing but
+    the placeholder text ever reaches the output. See `_flush_hidden`
+    (section form) and the inline `<span>` emission below (line form) for
+    the exact markup contract.
+
+    Returns `(filtered_lines, embeds)`. `embeds` maps opaque one-shot tokens
+    (planted inside the `class="redacted"` wrappers in `filtered_lines`) to
+    the HTML-escaped redacted values they stand for; empty unless
+    `embed_redacted`. `render_markdown` substitutes each token *after*
+    markdown conversion, so hidden values never travel through
+    python-markdown at all -- a revealed value must read back
+    character-for-character, and inline processors would otherwise
+    re-render markdown punctuation inside it (`pass*word*123` ->
+    `pass<em>word</em>123`, dropping the asterisks).
     """
     out: list[str] = []
+    embeds: dict[str, str] = {}
+    # Tokens are alphanumeric-only (inert through every markdown inline and
+    # block processor) and carry a per-render uuid so document text can
+    # never collide with one.
+    run_id = uuid4().hex
     hide = False
     marker_depth = 7  # deeper than any real heading (# .. ######)
+    hidden_lines: list[str] = []
+
+    def _stash(value: str) -> str:
+        token = f"awiwiredacted{run_id}n{len(embeds)}"
+        embeds[token] = html.escape(value)
+        return token
+
+    def _flush_hidden() -> None:
+        """Emit the buffered body of a just-closed redacted heading section
+        (embed mode only) as one raw HTML block: blank-line-delimited so
+        python-markdown passes it through untouched rather than wrapping it
+        in a `<p>` or trying to parse its contents. The original lines
+        (including any blank lines between hidden paragraphs) are joined
+        verbatim and stashed as one text blob behind a token -- no markdown
+        re-rendering, no per-line pre-filter re-application (tags/mentions/
+        checkboxes/ordinals never ran on these lines to begin with, in
+        either mode)."""
+        if embed_redacted and hidden_lines:
+            token = _stash("\n".join(hidden_lines))
+            out.append("")
+            out.append(f'<div class="redacted">{token}</div>')
+            out.append("")
+        hidden_lines.clear()
+
     for line_no, line in enumerate(lines, start=offset):
         if hide:
             m = _HEADING_RE.match(line)
             if m:
                 if len(m.group("marker")) <= marker_depth:
                     hide = False
+                    _flush_hidden()
                 else:
+                    hidden_lines.append(line)
                     continue
             else:
+                hidden_lines.append(line)
                 continue
         elif _REDACTION_MARKER in line:
             m = _HEADING_RE.match(line)
             if m:
                 marker_depth = len(m.group("marker"))
                 hide = True
-                line = f'{m.group("marker")} _…redacted…_'
+                line = f"{m.group('marker')} _…redacted…_"
             else:
-                rem = line.split(_REDACTION_MARKER)[-1].strip()
-                out.append(f" --- redacted (cause: {rem}) --- " if rem else " --- redacted --- ")
+                before, _, rest = line.partition(_REDACTION_MARKER)
+                cause = rest.strip()
+                placeholder = (
+                    f" --- redacted (cause: {cause}) --- "
+                    if cause
+                    else " --- redacted --- "
+                )
+                if embed_redacted:
+                    token = _stash(before.rstrip())
+                    out.append(f'<span class="redacted">{token}</span>{placeholder}')
+                else:
+                    out.append(placeholder)
                 continue
         else:
             m = _CHECKBOX_LINE_RE.match(line)
@@ -230,7 +295,11 @@ def _filter_body(lines: list[str], offset: int) -> list[str]:
         line = _TAG_PATTERN.sub(r'<span class="awiwi-\1">\g<0></span>', line)
         line = _PERSON_TAG_PATTERN.sub(r'<span class="awiwi-mention">\1</span>', line)
         out.append(_replace_date_ordinal(line))
-    return out
+    # EOF while still hiding: a redacted section that runs to the end of the
+    # document with no closing same-or-shallower heading still needs its
+    # buffered body flushed (embed mode only; a no-op otherwise).
+    _flush_hidden()
+    return out, embeds
 
 
 # --- local replacements for the dropped third-party extensions -------------
@@ -315,7 +384,11 @@ def _new_markdown() -> Markdown:
 
 
 def render_markdown(
-    text: str, *, title: str | None = None, add_toc: bool = True
+    text: str,
+    *,
+    title: str | None = None,
+    add_toc: bool = True,
+    embed_redacted: bool = False,
 ) -> RenderedDoc:
     """Render a markdown document's `text` to HTML.
 
@@ -330,21 +403,38 @@ def render_markdown(
     also assigns heading ids used for internal anchors); `add_toc=False`
     just means the caller doesn't want the standalone TOC block surfaced
     (e.g. the `/todo` page).
+
+    `embed_redacted` (S23.4): `False` (the default) is the legacy, byte-
+    identical stripping behavior -- `!!redacted` lines/sections never leave
+    any trace of their original content in `html`. `True` opt-in keeps the
+    original content in `html`, HTML-escaped and wrapped in
+    `class="redacted"` markup (obscured by CSS, not by this function), for
+    a click-to-reveal frontend. See `_filter_body` for the exact markup.
+    Callers gate this on their own trust boundary (`docs.py`'s builders
+    pass `True` only when the deployment is guaranteed localhost-only) --
+    this function has no opinion on when embedding is safe.
     """
     lines = text.splitlines()
     if title is None:
         title, start = _extract_title(lines)
     else:
         start = 0
-    body = _filter_body(lines[start:], offset=start)
+    body, embeds = _filter_body(
+        lines[start:], offset=start, embed_redacted=embed_redacted
+    )
     md_text = "\n".join(body)
 
     md = _new_markdown()
-    html = md.convert(md_text)
+    rendered = md.convert(md_text)
+    # Redacted values (already HTML-escaped by `_filter_body`) are planted
+    # as inert tokens and substituted only now, *after* conversion -- they
+    # must never pass through python-markdown (see `_filter_body`).
+    for token, escaped_value in embeds.items():
+        rendered = rendered.replace(token, escaped_value)
     # `TocExtension` sets `toc` on the `Markdown` instance dynamically (it's
     # not part of the base class's declared attributes), hence `getattr`.
     toc: str = getattr(md, "toc", "") if add_toc else ""
-    return RenderedDoc(html=html, toc=toc, title=title)
+    return RenderedDoc(html=rendered, toc=toc, title=title)
 
 
 def render_file(text: str, filename: str | Path | None = None) -> RenderedDoc:

@@ -75,8 +75,9 @@ class DocPayload(BaseModel):
     `None` for every other kind."""
 
     language: str | None
-    """Best-effort Pygments lexer alias, `kind == "text"` only. `None` is a
-    valid, expected outcome (no lexer guessed) -- the frontend sniffs too."""
+    """Best-effort Shiki-style language id (`mdrender.guess_language`),
+    `kind == "text"` only. `None` is a valid, expected outcome (no language
+    guessed) -- the frontend sniffs too."""
 
     raw_url: str | None
     """`/api/raw/{watch_path}` for `kind in ("image", "binary")`; `None`

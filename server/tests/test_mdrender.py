@@ -90,6 +90,90 @@ class TestRedaction:
         assert "--- redacted ---" in doc.html
 
 
+class TestRedactionEmbed:
+    """S23.4: `embed_redacted=True` keeps redacted content in the output,
+    HTML-escaped and wrapped in a single `class="redacted"` -- the exact
+    class the T22 mockups' CSS contract (`.redacted { ... }`) obscures by
+    default and the frontend toggles `.is-revealed` on. Default (False,
+    the implicit default exercised throughout `TestRedaction` above) stays
+    byte-identical to the legacy stripping behavior."""
+
+    def test_default_is_byte_identical_to_stripped_behavior(self):
+        text = (
+            "# Title\n\nIntro.\n\n## Secret !!redacted\n\nHidden body.\n\n"
+            "## Next\n\nTail.\n"
+        )
+        stripped_default = render_markdown(text).html
+        stripped_explicit = render_markdown(text, embed_redacted=False).html
+        assert stripped_default == stripped_explicit
+        assert "Hidden body." not in stripped_default
+
+    def test_inline_embed_wraps_value_and_keeps_placeholder_wording(self):
+        doc = render_markdown(
+            "api key: sk-123 !!redacted because of secrets\n", embed_redacted=True
+        )
+        assert '<span class="redacted">api key: sk-123</span>' in doc.html
+        assert "redacted (cause: because of secrets)" in doc.html
+
+    def test_inline_embed_without_cause_keeps_plain_placeholder(self):
+        doc = render_markdown("sk-123 !!redacted\n", embed_redacted=True)
+        assert '<span class="redacted">sk-123</span>' in doc.html
+        assert "--- redacted ---" in doc.html
+
+    def test_inline_embed_value_is_html_escaped(self):
+        doc = render_markdown("a <secret> & more !!redacted\n", embed_redacted=True)
+        assert "a &lt;secret&gt; &amp; more" in doc.html
+        assert "<secret>" not in doc.html
+
+    def test_inline_embed_value_is_not_markdown_re_rendered(self):
+        # A revealed secret must read back character-for-character: markdown
+        # punctuation inside the hidden value (emphasis, code spans,
+        # strikethrough) must NOT be re-rendered -- `pass*word*123` revealing
+        # as "pass<em>word</em>123" would silently drop characters from the
+        # value.
+        doc = render_markdown("pass*word*123 `x` ~~y~~ !!redacted\n", embed_redacted=True)
+        assert '<span class="redacted">pass*word*123 `x` ~~y~~</span>' in doc.html
+        assert "<em>" not in doc.html
+        assert "<code>" not in doc.html
+        assert "<del>" not in doc.html
+
+    def test_section_embed_wraps_whole_hidden_body_in_one_div(self):
+        text = (
+            "# Title\n\n"
+            "## Secret !!redacted\n\n"
+            "Hidden paragraph.\n\n"
+            "### Even more hidden\n\n"
+            "Still hidden.\n\n"
+            "## Next Section\n\n"
+            "Visible again.\n"
+        )
+        doc = render_markdown(text, embed_redacted=True)
+        # Placeholder heading unchanged from stripping mode.
+        assert "…redacted…" in doc.html
+        assert doc.html.count('<div class="redacted">') == 1
+        # Whole hidden body embedded as escaped plain text, in one wrapper --
+        # nested markdown NOT re-rendered (the `###` heading stays literal).
+        assert "Hidden paragraph." in doc.html
+        assert "### Even more hidden" in doc.html
+        assert "Still hidden." in doc.html
+        assert "<h3" not in doc.html
+        # The section still ends where it always did.
+        assert "Next Section" in doc.html
+        assert "Visible again." in doc.html
+
+    def test_section_embed_escapes_html_in_hidden_body(self):
+        text = "## S !!redacted\n\n<script>alert('x')</script>\n\n## T\n\nok\n"
+        doc = render_markdown(text, embed_redacted=True)
+        assert "<script>" not in doc.html
+        assert "&lt;script&gt;alert" in doc.html
+
+    def test_section_embed_at_end_of_document_still_flushes(self):
+        text = "# T\n\n## Secret !!redacted\n\nHidden tail.\n"
+        doc = render_markdown(text, embed_redacted=True)
+        assert '<div class="redacted">' in doc.html
+        assert "Hidden tail." in doc.html
+
+
 class TestCheckboxInjection:
     def test_unchecked_box_gets_input_and_matching_hash(self):
         doc = render_markdown("* [ ] buy milk\n* [x] pay bills\n")

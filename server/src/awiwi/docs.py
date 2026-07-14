@@ -23,9 +23,12 @@ from __future__ import annotations
 
 import calendar
 import mimetypes
+import os
 import re
 from datetime import date
 from pathlib import Path
+
+from pydantic import TypeAdapter, ValidationError
 
 from awiwi.content import get_prev_and_next_journal, make_breadcrumbs, parse_date
 from awiwi.mdrender import guess_language, render_markdown
@@ -43,6 +46,37 @@ from awiwi.schemas import (
 # this isn't a shared import): server.old/app.py:render_non_journal's
 # filename-stem-in-secret(s)/credential(s) gate.
 _SECRET_RE = re.compile(r"\b(secret|credential)s?\b$")
+
+_ALLOW_REMOTE_ENV = "AWIWI_ALLOW_REMOTE"
+_BOOL_ADAPTER: TypeAdapter[bool] = TypeAdapter(bool)
+
+
+def _allow_remote_default() -> bool:
+    """Build-time mirror of `config.Settings.allow_remote` (S23.4).
+
+    The builders are pure functions with no `Request`/`app.state` in reach
+    (and the routers that do have it are outside this subtask's boundary),
+    so the `allow_remote` default is read straight from the environment --
+    the same `AWIWI_ALLOW_REMOTE` variable `Settings` parses at boot, with
+    the same pydantic bool semantics (`1`/`true`/`yes`/`on`, case-
+    insensitive) via a `TypeAdapter`. Missing/empty -> `False` (localhost-
+    only, embed allowed), matching `Settings.allow_remote`'s own default.
+    A *set but unparseable* value fails safe toward `True` (remote -> strip)
+    -- app boot would have rejected such a value anyway, so this branch only
+    matters for out-of-app callers.
+
+    Without this fallback, requirement S23.4/3 would silently not hold
+    end-to-end: `routers/api.py` calls the builders without `allow_remote`,
+    so a plain parameter default of `False` would embed redacted values in
+    payloads served to remote clients whenever `AWIWI_ALLOW_REMOTE=1`.
+    """
+    raw = os.environ.get(_ALLOW_REMOTE_ENV)
+    if raw is None or raw.strip() == "":
+        return False
+    try:
+        return _BOOL_ADAPTER.validate_python(raw.strip())
+    except ValidationError:
+        return True
 
 
 def _doc_type(path: Path, home: Path) -> DocType:
@@ -122,7 +156,9 @@ def _blanked(
     )
 
 
-def build_doc_payload(path: Path, home: Path, *, is_localhost: bool) -> DocPayload:
+def build_doc_payload(
+    path: Path, home: Path, *, is_localhost: bool, allow_remote: bool | None = None
+) -> DocPayload:
     """Build a `DocPayload` for an arbitrary file under `home`.
 
     Dispatch mirrors `routers/pages.py:render_content_file` (kind by
@@ -131,11 +167,29 @@ def build_doc_payload(path: Path, home: Path, *, is_localhost: bool) -> DocPaylo
     doesn't need (its Jinja context computes those separately per-route).
     See the T23.1 handover for the exact kind-dispatch table.
 
+    `allow_remote` (S23.4) gates `mdrender.render_markdown`'s
+    `embed_redacted` opt-in: `!!redacted` content is embedded (click-
+    revealable by the frontend) only when `allow_remote` is `False` --
+    i.e. the deployment is guaranteed localhost-only by the app-wide 403
+    middleware (`app.py`), not merely this *request* happening to look
+    local. Deliberately **not** gated on this function's own
+    `is_localhost` param: that's a per-request, Host-header-derived check
+    (spoofable) used only for the unrelated secret-*file* blanking below;
+    `allow_remote` is the one global, non-spoofable signal for "could a
+    remote client ever see this payload". `None` (the default) means "read
+    the deployment's actual setting": `_allow_remote_default()` mirrors
+    `AWIWI_ALLOW_REMOTE` at build time, so the untouched `/api/*` routes
+    strip redacted values whenever the 403 middleware admits remote
+    clients. Passing an explicit bool overrides the environment (tests, or
+    a future router that forwards `app.state.allow_remote` directly).
+
     Raises `FileNotFoundError` (propagated from the underlying `Path.read_*`
     calls) if `path` doesn't exist -- same as the legacy route's implicit
     contract (caught by the app's `FileNotFoundError` -> 404 handler; a
     future JSON router does the equivalent).
     """
+    if allow_remote is None:
+        allow_remote = _allow_remote_default()
     is_secret = bool(_SECRET_RE.search(path.stem))
     doc_type = _doc_type(path, home)
 
@@ -186,7 +240,9 @@ def build_doc_payload(path: Path, home: Path, *, is_localhost: bool) -> DocPaylo
     raw_url: str | None = None
 
     if kind == "markdown":
-        doc = render_markdown(path.read_text(), title=path.stem)
+        doc = render_markdown(
+            path.read_text(), title=path.stem, embed_redacted=not allow_remote
+        )
         html = doc.html
         toc = doc.toc or None
     elif kind == "drawio":
@@ -217,7 +273,12 @@ def build_doc_payload(path: Path, home: Path, *, is_localhost: bool) -> DocPaylo
 
 
 def build_journal_payload(
-    date_str: str, home: Path, *, is_localhost: bool, today: date | None = None
+    date_str: str,
+    home: Path,
+    *,
+    is_localhost: bool,
+    today: date | None = None,
+    allow_remote: bool | None = None,
 ) -> DocPayload | None:
     """Build a `DocPayload` for a journal day page (the JSON equivalent of
     `routers/pages.py:journal`'s `/journal/{date_str}` route).
@@ -226,6 +287,11 @@ def build_journal_payload(
     `prev`/`previous` aliases and plain ISO dates all resolve the same way
     the template route does); `today` is exposed for deterministic tests,
     mirroring `parse_date`'s own parameter.
+
+    `allow_remote` (S23.4): same `embed_redacted` gate as
+    `build_doc_payload` -- see that function's docstring for the full
+    rationale (why this, and not the per-request `is_localhost`, decides
+    it).
 
     Unlike `build_doc_payload` (which passes `title=path.stem` when
     rendering markdown, matching `render_content_file`'s behavior of
@@ -243,6 +309,8 @@ def build_journal_payload(
     Raises `FileNotFoundError` if the parsed date is well-formed but no
     journal file exists for it (same propagation as the `journal` route).
     """
+    if allow_remote is None:
+        allow_remote = _allow_remote_default()
     parsed = parse_date(date_str, home, today=today)
     if parsed is None:
         return None
@@ -269,7 +337,7 @@ def build_journal_payload(
             mtime_ns=mtime_ns,
         )
 
-    doc = render_markdown(file.read_text())
+    doc = render_markdown(file.read_text(), embed_redacted=not allow_remote)
     return DocPayload(
         kind="markdown",
         doc_type="journal",

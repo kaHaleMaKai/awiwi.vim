@@ -56,8 +56,12 @@ class TestJournalPayload:
         assert 'data-hash="' in doc.html
         # @bug tag span.
         assert 'class="awiwi-bug"' in doc.html
-        # Redacted section hidden, not leaked into the body.
-        assert "super secret data" not in doc.html
+        # Redacted section: default (non-remote) builder call embeds the
+        # original body escaped inside an obscured `.redacted` wrapper
+        # instead of stripping it; gating itself is pinned by
+        # TestRedactionEmbedGating below.
+        assert '<div class="redacted">' in doc.html
+        assert "super secret data" in doc.html
         # H1 title line extracted, not duplicated into the body.
         assert "<h1" not in doc.html
 
@@ -95,6 +99,82 @@ class TestJournalPayload:
         # legacy `journal` route (caught by the app's 404 handler upstream).
         with pytest.raises(FileNotFoundError):
             _ = build_journal_payload("2099-01-01", acceptance_home, is_localhost=True)
+
+
+class TestRedactionEmbedGating:
+    """S23.4: `build_doc_payload`/`build_journal_payload` pass
+    `embed_redacted=True` into `render_markdown` only when their
+    `allow_remote` kwarg is `False` (the default, matching
+    `Settings.allow_remote`'s own localhost-only-by-default) -- gated at
+    build time, independent of the per-request `is_localhost` (which stays
+    reserved for the unrelated secret-*file* blanking). `allow_remote=True`
+    keeps the old stripping behavior -- redacted values must never reach a
+    deployment that admits non-localhost clients. The fixture's
+    2026-07-01 journal page carries a `!!redacted` section containing
+    "super secret data"."""
+
+    def test_default_embeds_redacted_section(self, acceptance_home: Path) -> None:
+        doc = build_journal_payload("2026-07-01", acceptance_home, is_localhost=True)
+        assert doc is not None
+        assert doc.html is not None
+        assert '<div class="redacted">' in doc.html
+        assert "super secret data" in doc.html
+
+    def test_default_doc_builder_embeds_too(self, acceptance_home: Path) -> None:
+        path = acceptance_home / "journal" / "2026" / "07" / "2026-07-01.md"
+        doc = build_doc_payload(path, acceptance_home, is_localhost=True)
+        assert doc.html is not None
+        assert '<div class="redacted">' in doc.html
+        assert "super secret data" in doc.html
+
+    def test_allow_remote_strips_redacted_values_from_journal_payload(
+        self, acceptance_home: Path
+    ) -> None:
+        doc = build_journal_payload(
+            "2026-07-01", acceptance_home, is_localhost=True, allow_remote=True
+        )
+        assert doc is not None
+        assert doc.html is not None
+        assert "super secret data" not in doc.html
+        assert '<div class="redacted">' not in doc.html
+        # The stripped placeholder wording is still there.
+        assert "redacted" in doc.html
+
+    def test_allow_remote_strips_redacted_values_from_doc_payload(
+        self, acceptance_home: Path
+    ) -> None:
+        path = acceptance_home / "journal" / "2026" / "07" / "2026-07-01.md"
+        doc = build_doc_payload(
+            path, acceptance_home, is_localhost=True, allow_remote=True
+        )
+        assert doc.html is not None
+        assert "super secret data" not in doc.html
+        assert '<div class="redacted">' not in doc.html
+        assert "redacted" in doc.html
+
+    def test_allow_remote_env_var_strips_without_explicit_kwarg(
+        self, acceptance_home: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # Requirement S23.4/3 end-to-end: the live /api routes call the
+        # builders *without* an `allow_remote` kwarg, so the default must
+        # mirror the deployment's actual AWIWI_ALLOW_REMOTE setting -- a
+        # remote-admitting server keeps the old stripping behavior.
+        monkeypatch.setenv("AWIWI_ALLOW_REMOTE", "1")
+        doc = build_journal_payload("2026-07-01", acceptance_home, is_localhost=True)
+        assert doc is not None
+        assert doc.html is not None
+        assert "super secret data" not in doc.html
+        assert '<div class="redacted">' not in doc.html
+
+    def test_unset_env_var_embeds_without_explicit_kwarg(
+        self, acceptance_home: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.delenv("AWIWI_ALLOW_REMOTE", raising=False)
+        doc = build_journal_payload("2026-07-01", acceptance_home, is_localhost=True)
+        assert doc is not None
+        assert doc.html is not None
+        assert '<div class="redacted">' in doc.html
+        assert "super secret data" in doc.html
 
 
 class TestDocPayloadAssetImage:
