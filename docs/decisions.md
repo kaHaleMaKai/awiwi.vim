@@ -381,5 +381,148 @@ a real snacks clone (S19.2 probe): attach true, resolve chain yields `<home>/ass
 
 ---
 
-**High-water mark: D17**
+## D18 — SPA-over-JSON frontend replacing Jinja templates (2026-07-14)
+
+**Context.** The server was initially a Flask + Jinja2 template app (`server.old/`,
+`server/templates/`, `routers/pages.py`, etc.). FastAPI was adopted in T13–T17, but the
+frontend remained Jinja2 templates. The server re-imagining (T22–T27) replaces this with
+a modern Svelte 5 SPA that consumes a pure JSON API (`/api/*`).
+
+**Decision.** All document/content rendering moves client-side: the backend (`mdrender.py`)
+produces HTML via python-markdown (without CodeHilite syntax highlighting, per D13), which
+the SPA injects via `{@html}` (no sanitization — see D23). The SPA enhances the HTML
+post-render (Shiki syntax highlighting, interactive elements, media, etc.). Legacy template
+routes (`routers/pages.py`, `routers/assets.py`, `routers/actions.py`) and the `templates/`
+directory are deleted at T27 (S27.1). The SPA is served from a committed, reproducible
+`frontend/dist/` build (base `/_app/`, no Node at serve time; see D20 — committed-dist policy).
+
+**Consequences.** (1) Server concerns are narrowed to data/content — a pure JSON API + real-time
+sync layer. (2) Frontend concerns are narrowed to presentation + interactivity — Svelte components
++ the enhance pipeline. (3) Deployment is simpler: build once locally/in CI, commit `dist/`, serve
+as static. (4) Client libraries (Shiki, mermaid, etc.) are JavaScript, not Python. (5) The SPA's
+router is hand-rolled (path-mode URLs, same-origin `<a>` interception), not a framework
+dependency — keeps the frontend lightweight. (6) No breaking API changes — legacy 302 redirect
+routes survive in `routers/redirects.py` for stale bookmarks. Historic reference: Flask
+backend + Jinja2 templates still documented in T13–T17 handovers.
+
+---
+
+## D19 — WebSocket live sync + single-process constraint (2026-07-14)
+
+**Context.** Users edit files in nvim while viewing them in the browser. Previously, the browser
+had to be manually reloaded to see changes. The WebSocket + filesystem watcher feature adds
+real-time sync (T24).
+
+**Decision.** (1) New `GET /api/ws` WebSocket endpoint allows browsers to subscribe to
+documents; the server's `DocWatcher` (in-memory, in-process registry + `watchfiles.awatch`-backed
+event loop) broadcasts `doc`/`deleted` messages on filesystem changes. (2) Checkbox PATCHes also
+trigger broadcasts deterministically (not fs-watch-dependent). (3) Atomic-write handling:
+broadcasts decide `doc` vs `deleted` from live `is_file()`, so nvim's rename-based safe writes
+never emit spurious deletes. (4) **Single-process constraint**: `DocWatcher._subs` is an
+in-memory, in-process dict. **Never run the app with `uvicorn --workers > 1`** — each worker
+would hold an empty registry and subscriptions would not work (a hard operational constraint,
+not an implementation detail).
+
+**Consequences.** (1) Real-time multi-tab sync: checkbox toggles in one tab appear instantly in
+others; file saves in nvim appear in the browser within ~2s (watchfiles latency). (2) Deployment
+must use single-worker/single-process serving (gunicorn single worker, uvicorn default, Heroku
+web dyno, etc.). (3) On reconnect (reload, network blip, server restart), clients must
+re-subscribe (no session state). (4) Clients that disconnect during a change miss that push; they
+must independently refetch via `GET /api/doc/{path}` to get current state (WS is live-update atop
+REST snapshot, not a replacement). (5) The protocol is frozen in `handovers/done/server-rewrite/T24-live-sync.md`.
+
+---
+
+## D20 — Committed-dist policy: rebuild, never merge-resolve (2026-07-14)
+
+**Context.** The SPA build (`frontend/dist/`) is large (~1 MB minified + assets), non-trivial to
+regenerate in CI, and deterministic (two consecutive `npm run build` runs produce byte-identical
+trees). Historically, such artifacts are git-ignored and rebuilt locally. This decision commits
+them to avoid CI rebuilds and enable single-click deployments.
+
+**Decision.** `server/frontend/dist/` is committed to git (force-added with `git add -f`, tracked
+despite `.gitignore` still ignoring it). The build is reproducible and marked `linguist-generated
+-diff` in `.gitattributes`. On merge conflict in `dist/`: **rebuild, never manually resolve**.
+Future rebuilds show as normal diffs; new dist files added in a build need `git add -f` again
+(a wart of not un-ignoring `.gitignore` — acceptable trade-off for simplicity).
+
+**Consequences.** (1) No Node.js at serve time — the precompiled SPA is served as static assets
+from `/_app/`, shaved by build tools (no runtime Svelte compiler, no dynamic bundling). (2) Faster
+deployments (no build step on target). (3) Simpler CI (build once, artifact is a file, not a
+computation). (4) Developers must rebuild locally before committing `frontend/` changes
+(`npm run build` after any SPA/CSS edit). (5) Git diffs on `dist/` are real (the actual changes,
+hashed assets), not conflicts — merge conflicts are resolved by rebuilding. (6) The policy is
+documented in this architecture note and `.gitattributes`.
+
+---
+
+## D21 — Noir-Deco theme tokens + light variant (2026-07-14)
+
+**Context.** The original awiwi UI was Jinja templates with minimal styling. The server
+re-imagining redesigns the frontend with a cohesive visual language: "Noir-Deco" — a moody,
+tech-forward palette inspired by art-deco geometry and neon accents, implemented via CSS custom
+properties.
+
+**Decision.** Theme colors: ink (text) / paper (background) / smoke (borders, secondary text) /
+brass (accents) scales + sparse neon accents (cyan for focus/links, red for error, amber for warn,
+emerald for success). Geometry: 2–4px border-radius, deco corner brackets, chevron rules, neon-glow
+focus states. Two variants: "dark" (default, shipped) and "light" ("daylight-noir", via
+`[data-theme='light']` CSS block that re-tones the scales). Tokens ported from the user's
+`crimed` design system (`~/git/lwinderling/crimed/src/app.css`). Theme state persists to
+`localStorage['awiwi.theme']`; on-load script sets `data-theme` on `<html>` before Svelte mounts
+(zero flash).
+
+**Consequences.** (1) The SPA has a unified, intentional visual language. (2) Theme toggle is
+client-side only (no cookie/server route; old `theme_from_cookie`/`/change-mode` machinery
+deleted). (3) Dual-theme CSS-var flip requires no re-highlight of Shiki code (read from
+`textContent`, re-apply theme via CSS var, no DOM mutation). (4) Fonts (Cinzel) are self-hosted
+woff2s in `frontend/src/fonts/`, not Google Fonts (no external dependencies). (5) The palette is
+immutable (coded in `app.css`); future variants are new CSS blocks, not runtime color pickers.
+
+---
+
+## D22 — Client-side drawio viewer, no SVG cache dir (2026-07-14)
+
+**Context.** The original design considered server-side SVG caching for `.drawio` files (XML → SVG
+once, served from cache). The SPA re-imagining has the browser do the rendering instead.
+
+**Decision.** DrawioView (in the SPA) lazy-loads the `viewer-static.min.js` vendor script
+(pinned in `server/frontend/public/vendor/drawio/`, same mxGraph engine as the app itself,
+identical rendering). The script's `GraphViewer.processElements()` renders `<div data-drawio-src="...">` 
+to SVG/Canvas in-place. No server-side XML→SVG step; no SVG cache dir under `data/`. HTTP caching
+(ETag on `/api/raw/{path}`, mtime-based) suffices for the XML source files.
+
+**Consequences.** (1) Server-side plumbing is simpler (no XML parsing, no Inkscape/graphviz
+subprocess). (2) Rendering is browser-native (faster, no subprocess latency). (3) The vendor
+script is committed to git (vendored dependency, not CDN-fetched). (4) If rendering ever needs
+customization (zoom, pan, toolbar), it's JavaScript in the SPA, not server-side XML→SVG
+conversion. (5) The drawio file format (XML) is never cached as SVG — users editing files in
+drawio.net will see their changes immediately, no stale-cache bugs.
+
+---
+
+## D23 — No HTML sanitization: {@html} injects server HTML directly, localhost-only (2026-07-14)
+
+**Context.** The SPA injects markdown-rendered HTML from the server via `{@html}` in Svelte (which
+bypasses Svelte's default HTML escaping). This is an injection vector if untrusted HTML reaches the
+browser.
+
+**Decision.** No front-end HTML sanitization (no DOMPurify or similar). The scope is **localhost-only
+own notes**: auth (localhost-only middleware in `app.py`, `AWIWI_ALLOW_REMOTE=1` override) + per-route
+secret gating (403 for secret files off-localhost). The server renders trusted HTML (markdown → python-markdown
++ local extensions, never user-supplied JS). The SPA is one person's notes viewer, running locally,
+no multi-user sharing or untrusted input. If `AWIWI_ALLOW_REMOTE=1` is ever enabled seriously (shared
+server, multiple users, untrusted authors), this stance must revisit — add DOMPurify or similar sanitization.
+
+**Consequences.** (1) The SPA can render rich markdown (mermaid, tables, footnotes, custom HTML in
+markdown source) without sanitization overhead. (2) Implicit trust: if a user writes `<script>` in
+their markdown, it runs — but that's their own machine, their own notes. (3) Historical markdown
+rendering behavior is preserved (no HTML stripping, no tag escaping, ADR D13 — corpus semantics
+remain intact, including any hand-written HTML). (4) Security boundary is auth + backend secret
+gating, not front-end HTML escaping. (5) If sharing is added later, this becomes a documented
+limitation / known risk that requires front-end mitigation.
+
+---
+
+**High-water mark: D23**
 

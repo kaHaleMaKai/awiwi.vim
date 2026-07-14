@@ -1,27 +1,19 @@
 # State — Lua rewrite
 
-_Updated: 2026-07-14 (32nd run) — **T22–T24 of the server re-imagining complete (plan
-`re-imagne-the-server-completely-wild-parnas.md`): Noir-Deco mockups + full SPA backend
-(JSON API, redaction embed, live sync). PAUSED at the plan's user checkpoint — mockup
-review gates T25 (Svelte frontend).** Landed: T22 mockups d5d62f8 + feedback round 1
-60a00f5 (Verdana body, dual-theme code blocks, copy-menu close, redaction click-reveal,
-live theme toggle w/ transition) + strikethrough spec 2cc2f31 + feedback rounds 3–4
-c83952d/04159ea (rail 310px, zero-drift sticky below fixed-height header — user-verified
-fixed; specs in T22 handover item 7); S23.1 payload layer
-1690275 (schemas/docs/httputil, DocPayload contract); S23.2 /api routers e309150
-(doc/dir/journal/todo/meta, /api/raw ETag+304+secret-403, PATCH /api/checkbox relpath
-protocol 409-on-stale, /api/search fixed|regex+scopes — frozen contract in
-T23.2-api-routes.md); S23.3 mdrender CodeHilite drop 1a24c25 (clean language-x fences
-for client-side Shiki, guess_language ext-map+modeline); S23.4 redaction embed f3bb1aa
-(span/div.redacted obscured values, uuid-token post-convert planting, AWIWI_ALLOW_REMOTE
-strips — user-feedback-driven); T24 live sync 18bccbe (watch.py DocWatcher +
-GET /api/ws + checkbox broadcast, watchfiles/websockets deps). Server suite 231 green,
-ruff/basedpyright clean throughout, every commit through kb-detect. **Next: user reviews
-mockups (open mockups/README.md); on approval run T25 (S25.1 scaffold → S25.2 enhance
-[opus] → S25.3 views → S25.4 search+WS, serialized, all in server/frontend/), then T26
-cutover [opus], then T27 cleanup + KB rewrite (ADRs D18+). Handovers:
-handovers/server-rewrite/T22–T24*.md. Known caveat: WS broadcasts assume localhost
-trust (noted in architecture.md watch.py row)._
+_Updated: 2026-07-14 (33rd run) — **Server re-imagining phase CLOSED (plan
+`re-imagne-the-server-completely-wild-parnas.md`, T22–T27 complete)**: Noir-Deco mockups
+(T22 d5d62f8, 4 feedback rounds) + full SPA backend (JSON API, redaction embed, live sync,
+T23–T24) + Svelte 5 SPA frontend (T25 99535a0/6e582e7/0639b1d/0919430, 110 tests) + cutover
+(T26 25cc8fe, SPA live, legacy templates dropped) + cleanup (T27 2f31c9e, legacy stack deleted)
++ knowledge-base close-out (S27.2, this run): `docs/architecture.md` §Server fully rewritten
+(module map, API route table, WS protocol, SPA layout, build policy), ADRs D18–D23 recorded
+(SPA-over-JSON, client-side Shiki+Drawio, WS live sync + single-process, committed-dist,
+no-sanitization localhost-only, theme), `docs/INDEX.md` ADR high-water D17→D23, `handovers/STATE.md`
+header + transaction ledger (T26–T27 entries + completion marks), `handovers/server-rewrite/*.md`
+archived to `handovers/done/server-rewrite/`. All code complete. Backend 229 green (T27 −5
+deleted tests), frontend 110 green, kb-detect passes. **Next: user manual verification** checklist
+(`:Awiwi serve` + dogfood: checkbox live-flip across tabs, save→re-render, search modes, copy
+buttons, image lightbox, draw.io viewer) per plan §Verification._
 
 _Previous (31st run) — **T18–T20 inline images complete (plan
 `implement-inline-image-rendering-robust-pnueli.md`)**: kitty inline-image rendering via
@@ -91,6 +83,9 @@ _Previous (26th run) — **T11 UNBLOCKED and CLOSED**: user added the nvim allow
 - [x] T20 — wiring + ADR + docs (ea17d51, 2026-07-14) — one `require("awiwi.img").attach(buf)` in `ftplugin/awiwi.lua` after `syn.attach` (outside awiwiSynRepaint augroup, by design); red/green ftplugin spec (backend probed, no-snacks stays silent); ADR D17 recorded, `docs/INDEX.md` ADR high-water D15→D17 (was stale), architecture.md img row + `g:awiwi_inline_images` global. Suite 484 green. qa-verifier gate S20.2 over T18–T20
 - [x] T22–T24 — server re-imagining phase 1 (see header paragraph: mockups d5d62f8…04159ea, /api layer 1690275/e309150/1a24c25/f3bb1aa, live sync 18bccbe); mockup checkpoint passed (user feedback rounds 1–4 resolved, user continued the flow 2026-07-14)
 - [x] T25 — Svelte 5 SPA frontend (2026-07-14, S25.1 sonnet 99535a0 / S25.2 opus 6e582e7 / S25.3 sonnet 0639b1d / S25.4 sonnet 0919430) — `server/frontend/`: vite@7 svelte-ts scaffold (base `/_app/`, dev proxy :5823 ws), Noir-Deco app.css from tokens.css + fonts, runes router + theme (localStorage `awiwi.theme`, pre-mount), typed api.ts (S25.2 fixed scaffold bug line_nr→line_no per frozen contract); enhance pipeline (Shiki dual-theme CSS-var singleton, copy buttons, tableExport md/csv/html + CopyMenu, checkbox PATCH 409-revert+refetch, lazy mermaid data-mermaid-src, media→/api/raw + Lightbox, redaction click-reveal), lang.ts/format.ts pinned to server behavior; route views (DirPage week banding, JournalPage sticky-rail TOC + nav, TodoPage, DocPage kind-dispatch → TextFileView/ImageView/DrawioView/DownloadCard, NotFound, real Breadcrumbs; drawio viewer-static.min.js pinned v30.3.11 in public/vendor/); SearchPage (scope chips, regex toggle, URLSearchParams state) + ws.svelte.ts (backoff+jitter reconnect, reopen re-subscribe+refetch, mtime_ns dedupe incl. own-checkbox suppression, scroll-preserving re-render) + ConnectionDot live states. Frontend gates green each subtask (final: vitest 110, svelte-check 0 errors, build OK); backend untouched, 231 green re-verified at close. Handovers `handovers/server-rewrite/T25.{1-4}-*.md`
+- [x] T26 — cutover: SPA live, legacy template routes dropped (2026-07-14, S26.1 sonnet 25cc8fe) — `routers/redirects.py` (new, legacy 302 redirects + SPA catch-all), `app.py` mount `/_app` StaticFiles + router registration, `frontend/dist/` (committed, git add -f, linguist-generated -diff), test_acceptance.py rewritten (30 tests, page-HTML→JSON payloads, redirects asserted, SPA fallback, ETag/304, theme-cookie tests dropped, checkbox relpath PATCH, redaction embed). Backend gates green (234 passed, ruff clean, basedpyright 0). Architecture.md §Server route table + router bullets minimal update only (full rewrite deferred to S27.2). Handover `handovers/server-rewrite/T26-cutover.md`
+- [x] T27 — delete legacy template stack + server.old (2026-07-14, S27.1 sonnet 2f31c9e) — deleted: `routers/{pages,assets,actions}.py`, `templates/`, `static/`, `templating.py`, `render_file`+Pygments from `mdrender.py`, `test_mdrender.py::TestRenderFile` (4 tests), entire `server.old/` tree; deps: removed jinja2/pygments/python-multipart; docs: minimal honest updates in architecture.md (components table, module-map bullets, T27 note pointer) + glossary.md viewer/server entry. Backend gates green (229 passed, 234−5 deleted tests). Handover `handovers/server-rewrite/T27.1-cleanup.md`
+- [x] S27.2 — knowledge base close-out (2026-07-14, kb-curator) — docs/architecture.md §Server fully rewritten (comprehensive module map, API route table, WS protocol, SPA layout, build/dev workflow); docs/decisions.md ADRs D18–D23 appended (SPA-over-JSON frontend D18, client-side Shiki+drawio D18/D22, WS live sync+single-process D19, committed-dist policy D20, Noir-Deco theme D21, no-sanitization localhost-only D23); docs/INDEX.md ADR high-water D17→D23; handovers/STATE.md header + T26–T27 entries + transaction ledger + completion; handovers/server-rewrite/*.md→handovers/done/server-rewrite/; kb-detect passes, docs-only commit T27.2. PHASE CLOSED.
 
 Cadence per transaction: S.1 recon (vim-archaeologist) → S.2 port (lua-port-engineer, red/green TDD) → S.3 verify (qa-verifier PASS/FAIL) → S.4 curate+commit (kb-curator, pre-commit kb-detect gate). Full suite `nvim --clean --headless -l tests/run.lua` after each.
 

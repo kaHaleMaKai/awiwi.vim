@@ -174,67 +174,179 @@ were deleted in T10. Known issues in the original code that are **fixed or dropp
 
 ## Server (viewer)
 
-`server/` is a FastAPI + Pydantic app (Python ≥3.13, uv-managed) serving a JSON API plus the
-committed Svelte SPA, replacing the legacy Flask + Jinja server (`server.old/`, deleted at T27).
-Bootable entrypoint: `awiwi.app:app` (pinned in `lua/awiwi/server.lua`
-T17, env `AWIWI_HOME` threaded via `vim.system`; ADR D15 supersedes D5 placeholder). Config protocol:
-env `AWIWI_HOME` set by launcher; `config.json` (from plugin, keys: `search_engine`, `home`,
-`screensaver` — a screensaver *name* string, `link_color`, per-marker lists) read once at lifespan,
-permissive (missing file → defaults, unknown keys ignored, unparseable file → warning + defaults —
-boot never fails on config; T17.1). Auth: localhost-only (403 for non-localhost), unless `AWIWI_ALLOW_REMOTE=1`
-env var set (ADR D14). Markdown: python-markdown with trimmed built-ins (fenced_code, codehilite,
-def_list, footnotes, nl2br, sane_lists, toc, tables, attr_list) + local `_MermaidExtension` /
-`_StrikethroughExtension` replacing unmaintained third-party; corpus semantics preserved (nl2br,
-no non-ASCII escaping hack; ADR D13).
+`server/` is a FastAPI + Pydantic app (Python ≥3.13, uv-managed) serving a JSON API (`/api/*`)
+plus a committed Svelte SPA (`/_app/`, no Node at serve time). Entrypoint: `awiwi.app:app`
+(pinned in `lua/awiwi/server.lua` T17, env `AWIWI_HOME` threaded via `vim.system`; ADR D15).
+The legacy Flask + Jinja server (`server.old/`) and template stack (`templates/`, `static/`,
+`routers/pages.py`, `routers/assets.py`, `routers/actions.py`, `templating.py`) were deleted at
+T27. All shipped behavior (markdown rendering, task tracking, secret gating) is preserved via
+backend-side Markdown rendering + client-side Shiki syntax highlighting (ADRs D13, D18), live
+filesystem sync (ADR D19), and committed-dist SPA (ADR D20).
 
-**Module map** (`server/src/awiwi/`):
-- `config.py` — `Settings` (pydantic-settings, env `AWIWI_HOME`), `PluginConfig` (permissive JSON load)
+### Config, auth, dev/serve
+
+**Config** (`config.py`): env `AWIWI_HOME`, permissive `config.json` (keys: `search_engine`,
+`home`, `screensaver`, `link_color`, per-marker lists), loaded at lifespan, boot never fails (T17).
+
+**Auth**: localhost-only (403 for non-localhost) unless `AWIWI_ALLOW_REMOTE=1` (ADR D14); per-route
+re-derivation for WebSocket (HTTP middleware doesn't cover ASGI `websocket` scope).
+
+**Development**: `cd server && uv sync && uv run uvicorn awiwi.app:app` (live reload); `cd frontend && npm run dev` proxies `/api` → `localhost:5823` over WebSocket.
+
+**Production**: `cd server && uv run uvicorn awiwi.app:app` (cwd `server/`, no Node); the committed
+`frontend/dist/` is served as part of the app.
+
+### Module map (`server/src/awiwi/`)
+
+- `config.py` — `Settings` (pydantic-settings, env `AWIWI_HOME`), `PluginConfig` (permissive JSON)
 - `content.py` — date parsing + aliases, journal prev/next nav, path safety, dir listing, breadcrumbs
 - `checkbox.py` — line hashing (MD5, legacy-compatible), in-place toggle with domain-specific errors
-- `search.py` — ripgrep arg building, output parsing, hit sorting (todo → journal → asset → recipe)
-- `mdrender.py` — `RenderedDoc`, `render_markdown` (with pre-filters: redaction, checkbox, @tag/@mention, ordinal sup); fenced code renders as plain `<pre><code class="language-x">` (CodeHilite dropped T23 — the SPA highlights client-side with Shiki; other extensions byte-identical per D13); `guess_language(path, text)` ext-map + vim-modeline language hint; `render_markdown(embed_redacted=True)` keeps redacted values in the HTML obscured (`span.redacted`/`div.redacted`, escaped, planted post-convert — never re-parsed) for the SPA's click-to-reveal, enabled by `docs.py` builders unless `AWIWI_ALLOW_REMOTE` (remote ⇒ legacy stripping; contract in T23.3 handover §S23.4). The Pygments-backed `render_file` (legacy pages only) was deleted at T27 — non-markdown source files are highlighted client-side too, via `guess_language`'s Shiki-id hint
-- `schemas.py` — SPA API Pydantic models: `DocPayload` (kind markdown|text|image|drawio|binary, `watch_path` = WS subscription key, secret blanking), `DirPayload`/`DirEntry`, `NavPayload`, `BreadcrumbPayload`, `SearchHit` (T23, additive)
-- `docs.py` — payload builders `build_doc_payload`/`build_journal_payload`/`build_dir_payload` on top of `content`/`mdrender` (former duplication with the now-deleted `routers/pages.py` dispatch closed at T27, see T23.1 handover)
-- `httputil.py` — `is_localhost`, `get_home` (relocated from the now-deleted `templating.py`)
-- `app.py` — app factory + module-level `app` (ASGI), lifespan (config load), localhost 403 middleware; mounts `/_app` StaticFiles over the committed Svelte build (`frontend/dist`); registers routers `api → redirects`; stray `FileNotFoundError` → JSON 404
-- `routers/redirects.py` — legacy 302 redirects (bare-date/`.md`/ymd-asset → canonical SPA URL) + the SPA catch-all `GET /{path:path}` serving `frontend/dist/index.html` no-cache (T26 cutover)
-- `watch.py` — `DocWatcher` live sync (T24): in-memory `watch_path → {socket}` registry (single-process only — never `--workers`), `broadcast(path)` rebuilds DocPayload and pushes `doc`/`deleted` (doc-vs-deleted decided from live `is_file()`, so nvim atomic writes never emit spurious deletes), `run()` over `watchfiles.awatch(home)` filtering dotfiles/`config.json`; started/cancelled by app lifespan; checkbox PATCH broadcasts directly after toggle. WS wire protocol frozen in `handovers/server-rewrite/T24-live-sync.md`. Caveat: broadcast payloads assume localhost trust — revisit before ever using `AWIWI_ALLOW_REMOTE` seriously
-- `routers/api.py` — SPA JSON API under `/api` (T23, additive; full frozen contract in `handovers/server-rewrite/T23.2-api-routes.md`): `GET /api/ws` WebSocket (subscribe/unsubscribe/ping → doc/deleted/pong/error, localhost-gated), `GET /api/journal/{date}`, `/api/todo`, `/api/doc/{path}`, `/api/dir[/{path}]`, `/api/meta`, `/api/raw/{path}` (ETag `{mtime_ns}-{size}`/304, `?download=1`, independent secret 403), `PATCH /api/checkbox` (relpath-addressed, MD5 line-hash protocol unchanged, 409 on stale hash), `GET /api/search?q=&mode=fixed|regex&scope=…` (rg via `build_rg_args(fixed=, scopes=)`), JSON-404 catch-all for unmatched GET `/api/*`
+- `search.py` — ripgrep arg building, output parsing, hit sorting
+- `mdrender.py` — `RenderedDoc`, `render_markdown` with pre-filters (redaction, checkbox, @tag/@mention,
+  ordinal sup); fenced code as plain `<pre><code class="language-x">` (client-side Shiki highlights,
+  per ADR D18; CodeHilite dropped T23); `guess_language(path, text)` ext-map + vim-modeline hint;
+  redacted blocks stay in HTML obscured (`span.redacted`, click-to-reveal in SPA), except remote
+  (D23 no-sanitization stance)
+- `schemas.py` — SPA API Pydantic models: `DocPayload` (kind: markdown|text|image|drawio|binary,
+  `watch_path` = WS key, secret blanking), `DirPayload`/`DirEntry`, `NavPayload`, `BreadcrumbPayload`,
+  `SearchHit`
+- `docs.py` — payload builders `build_doc_payload`/`build_journal_payload`/`build_dir_payload` on
+  `content`/`mdrender`
+- `httputil.py` — `is_localhost`, `get_home` (relocated from deleted `templating.py`)
+- `app.py` — app factory, lifespan (config + watcher startup), localhost 403 middleware; mounts
+  `/_app` StaticFiles + registers routers (`api` → `redirects`); `FileNotFoundError` → JSON 404
+- `routers/api.py` — `/api/*` JSON routes: `/journal/{date}`, `/todo`, `/doc/{path}`, `/dir[/{path}]`,
+  `/meta`, `/raw/{path}` (ETag conditional), `/ws` (WebSocket), `PATCH /checkbox` (relpath),
+  `/search?q=&mode=&scope=` (ripgrep)
+- `routers/redirects.py` — legacy 302 redirects (bare-date/`.md`/ymd-asset forms) + SPA catch-all
+  `GET /{path:path}` → `index.html` no-cache (T26)
+- `watch.py` — `DocWatcher`: in-memory `watch_path → {socket}` subscriptions (single-process only —
+  never `--workers`); `broadcast(path)` rebuilds payload + pushes `doc`/`deleted` messages; `run()`
+  over `watchfiles.awatch(home)` filtering dotfiles/`config.json`; checkbox PATCH triggers broadcast
+  (deterministic, not fs-watch-dependent)
 
-T27 (S27.1) deleted the legacy Jinja stack outright: `routers/pages.py`, `routers/assets.py`,
-`routers/actions.py` (dropped at T26 cutover, unregistered since), `templates/`, `static/`,
-`templating.py`, the `render_file`/Pygments path in `mdrender.py`, and the whole `server.old/`
-tree. Full module-map/route-table/ADR rewrite for the post-cutover, post-cleanup shape is S27.2.
+### API route table (T23–T26, frozen contract)
 
-**Route table** (post-T26-cutover; registration: `api` router → `redirects` router; `/_app` mount
-before both; the `api` router's own `/api/{rest:path}` JSON-404 catch-all wins for `/api/*`, then
-`redirects`' `/{path:path}` SPA catch-all is last of all). All document/content data is served as
-JSON under `/api/*` (see the `routers/api.py` bullet above); everything below is the SPA-serving +
-legacy-redirect surface:
+All responses JSON except `/api/raw/{path}` (bytes). Registration order: `/_app` mount → `api.router`
+(`/api/*` routes + JSON catch-all) → `redirects.router` (legacy 302s + SPA catch-all); Starlette
+matches in order, so `/api/*` is checked before the SPA catch-all. Comprehensive spec:
+`handovers/done/server-rewrite/T23.2-api-routes.md`.
 
 | Method | Path | Behavior |
 |---|---|---|
-| mount | `/_app` | StaticFiles over `frontend/dist` (hashed SPA assets, long-cacheable; mounted before routers) |
-| GET | `/api/*` | JSON API (`routers/api.py`); unknown `/api/*` GET → JSON 404 |
-| GET | `/assets/{year}/{month}/{day}/{file}` | 302 → `/assets/{date}/{file}` (dash-format) |
-| GET | `/journal/{year}/{month}/{file}` | 302 → `/journal/{file-sans-.md}` |
-| GET | `/journal/{date_str}.md` | 302 → `/journal/{date_str}` |
-| GET | `/{d}.md`, `/{m:int}/{d}.md`, `/{y:int}/{m:int}/{d}.md` | legacy date redirects → `/journal/{d}` |
-| GET | `/{path:path}` | **SPA catch-all (last)**: serves `frontend/dist/index.html` no-cache; client router resolves `/`, `/dir/*`, `/todo`, `/journal/:date`, `/assets/:date/:file`, `/recipes/*`, `/search` |
+| mount | `/_app` | StaticFiles over `frontend/dist` (hashed assets, long-cacheable) |
+| GET | `/api/journal/{date_str}` | Journal day as `DocPayload`; `date_str` = ISO date or `today`/`yesterday`/`prev`/`previous` |
+| GET | `/api/todo` | `journal/todos.md` as `DocPayload` |
+| GET | `/api/doc/{path:path}` | Any doc by relpath, kind-dispatched (markdown/text/image/drawio/binary) |
+| GET | `/api/dir[/{path:path}]` | Directory listing as `DirPayload` |
+| GET | `/api/meta` | Metadata: `{today, home, version}` |
+| GET | `/api/raw/{path:path}` | Raw bytes; ETag `{mtime_ns}-{size}`/304 on If-None-Match; `?download=1` → attachment |
+| GET | `/api/ws` | WebSocket (see WS protocol below) |
+| PATCH | `/api/checkbox` | Relpath-addressed toggle: `{path, line_no, line_hash, checked}` → `{success, line_hash, mtime_ns}` |
+| GET | `/api/search?q=&mode=&scope=` | Ripgrep search: `q` (required), `mode=fixed\|regex` (default `fixed`), `scope=journal,assets,recipes` |
+| — | `/{y}/{m}/{d}/{file}`, `/journal/{y}/{m}/{file}`, `/journal/{date}.md`, `/{d}.md`, etc. | 302 redirects (legacy URLs) → canonical SPA paths |
+| GET | `/{path:path}` | **SPA catch-all (last)**: `frontend/dist/index.html` no-cache; client router resolves `/`, `/dir/*`, `/todo`, `/journal/:date`, `/assets/:date/:file`, `/recipes/*`, `/search`, `/*` notfound |
+| — | `/api/{rest:path}` | JSON 404 catch-all (within `api` router, last among its routes) |
 | exc | `FileNotFoundError` | → JSON `{"detail": "not found"}`, status 404 |
 
-**Frontend build** — the SPA (`frontend/`, Svelte 5 + Vite, base `/_app/`) is built with
-`npm run build`; the resulting `frontend/dist/` is **committed to git** (no Node at serve time),
-marked `linguist-generated -diff` in `.gitattributes` (rebuild, never merge-resolve). `templates/`,
-`static/`, `templating.py`, `routers/{pages,assets,actions}.py` are now dead and get deleted in T27.
+**Checkpoint secrets**: `/api/doc/{path}` and `/api/raw/{path}` blank secret files off-localhost
+(regex `\b(secret|credential)s?\b$` on stem). On localhost, content is visible; `is_secret` field
+set in payload.
 
-**Security** (ADR D14) — HTTP middleware returns 403 for non-localhost requests (checks `Host`
-header loopback name OR loopback client peer). Explicit `AWIWI_ALLOW_REMOTE=1` env var overrides,
-enabling remote access if needed. No login/session machinery. Secret-named files (regex `secret|credential`
-stem) blank their body off-localhost.
+### WebSocket protocol (T24, single-process only)
 
-**Plugin integration** (`lua/awiwi/server.lua`, T17) — spawns via `uv run uvicorn awiwi.app:app
---host <host> --port <port>` (cwd `server/`, env `AWIWI_HOME` set); config.json written by
-`start_server` before spawn.
+Endpoint: `GET /api/ws` (upgrade). Client → server messages are JSON `{type, ...}`:
 
-Toolchain: ruff, basedpyright, pytest (no external service dependencies).
+| `type` | Fields | Effect |
+|---|---|---|
+| `"subscribe"` | `"path"`: relpath | Subscribe to that doc (idempotent) |
+| `"unsubscribe"` | `"path"`: relpath | Unsubscribe (no-op if not subscribed) |
+| `"ping"` | — | Server replies `{type: "pong"}` |
+
+Server → client messages:
+
+| `type` | Fields | When |
+|---|---|---|
+| `"doc"` | `"path"`: relpath, `"payload"`: `DocPayload` JSON | Doc changed, still exists (rebuilt fresh, not a diff) |
+| `"deleted"` | `"path"`: relpath | Doc no longer exists |
+| `"pong"` | — | Reply to `"ping"` |
+| `"error"` | `"detail"`: string | Client message malformed (socket stays open) |
+
+**Expectations**: subscriptions exist only while connected; on reconnect, client must re-subscribe.
+Broadcasts only fire from live fs events or checkbox PATCHes; disconnected clients miss intervening
+changes. On (re)connect/(re)subscribe, client should independently re-fetch via `GET /api/doc/{path}`
+for current state (WS is live-update atop REST snapshot). Atomic-write handling: broadcasts decide
+`"doc"` vs `"deleted"` from live `is_file()`, so nvim's rename-based safe writes never emit spurious
+deletes. Checkbox PATCH broadcasts deterministically, not fs-watch-dependent. **Single-process
+constraint**: `DocWatcher._subs` is in-memory, in-process dict; running with `--workers > 1` breaks
+live sync (each worker has empty registry). Comprehensive spec: `handovers/done/server-rewrite/T24-live-sync.md`.
+
+### Frontend (Svelte 5 + Vite, committed-dist policy)
+
+**Structure** (`server/frontend/`):
+- `index.html` — entry; inline pre-mount theme script (sets `data-theme` on `<html>` before Svelte),
+  mounts `main.ts`
+- `vite.config.ts` — base `/_app/`, dev proxy `/api` → `localhost:5823` (WebSocket), vitest config
+- `src/app.css` — Noir-Deco design tokens (ink/paper/smoke/brass scales + neon accents), ported from
+  mockups (ADR D21 theme choice)
+- `src/main.ts` — mounts `App.svelte`, imports `app.css`
+- `src/App.svelte` — shell: header (Breadcrumbs, SearchBar, ConnectionDot, ThemeToggle) + route switch
+- `src/lib/theme.svelte.ts` — reactive theme store (`dark`/`light`), persists to `localStorage['awiwi.theme']`
+- `src/lib/router.svelte.ts` — hand-rolled runes router (path-mode URLs): `/`, `/dir/*`, `/todo`,
+  `/journal/:date`, `/assets/:date/:file`, `/recipes/*`, `/search`, `/*` notfound; global same-origin
+  `<a>` click interception
+- `src/lib/api.ts` — typed `/api` fetchers (no runes, ordinary TypeScript)
+- `src/lib/components/` — reusable components (Breadcrumbs, SearchBar, ThemeToggle, ConnectionDot)
+- `src/lib/enhance/` — pipeline for rendered markdown: Shiki dual-theme (lazy singleton, CSS-var
+  theme flip, `textContent` read for unknown-lang fallback; ADR D18), mermaid (lazy, re-themed on
+  toggle), checkbox wiring (PATCH relpath, 409 → refetch), copy buttons on `<pre>`, table export
+  (markdown/CSV/HTML via `tableExport.ts`), image rewrite + lightbox (lazy), drawio (lazy
+  `viewer-static.min.js` vendor script, no re-highlighting; ADR D22). Language hint from backend
+  `guess_language` (ext map + vim-modeline).
+- `src/routes/` — route views (Home, Dir, Todo, Journal, Asset, Recipes, Search, NotFound)
+- `public/vendor/drawio/` — pinned `viewer-static.min.js` (lazy-loaded by DrawioView)
+
+**Build**: `npm run build` produces byte-identical `frontend/dist/` (reproducible, no Node at serve
+time). **Committed-dist policy** (ADR D20): dist is force-added to git (`.gitignore` ignores it but
+file is tracked); future rebuilds show as normal diffs. On merge conflict: rebuild, never manually
+resolve (documented in `.gitattributes` `linguist-generated -diff` + this architecture note). New
+dist files need `git add -f` (wart of not un-ignoring `.gitignore`).
+
+**No sanitization** (ADR D23): `{@html}` in `MarkdownView` injects server-rendered HTML directly,
+then `enhance()` post-processes. Scope: localhost-only own notes (auth gate + secret blanking in
+backend); if remote access is ever enabled seriously, HTML/JS injection becomes a vector and needs
+front-end sanitization (DOMPurify or similar).
+
+**Build/dev workflow**:
+```bash
+cd server/frontend
+npm install                     # once
+npm run dev                     # local dev (proxies /api to backend at 5823)
+npm run build                   # ci/deploy; produces frontend/dist/
+npx vitest run                  # tests
+npx svelte-check               # type check (Svelte components)
+```
+
+Backend must be running at `localhost:5823` for `/api` proxy to work in dev.
+
+### Markdown rendering semantics
+
+Python-markdown + local extensions, byte-identical per ADR D13:
+- Built-ins enabled: `fenced_code`, `def_list`, `footnotes`, `nl2br`, `sane_lists`, `toc`, `tables`,
+  `attr_list`
+- Local extensions: `_MermaidExtension`, `_StrikethroughExtension` (replace unmaintained third-party)
+- Fenced code: pre-rendered as plain `<pre><code class="language-x">` (no server-side
+  syntax highlight; CodeHilite removed T27). Shiki highlights client-side (ADR D18) — language hint
+  via `guess_language` (ext-map + vim-modeline), unknown langs show unhighlighted.
+- Redaction: inline `[~secret~]` → `<span class="redacted">` with content visible on localhost
+  (click-to-reveal in SPA), blanked off-localhost (403 route-level gate prevents the `/api/raw`
+  bytes entirely)
+
+### Toolchain
+
+**Tests**: `cd server && uv run pytest` (testpaths=`tests/`, no external service deps).
+**Lint/format**: `uv run ruff check .` (line-length 90, double quotes), `uv run ruff format .`.
+**Type check**: `uv run basedpyright` (0 errors/warnings/notes).
+**Git/pre-commit**: `scripts/kb-detect.sh` (rules in `.claude/kb/rules.tsv`) gates changes to
+`server/src` or `server/pyproject.toml` against fresh knowledge layers (`docs/architecture.md` or
+`docs/INDEX.md`); `DOCS_OK=1 git commit` to escape if docs are unchanged.
