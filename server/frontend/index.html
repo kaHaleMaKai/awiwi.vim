@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>awiwi</title>
+    <script>
+      // Apply the persisted theme to <html> before first paint, so there is
+      // no dark->light (or light->dark) flash on load. Kept as a tiny
+      // blocking inline script (not part of the main.ts module graph) for
+      // exactly that reason. Mirrored by lib/theme.svelte.ts, which owns
+      // the reactive state + persistence for the rest of the app.
+      (function () {
+        try {
+          var stored = localStorage.getItem('awiwi.theme');
+          document.documentElement.setAttribute('data-theme', stored === 'light' ? 'light' : 'dark');
+        } catch (e) {
+          document.documentElement.setAttribute('data-theme', 'dark');
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

@@ -1,0 +1,5 @@
+# Generated/vendored frontend artifacts — never hand-edited, never merged
+# (rebuild instead of resolving conflicts). See handovers/server-rewrite/
+# T25.1-scaffold.md and the T25/T26 plan notes.
+server/frontend/dist/** linguist-generated=true -diff
+server/frontend/public/vendor/** linguist-generated=true -diff
