@@ -81,8 +81,9 @@ def notes_home(tmp_path: Path) -> Path:
 # `notes_home` above is deliberately minimal and shared with the leaf-module
 # unit tests — its shape must not change. The acceptance suite needs a
 # superset (checkbox bullets that actually match the `* [ ]` render regex,
-# a redaction section, TOC headings, binary/downloadable assets, a pygments
-# source file, plus journal entries for *today*/*yesterday* so the alias
+# a redaction section, TOC headings, binary/downloadable assets, a source
+# file with a language hint, plus journal entries for *today*/*yesterday* so
+# the alias
 # routes resolve regardless of the wall-clock date), so it gets its own tree.
 # ---------------------------------------------------------------------------
 
@@ -148,8 +149,9 @@ visible tail text
     _ = (home / "assets/2026/07/01/report.pdf").write_bytes(b"%PDF-1.4 fake pdf")
     write("assets/2026/07/01/note.txt", "plain asset text\n")
 
-    # Recipes: a markdown recipe (with a fenced code block for pygments) and
-    # a source file that relies on a vim modeline for its lexer.
+    # Recipes: a markdown recipe (with a fenced code block, Shiki-highlighted
+    # client-side) and a source file that relies on a vim modeline for its
+    # language hint.
     write(
         "recipes/cooking/pasta.md",
         "# Pasta\n\n## Ingredients\n\nBoil water.\n\n```python\nprint('hi')\n```\n",

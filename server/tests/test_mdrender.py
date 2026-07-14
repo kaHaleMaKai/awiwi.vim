@@ -1,5 +1,4 @@
-"""Tests for `awiwi.mdrender`: pre-filters, python-markdown pipeline, and
-Pygments source rendering.
+"""Tests for `awiwi.mdrender`: pre-filters and the python-markdown pipeline.
 
 Pure text-in/text-out module -- no filesystem/`notes_home` fixture needed.
 """
@@ -9,7 +8,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from awiwi.checkbox import hash_line
-from awiwi.mdrender import RenderedDoc, guess_language, render_file, render_markdown
+from awiwi.mdrender import RenderedDoc, guess_language, render_markdown
 
 
 class TestTitleExtraction:
@@ -332,32 +331,3 @@ class TestTagsAndMentions:
         # behavior, not something this rewrite silently fixes.
         doc = render_markdown("cc @@lars.\n")
         assert '<span class="awiwi-mention">@l</span>ars.' in doc.html
-
-
-class TestRenderFile:
-    def test_highlights_by_filename_extension(self):
-        doc = render_file("print('hi')\n", filename="foo.py")
-        assert 'class="highlight"' in doc.html
-        assert doc.toc == ""
-        assert doc.title is None
-
-    def test_modeline_sniff_picks_lexer_over_filename(self):
-        text = "-- vim: ft=sql.\nSELECT 1;\n"
-        doc = render_file(text, filename="notes.txt")
-        assert 'class="highlight"' in doc.html
-        assert "SELECT" in doc.html
-
-    def test_modeline_lexer_map_alias(self):
-        text = "-- vim: ft=pgsql.\nSELECT 1;\n"
-        doc = render_file(text, filename=None)
-        assert 'class="highlight"' in doc.html
-
-    def test_no_lexer_falls_back_to_plain_text(self):
-        text = "just plain content, no lexer here\n"
-        doc = render_file(text, filename="data.unknownext")
-        assert doc.html == text
-
-    def test_no_filename_and_no_modeline_falls_back_to_plain_text(self):
-        text = "no hints at all\n"
-        doc = render_file(text)
-        assert doc.html == text

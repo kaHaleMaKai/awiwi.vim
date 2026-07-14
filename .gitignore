@@ -61,7 +61,6 @@ ENV/
 .spyproject
 .ropeproject
 /site
-/server/static/npm
 node_modules
 
 # claude orchestration scratch

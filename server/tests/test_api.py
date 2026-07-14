@@ -230,9 +230,8 @@ class TestDocPayloadKindDispatch:
         assert doc.text is not None
         assert "SELECT" in doc.text
         assert doc.html is None
-        # Best-effort hint: some lexer alias, exact value not pinned (see
-        # docs.py:_guess_language -- ambiguous SQL-lexer registrations mean
-        # pygments' pick isn't a stable contract worth asserting on).
+        # Best-effort hint: the vim-modeline sniff resolves the `pgsql`
+        # alias via `mdrender.LEXER_MAP` (see `mdrender.guess_language`).
         assert doc.language is not None
 
     def test_binary_non_utf8_file(self, tmp_path: Path) -> None:

@@ -1,9 +1,0 @@
-flask
-markdown
-markdown-strikethrough
-markdown-blockdiag
-kbdextension
-markdown-del-ins
-pygments
-passlib
-md-mermaid

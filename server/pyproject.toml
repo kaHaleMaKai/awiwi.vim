@@ -10,11 +10,8 @@ dependencies = [
   "fastapi",
   "pydantic",
   "pydantic-settings",
-  "jinja2",
   "markdown",
-  "pygments",
   "uvicorn",
-  "python-multipart",
   "watchfiles",
   "websockets",
 ]

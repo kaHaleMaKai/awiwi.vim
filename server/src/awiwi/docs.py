@@ -2,21 +2,21 @@
 construction over the pure leaf modules (`content.py`, `mdrender.py`), for a
 future `/api/*` router (S23.2) to expose.
 
-**Boundary note on "moved, not rewritten":** the design contract for this
-subtask asked for `render_content_file`'s and `_build_dir_index`'s logic to
-be *extracted* out of `routers/pages.py` so both the old template route and
-these new builders share one implementation. This subtask's hard boundary
-only permits touching `routers/pages.py` to import relocated helpers
-(`is_localhost`/`get_home`, now in `httputil.py`) -- not to restructure its
-private functions -- and requires the old routes to stay behaviorally
-untouched. Given that conflict, the boundary wins: the dispatch logic below
-is a faithful, independently-verified re-implementation (same regex, same
-field derivations, same call sequence into `content`/`mdrender`) rather than
-a shared helper. `test_api.py` cross-checks several of these builders
-against `test_acceptance.py`'s fixture tree and expectations so drift would
-show up as a test failure. See the T23.1 handover for the exact
-correspondence table and a note for whoever owns the eventual real
-extraction (flagged for a later cleanup subtask, not blocking here).
+**Boundary note on "moved, not rewritten"** (historical, T23.1; `routers/
+pages.py` referenced below was deleted in T27): the design contract for
+this subtask asked for `render_content_file`'s and `_build_dir_index`'s
+logic to be *extracted* out of the then-live `routers/pages.py` so both the
+old template route and these new builders share one implementation. This
+subtask's hard boundary only permitted touching `routers/pages.py` to
+import relocated helpers (`is_localhost`/`get_home`, now in `httputil.py`)
+-- not to restructure its private functions -- and required the old routes
+to stay behaviorally untouched. Given that conflict, the boundary won: the
+dispatch logic below is a faithful, independently-verified re-implementation
+(same regex, same field derivations, same call sequence into `content`/
+`mdrender`) rather than a shared helper. `test_api.py` cross-checks several
+of these builders against `test_acceptance.py`'s fixture tree and
+expectations so drift would show up as a test failure. See the T23.1
+handover for the exact correspondence table.
 """
 
 from __future__ import annotations

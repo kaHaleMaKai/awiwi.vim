@@ -1,15 +1,16 @@
-"""Pydantic response models for the JSON API layer (future Svelte SPA).
+"""Pydantic response models for the JSON API layer (the Svelte SPA).
 
-Additive: nothing here is imported by the existing template routers
-(`routers/pages.py`, `routers/assets.py`, `routers/actions.py`), so the old
-Jinja page routes and their tests are untouched by this module's existence.
+Originally additive: nothing here was imported by the legacy template
+routers (`routers/pages.py`, `routers/assets.py`, `routers/actions.py`,
+deleted in T27), so the old Jinja page routes and their tests stayed
+untouched by this module's existence at the time.
 
 `docs.py`'s payload builders (`build_doc_payload`, `build_dir_payload`,
-`build_journal_payload`) are the only producers of these models today; a
-future router unit (S23.2) exposes them as `/api/*` endpoints.
+`build_journal_payload`) are the only producers of these models, exposed as
+`/api/*` endpoints by `routers/api.py`.
 
-Kept intentionally minimal: these models mirror exactly what the existing
-page routes already compute (see `docs.py`'s docstrings for the byte-for-byte
+Kept intentionally minimal: these models mirror exactly what the former
+page routes used to compute (see `docs.py`'s docstrings for the byte-for-byte
 correspondence), not a speculative superset.
 """
 
@@ -21,9 +22,10 @@ from pydantic import BaseModel
 
 DocKind = Literal["markdown", "text", "image", "drawio", "binary"]
 """How a doc's *content* should be presented -- drives which of
-`DocPayload.html`/`text`/`raw_url` is populated. Mirrors the dispatch
-`routers/pages.py:render_content_file` already performs on extension/mime
-type (see `docs.py:build_doc_payload`'s kind-dispatch table)."""
+`DocPayload.html`/`text`/`raw_url` is populated. Mirrors the dispatch the
+former `routers/pages.py:render_content_file` used to perform on
+extension/mime type (see `docs.py:build_doc_payload`'s kind-dispatch
+table)."""
 
 DocType = Literal["journal", "asset", "recipe", "other"]
 """Which doc-type hierarchy (see `CLAUDE.md` §Doc types) a path belongs to,
@@ -111,7 +113,7 @@ class DocPayload(BaseModel):
 
 
 class DirEntry(BaseModel):
-    """One entry in a directory listing. Mirrors
+    """One entry in a directory listing. Mirrors the former
     `routers/pages.py:_build_dir_index`'s per-entry doc-type-aware naming
     (month names, journal/asset date entries, recipe path segments), but
     reports a home-relative `relpath` instead of a template `href`, and

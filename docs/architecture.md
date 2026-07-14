@@ -13,8 +13,7 @@ Keep this truthful — when behavior changes, this file changes in the same comm
 | ------------- | --------------------------------------- | -------------------------------------------- |
 | Plugin        | `lua/awiwi/`, `ftplugin/awiwi.lua`, `ftdetect/awiwi.lua` | ported to Lua (T10 switchover complete) |
 | Lua modules   | `lua/awiwi/*.lua`                       | complete (str, path, date, util, asset, hi, server, syn, markers, cmd, picker, init — all modules ported by T10) |
-| Server/viewer | `server/src/awiwi/` (FastAPI + Pydantic) | bootable and complete (T13–T17): config, content/checkbox/search, mdrender, app/routers/templating, templates+static copy; replaces `server.old/` |
-| Legacy server | `server.old/` (Flask + Jinja)           | reference only                               |
+| Server/viewer | `server/src/awiwi/` (FastAPI + Pydantic) | JSON API + committed Svelte SPA (T13–T27): config, content/checkbox/search, mdrender, app/routers, `frontend/dist/`. Legacy Jinja template stack and `server.old/` deleted at T27 |
 
 There is **no `plugin/` directory**. `:Awiwi` and all mappings are registered per-buffer in
 `ftplugin/awiwi.lua`, gated by `ftdetect/awiwi.lua`.
@@ -175,8 +174,9 @@ were deleted in T10. Known issues in the original code that are **fixed or dropp
 
 ## Server (viewer)
 
-`server/` is a FastAPI + Pydantic app (Python ≥3.13, uv-managed) rendering awiwi notes, replacing
-`server.old/` (Flask + Jinja). Bootable entrypoint: `awiwi.app:app` (pinned in `lua/awiwi/server.lua`
+`server/` is a FastAPI + Pydantic app (Python ≥3.13, uv-managed) serving a JSON API plus the
+committed Svelte SPA, replacing the legacy Flask + Jinja server (`server.old/`, deleted at T27).
+Bootable entrypoint: `awiwi.app:app` (pinned in `lua/awiwi/server.lua`
 T17, env `AWIWI_HOME` threaded via `vim.system`; ADR D15 supersedes D5 placeholder). Config protocol:
 env `AWIWI_HOME` set by launcher; `config.json` (from plugin, keys: `search_engine`, `home`,
 `screensaver` — a screensaver *name* string, `link_color`, per-marker lists) read once at lifespan,
@@ -192,16 +192,19 @@ no non-ASCII escaping hack; ADR D13).
 - `content.py` — date parsing + aliases, journal prev/next nav, path safety, dir listing, breadcrumbs
 - `checkbox.py` — line hashing (MD5, legacy-compatible), in-place toggle with domain-specific errors
 - `search.py` — ripgrep arg building, output parsing, hit sorting (todo → journal → asset → recipe)
-- `mdrender.py` — `RenderedDoc`, `render_markdown` (with pre-filters: redaction, checkbox, @tag/@mention, ordinal sup); fenced code renders as plain `<pre><code class="language-x">` (CodeHilite dropped T23 — the SPA highlights client-side with Shiki; other extensions byte-identical per D13); `guess_language(path, text)` ext-map + vim-modeline language hint; `render_markdown(embed_redacted=True)` keeps redacted values in the HTML obscured (`span.redacted`/`div.redacted`, escaped, planted post-convert — never re-parsed) for the SPA's click-to-reveal, enabled by `docs.py` builders unless `AWIWI_ALLOW_REMOTE` (remote ⇒ legacy stripping; contract in T23.3 handover §S23.4); `render_file` (Pygments, legacy pages only, retires at SPA cutover)
-- `templating.py` — Jinja2 setup (autoescape off, for legacy template compatibility); re-exports `is_localhost`/`get_home` from `httputil` (shim, dies at SPA cutover)
+- `mdrender.py` — `RenderedDoc`, `render_markdown` (with pre-filters: redaction, checkbox, @tag/@mention, ordinal sup); fenced code renders as plain `<pre><code class="language-x">` (CodeHilite dropped T23 — the SPA highlights client-side with Shiki; other extensions byte-identical per D13); `guess_language(path, text)` ext-map + vim-modeline language hint; `render_markdown(embed_redacted=True)` keeps redacted values in the HTML obscured (`span.redacted`/`div.redacted`, escaped, planted post-convert — never re-parsed) for the SPA's click-to-reveal, enabled by `docs.py` builders unless `AWIWI_ALLOW_REMOTE` (remote ⇒ legacy stripping; contract in T23.3 handover §S23.4). The Pygments-backed `render_file` (legacy pages only) was deleted at T27 — non-markdown source files are highlighted client-side too, via `guess_language`'s Shiki-id hint
 - `schemas.py` — SPA API Pydantic models: `DocPayload` (kind markdown|text|image|drawio|binary, `watch_path` = WS subscription key, secret blanking), `DirPayload`/`DirEntry`, `NavPayload`, `BreadcrumbPayload`, `SearchHit` (T23, additive)
-- `docs.py` — payload builders `build_doc_payload`/`build_journal_payload`/`build_dir_payload` on top of `content`/`mdrender`; mirrors `routers/pages.py` dispatch (duplication dies with pages.py at SPA cutover, see T23.1 handover)
-- `httputil.py` — `is_localhost`, `get_home` (relocated from `templating.py`)
+- `docs.py` — payload builders `build_doc_payload`/`build_journal_payload`/`build_dir_payload` on top of `content`/`mdrender` (former duplication with the now-deleted `routers/pages.py` dispatch closed at T27, see T23.1 handover)
+- `httputil.py` — `is_localhost`, `get_home` (relocated from the now-deleted `templating.py`)
 - `app.py` — app factory + module-level `app` (ASGI), lifespan (config load), localhost 403 middleware; mounts `/_app` StaticFiles over the committed Svelte build (`frontend/dist`); registers routers `api → redirects`; stray `FileNotFoundError` → JSON 404
 - `routers/redirects.py` — legacy 302 redirects (bare-date/`.md`/ymd-asset → canonical SPA URL) + the SPA catch-all `GET /{path:path}` serving `frontend/dist/index.html` no-cache (T26 cutover)
-- `routers/pages.py`, `routers/assets.py`, `routers/actions.py` — **dropped at T26 cutover** (no longer imported/registered; the legacy Jinja page/asset/action routes and `/change-mode` are gone). Module files still on disk, deleted in T27 alongside `templates/`, `static/`, `templating.py`
 - `watch.py` — `DocWatcher` live sync (T24): in-memory `watch_path → {socket}` registry (single-process only — never `--workers`), `broadcast(path)` rebuilds DocPayload and pushes `doc`/`deleted` (doc-vs-deleted decided from live `is_file()`, so nvim atomic writes never emit spurious deletes), `run()` over `watchfiles.awatch(home)` filtering dotfiles/`config.json`; started/cancelled by app lifespan; checkbox PATCH broadcasts directly after toggle. WS wire protocol frozen in `handovers/server-rewrite/T24-live-sync.md`. Caveat: broadcast payloads assume localhost trust — revisit before ever using `AWIWI_ALLOW_REMOTE` seriously
-- `routers/api.py` — SPA JSON API under `/api` (T23, additive; registered before `pages`; full frozen contract in `handovers/server-rewrite/T23.2-api-routes.md`): `GET /api/ws` WebSocket (subscribe/unsubscribe/ping → doc/deleted/pong/error, localhost-gated), `GET /api/journal/{date}`, `/api/todo`, `/api/doc/{path}`, `/api/dir[/{path}]`, `/api/meta`, `/api/raw/{path}` (ETag `{mtime_ns}-{size}`/304, `?download=1`, independent secret 403), `PATCH /api/checkbox` (relpath-addressed, MD5 line-hash protocol unchanged, 409 on stale hash), `GET /api/search?q=&mode=fixed|regex&scope=…` (rg via `build_rg_args(fixed=, scopes=)`), JSON-404 catch-all for unmatched GET `/api/*`
+- `routers/api.py` — SPA JSON API under `/api` (T23, additive; full frozen contract in `handovers/server-rewrite/T23.2-api-routes.md`): `GET /api/ws` WebSocket (subscribe/unsubscribe/ping → doc/deleted/pong/error, localhost-gated), `GET /api/journal/{date}`, `/api/todo`, `/api/doc/{path}`, `/api/dir[/{path}]`, `/api/meta`, `/api/raw/{path}` (ETag `{mtime_ns}-{size}`/304, `?download=1`, independent secret 403), `PATCH /api/checkbox` (relpath-addressed, MD5 line-hash protocol unchanged, 409 on stale hash), `GET /api/search?q=&mode=fixed|regex&scope=…` (rg via `build_rg_args(fixed=, scopes=)`), JSON-404 catch-all for unmatched GET `/api/*`
+
+T27 (S27.1) deleted the legacy Jinja stack outright: `routers/pages.py`, `routers/assets.py`,
+`routers/actions.py` (dropped at T26 cutover, unregistered since), `templates/`, `static/`,
+`templating.py`, the `render_file`/Pygments path in `mdrender.py`, and the whole `server.old/`
+tree. Full module-map/route-table/ADR rewrite for the post-cutover, post-cleanup shape is S27.2.
 
 **Route table** (post-T26-cutover; registration: `api` router → `redirects` router; `/_app` mount
 before both; the `api` router's own `/api/{rest:path}` JSON-404 catch-all wins for `/api/*`, then

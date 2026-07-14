@@ -2,9 +2,7 @@
 
 Pure module: no FastAPI imports, no filesystem-path policy (that's
 `content.py`'s job, see T14 handover). Everything here takes text in and
-returns a `RenderedDoc` out; `render_file` additionally takes an optional
-filename/path *hint* for Pygments lexer lookup, but never touches the
-filesystem itself.
+returns a `RenderedDoc` out.
 
 Ported and *assessed* from `server.old/app.py` (Flask) + its dropped
 `nomnoml_extension.py`/`md_mermaid`/`markdown_strikethrough` dependencies,
@@ -13,14 +11,14 @@ T15 entry). Notable divergences are called out on the relevant docstring and
 summarized in the handover.
 
 T23.3 (ADR D13): `render_markdown`'s fenced code blocks no longer go through
-`CodeHiliteExtension`/Pygments -- the future Svelte SPA highlights code
-client-side with Shiki, so the server now emits clean, semantic
+`CodeHiliteExtension`/Pygments -- the Svelte SPA highlights code
+client-side with Shiki, so the server emits clean, semantic
 `<pre><code class="language-x">` markup (HTML-escaped, no Pygments spans)
 for `render_markdown`/`build_doc_payload`'s `kind == "markdown"` path. Every
 *other* extension and pre-filter is untouched -- byte-identical output.
-`render_file` (raw source files, `kind == "text"`) is a separate, still-
-Pygments-backed path that stays as-is until it's retired in T27; it is not
-part of this divergence.
+T27: the Pygments-backed `render_file` (raw source files, `kind == "text"`)
+path was retired; the SPA highlights those client-side too, via
+`guess_language`'s Shiki-id hint.
 """
 
 from __future__ import annotations
@@ -44,14 +42,6 @@ from markdown.extensions.tables import TableExtension
 from markdown.extensions.toc import TocExtension
 from markdown.inlinepatterns import SimpleTagInlineProcessor
 from markdown.preprocessors import Preprocessor
-from pygments import highlight
-from pygments.formatters import HtmlFormatter
-from pygments.lexer import Lexer
-from pygments.lexers import (
-    get_lexer_by_name,  # pyright: ignore[reportUnknownVariableType]
-    get_lexer_for_filename,  # pyright: ignore[reportUnknownVariableType]
-)
-from pygments.util import ClassNotFound
 
 from awiwi.checkbox import hash_line
 
@@ -114,9 +104,9 @@ _EXT_LANG_MAP: dict[str, str] = {
 def _modeline_language(text: str) -> str | None:
     """Sniff a vim modeline (`vim: ft=<lang>`) language name out of `text`,
     e.g. `-- vim: ft=pgsql.` -> `"pgsql"` (alias resolution, e.g. `pgsql` ->
-    `sql`, is each caller's job -- `render_file` resolves via `LEXER_MAP` for
-    Pygments, `guess_language` via the same `LEXER_MAP` for a Shiki id).
-    Shared so the sniff regex/logic lives in exactly one place.
+    `sql`, is the caller's job -- `guess_language` resolves via `LEXER_MAP`
+    for a Shiki id). Shared so the sniff regex/logic lives in exactly one
+    place.
     """
     m = _MODELINE_RE.search(text)
     return m.group(1) if m else None
@@ -127,11 +117,11 @@ def guess_language(path: Path | str, text: str | None = None) -> str | None:
     used as the client-side syntax-highlighting hint for non-markdown text
     files (`DocPayload.language`).
 
-    Precedence mirrors `render_file`'s Pygments lexer lookup: a vim modeline
-    found in `text` (`vim: ft=<lang>`, `LEXER_MAP` alias applied, e.g.
-    `pgsql` -> `sql`) wins over a guess from `path`'s filename. `Dockerfile`-
-    style filenames (no extension to key off) are recognized by name;
-    everything else is looked up in `_EXT_LANG_MAP` by lowercase extension.
+    A vim modeline found in `text` (`vim: ft=<lang>`, `LEXER_MAP` alias
+    applied, e.g. `pgsql` -> `sql`) wins over a guess from `path`'s
+    filename. `Dockerfile`-style filenames (no extension to key off) are
+    recognized by name; everything else is looked up in `_EXT_LANG_MAP` by
+    lowercase extension.
 
     Returns `None` when nothing matches -- an explicitly fine, expected
     outcome (the frontend sniffs too), not an error.
@@ -435,48 +425,3 @@ def render_markdown(
     # not part of the base class's declared attributes), hence `getattr`.
     toc: str = getattr(md, "toc", "") if add_toc else ""
     return RenderedDoc(html=rendered, toc=toc, title=title)
-
-
-def render_file(text: str, filename: str | Path | None = None) -> RenderedDoc:
-    """Syntax-highlight a non-markdown source file's `text` via Pygments.
-
-    Mirrors `server.old/app.py:render_non_journal`'s fallback branch: sniff a
-    vim modeline (`vim: ft=<lang>`) first -- the legacy convention for files
-    whose extension alone doesn't reveal the language (`LEXER_MAP` maps a
-    couple of aliases, e.g. `pgsql` -> `sql`) -- else guess from `filename`'s
-    extension. Falls back to the raw, unhighlighted text (unescaped, exactly
-    like legacy) if no lexer can be determined either way.
-
-    `filename` is a hint only, used solely for `pygments.lexers.
-    get_lexer_for_filename` -- this function never touches the filesystem.
-
-    `toc` is always `""` and `title` always `None`: source files have
-    neither.
-
-    Divergence: legacy calls `get_lexer_by_name(...)` unguarded once a
-    modeline matches, so an unrecognized modeline language crashes the
-    request (uncaught `ClassNotFound` -> 500). Here that's caught and falls
-    through to the filename-based guess (then the plain-text fallback)
-    instead.
-    """
-    lexer: Lexer | None = None
-    modeline_lang = _modeline_language(text)
-    if modeline_lang is not None:
-        try:
-            lexer = get_lexer_by_name(LEXER_MAP.get(modeline_lang, modeline_lang))
-        except ClassNotFound:
-            lexer = None
-    if lexer is None and filename is not None:
-        try:
-            lexer = get_lexer_for_filename(str(filename))
-        except ClassNotFound:
-            lexer = None
-
-    html: str
-    if lexer is not None:
-        html = highlight(
-            text, lexer, HtmlFormatter(style="solarized-light", cssclass="highlight")
-        )
-    else:
-        html = text
-    return RenderedDoc(html=html, toc="", title=None)

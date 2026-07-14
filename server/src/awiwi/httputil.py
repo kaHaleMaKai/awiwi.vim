@@ -1,14 +1,14 @@
-"""Small HTTP request helpers shared by every router (template and, from
-T23.1 on, JSON API alike).
+"""Small HTTP request helpers shared by every router.
 
-Relocated out of `templating.py` (T23.1): neither `is_localhost` nor
-`get_home` is a presentation concern -- `is_localhost` backs the app-wide
-403 middleware (`app.py`) *and* the secret-file content gate
-(`routers/pages.py:render_content_file`, `docs.py`'s payload builders);
-`get_home` is the single `request.app.state.home` access point every
-router uses. `templating.py` re-exports both, unchanged, as a temporary
-backward-compat shim for existing imports (dies in T27 per the design
-brief) -- no behavior changed by the move.
+Relocated out of the (T27-deleted) `templating.py` (T23.1): neither
+`is_localhost` nor `get_home` is a presentation concern -- `is_localhost`
+backs the app-wide 403 middleware (`app.py`) *and* the secret-file content
+gate (`docs.py`'s payload builders, formerly `routers/pages.py:
+render_content_file`); `get_home` is the single `request.app.state.home`
+access point every router uses. `templating.py` used to re-export both,
+unchanged, as a temporary backward-compat shim for existing imports; that
+shim was removed in T27 once nothing imported from it anymore -- no
+behavior changed by either move.
 """
 
 from __future__ import annotations

@@ -34,4 +34,4 @@ keeps each layer in sync with the code; see `docs/knowledge-base.md`.
 
 **urgency** — named priority level mapped to a numeric value (`backlog`=0 … `immediate`=10).
 
-**viewer / server** — the web renderer for awiwi notes; new impl in `server/` (FastAPI), legacy in `server.old/` (Flask).
+**viewer / server** — the web renderer for awiwi notes: `server/` (FastAPI + Pydantic JSON API, committed Svelte SPA). The legacy Flask implementation (`server.old/`) was deleted at T27.
