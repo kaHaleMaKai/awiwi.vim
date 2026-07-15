@@ -1,6 +1,19 @@
 # State — Lua rewrite
 
-_Updated: 2026-07-14 (33rd run) — **Server re-imagining phase CLOSED (plan
+_Updated: 2026-07-15 (34th run) — **T28 visual parity SPA↔mockups, stopped-by-user after batch 2
+(plan `the-new-web-version-graceful-sparrow.md`)**: T28.0 mdrender tag/mention root-cause fix
+(`ec907a4`, backend 237 green), T28.1 committed visual fixture + pairs manifest (`e55e2bb`),
+T28.2 dep-free CDP screenshot harness `server/tests/visual/shoot.mjs` (`22494ed`), T28.3 two
+comparator→fixer iterations (13 haiku comparators/round, sonnet fixer batches `7526d75` +
+`7ea8010`; frontend 123 green) — 5 pages haiku-verified PARITY, 8 pages fixed+fixer-verified.
+**Global handover: `handovers/visual-parity/T28.3-parity-loop.md` — read its "Open items"
+first**: (1) CRITICAL root `.gitignore:17 dist/` conflicts with ADR D20, committed dist is still
+the pre-fix T26 bundle → decide ignore-fix, rebuild, commit dist; (2) final independent sweep of
+the 8 batch-2 pages; (3) T28.4 kb close-out (architecture.md harness note, archive handovers);
+(4) G6 fixture-limited chip-state residual. Escalated, not fixed: drawio "Open in draw.io"
+button (security), mockup factual errors (MIME claim, stray back-link)._
+
+_Previous (33rd run) — **Server re-imagining phase CLOSED (plan
 `re-imagne-the-server-completely-wild-parnas.md`, T22–T27 complete)**: Noir-Deco mockups
 (T22 d5d62f8, 4 feedback rounds) + full SPA backend (JSON API, redaction embed, live sync,
 T23–T24) + Svelte 5 SPA frontend (T25 99535a0/6e582e7/0639b1d/0919430, 110 tests) + cutover
@@ -86,6 +99,12 @@ _Previous (26th run) — **T11 UNBLOCKED and CLOSED**: user added the nvim allow
 - [x] T26 — cutover: SPA live, legacy template routes dropped (2026-07-14, S26.1 sonnet 25cc8fe) — `routers/redirects.py` (new, legacy 302 redirects + SPA catch-all), `app.py` mount `/_app` StaticFiles + router registration, `frontend/dist/` (committed, git add -f, linguist-generated -diff), test_acceptance.py rewritten (30 tests, page-HTML→JSON payloads, redirects asserted, SPA fallback, ETag/304, theme-cookie tests dropped, checkbox relpath PATCH, redaction embed). Backend gates green (234 passed, ruff clean, basedpyright 0). Architecture.md §Server route table + router bullets minimal update only (full rewrite deferred to S27.2). Handover `handovers/server-rewrite/T26-cutover.md`
 - [x] T27 — delete legacy template stack + server.old (2026-07-14, S27.1 sonnet 2f31c9e) — deleted: `routers/{pages,assets,actions}.py`, `templates/`, `static/`, `templating.py`, `render_file`+Pygments from `mdrender.py`, `test_mdrender.py::TestRenderFile` (4 tests), entire `server.old/` tree; deps: removed jinja2/pygments/python-multipart; docs: minimal honest updates in architecture.md (components table, module-map bullets, T27 note pointer) + glossary.md viewer/server entry. Backend gates green (229 passed, 234−5 deleted tests). Handover `handovers/server-rewrite/T27.1-cleanup.md`
 - [x] S27.2 — knowledge base close-out (2026-07-14, kb-curator) — docs/architecture.md §Server fully rewritten (comprehensive module map, API route table, WS protocol, SPA layout, build/dev workflow); docs/decisions.md ADRs D18–D23 appended (SPA-over-JSON frontend D18, client-side Shiki+drawio D18/D22, WS live sync+single-process D19, committed-dist policy D20, Noir-Deco theme D21, no-sanitization localhost-only D23); docs/INDEX.md ADR high-water D17→D23; handovers/STATE.md header + T26–T27 entries + transaction ledger + completion; handovers/server-rewrite/*.md→handovers/done/server-rewrite/; kb-detect passes, docs-only commit T27.2. PHASE CLOSED.
+
+- [x] T28.0 — mdrender tag/mention root-cause fix (2026-07-15, sonnet ec907a4) — whole-token `@@mention` spans, new `#tag` emission, class contract `awiwi-mention`/`awiwi-tag` (app.css selectors aligned), fence-aware substitution fixed latent `@bug`-in-code-fence bug; backend 229→237 green; handover `handovers/visual-parity/T28.0-tag-mention.md`
+- [x] T28.1 — visual-parity fixture + pairs manifest (2026-07-15, sonnet e55e2bb) — committed notes tree `server/tests/visual/fixture/home/` reproducing mockup sample content; `pairs.json` 12 pairs + recipe-audit; per-page comparator exclusion lists; handover `handovers/visual-parity/T28.1-fixture.md`
+- [x] T28.2 — CDP screenshot harness (2026-07-15, sonnet 22494ed) — dep-free `server/tests/visual/shoot.mjs` (chromium headless CDP, full-page byte-stability capture, light-theme injection, ImageMagick RMSE + band slices); handover `handovers/visual-parity/T28.2-harness.md`
+- [x] T28.3 — comparison+fix loop, STOPPED BY USER after batch 2 (2026-07-15, 13× haiku comparators/round + sonnet fixer; 7526d75 batch 1 F1–F21, 7ea8010 batch 2 G1–G11) — 5 pages haiku-verified PARITY (todo, 404, asset-drawio, download, recipe-audit), 8 pages fixed+fixer-verified (journal ×2, dir ×2, search ×2, asset-image, asset-text); frontend 123 green; **global handover `handovers/visual-parity/T28.3-parity-loop.md` — Open items 1–4 pending, incl. CRITICAL stale-committed-dist/.gitignore conflict**
+- [ ] T28.4 — kb close-out NOT RUN (stopped) — architecture.md harness note, archive handovers/visual-parity/, dist decision/ADR
 
 Cadence per transaction: S.1 recon (vim-archaeologist) → S.2 port (lua-port-engineer, red/green TDD) → S.3 verify (qa-verifier PASS/FAIL) → S.4 curate+commit (kb-curator, pre-commit kb-detect gate). Full suite `nvim --clean --headless -l tests/run.lua` after each.
 
