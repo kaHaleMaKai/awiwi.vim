@@ -62,11 +62,9 @@
     getDir(p)
       .then((payload) => {
         dir = payload;
-        // Root dir has no ancestors (backend returns `[]`) — mockups/dir-root.html
-        // shows a single "home" crumb rather than nothing.
-        breadcrumbs.set(
-          payload.breadcrumbs.length ? payload.breadcrumbs : [{ name: "home", target: "/" }],
-        );
+        // Breadcrumb trail itself (incl. the root "home"-only fallback and
+        // the "today" quick link) is set by the dedicated $effect below,
+        // which also reacts to `today` resolving after `dir` already has.
       })
       .catch((err) => {
         notFound = true;
@@ -78,12 +76,19 @@
   // journal/YYYY/MM dirs get their own eyebrow/title (mockups/dir-journal-month.html:
   // "Journal" / "July 2026") instead of the generic "Directory" / "MM/".
   const journalMonthMatch = $derived(/^journal\/(\d{4})\/(\d{2})$/.exec(path));
+  // Root h1/subtext: project name + IPA-ish pronunciation, and a Hawaiian
+  // motto in italics underneath (stakeholder feedback S31.1) — replaces the
+  // old "g:awiwi_home" placeholder title. Keep both strings verbatim,
+  // including the macrons/IPA marks and ʻokina characters.
+  const ROOT_TITLE = "awīwī /awi:ˈi:/";
+  const ROOT_SUBTITLE = "ʻAʻole lohi nohoʻi.";
+
   const title = $derived(
     journalMonthMatch
       ? monthTitle(journalMonthMatch[1], journalMonthMatch[2])
       : path
         ? (path.split("/").pop() ?? path) + "/"
-        : "g:awiwi_home",
+        : ROOT_TITLE,
   );
   const deco = $derived(journalMonthMatch ? "Journal" : path ? "Directory" : "Awiwi Home");
 
@@ -93,6 +98,20 @@
   const weeks = $derived(isJournalMonth ? bandByWeek(dayEntries) : []);
 
   const isRoot = $derived(!path);
+
+  // Root-only "today" quick link, right of the "home" breadcrumb, separated
+  // by "|" (S31.1). Uses the server's notion of `today` (already fetched
+  // above via getMeta, for the journal-month current-day highlight) rather
+  // than the client clock, so it always resolves to the same day the server
+  // would parse `/api/journal/today` as. Breadcrumbs.svelte renders this
+  // exact [home, today] pair as a quick link, not an ancestor trail.
+  $effect(() => {
+    if (!dir) return;
+    const base = dir.breadcrumbs.length ? dir.breadcrumbs : [{ name: "home", target: "/" }];
+    breadcrumbs.set(
+      isRoot && today ? [...base, { name: "today", target: `/journal/${today}` }] : base,
+    );
+  });
   // Root listing order/icons follow mockups/dir-root.html (journal, assets,
   // recipes) rather than the backend's alphabetical entry order.
   const rootEntries = $derived(
@@ -134,6 +153,9 @@
 {:else if dir}
   <span class="deco-title">{deco}</span>
   <h1 class="page-title u-mt-2">{title}</h1>
+  {#if isRoot}
+    <p class="page-subtitle u-mt-1">{ROOT_SUBTITLE}</p>
+  {/if}
   <div class="deco-rule u-mt-4"></div>
 
   {#if isJournalMonth}

@@ -4,7 +4,8 @@
 //
 // Passes: Shiki highlighting + copy buttons on code blocks, table export
 // CopyMenus, checkbox PATCH wiring, lazy theme-aware mermaid, media rewrite +
-// lightbox, and redaction click-to-reveal. Everything is best-effort and
+// lightbox, inline drawio-link rendering, and redaction click-to-reveal.
+// Everything is best-effort and
 // tolerant of missing structure — a doc with no code/tables/checkboxes just
 // gets fewer passes run.
 import type { Theme } from "../theme.svelte";
@@ -14,6 +15,7 @@ import { enhanceTables } from "./tables";
 import { wireCheckboxes } from "./checkbox";
 import { renderMermaid } from "./mermaid";
 import { rewriteMedia } from "./media";
+import { enhanceDrawio } from "./drawio";
 import { wireRedaction } from "./redaction";
 
 export interface EnhanceOptions {
@@ -57,6 +59,7 @@ export function enhance(container: HTMLElement, opts: EnhanceOptions): EnhanceHa
     }),
   );
   cleanups.push(rewriteMedia(container, opts.watchPath));
+  cleanups.push(enhanceDrawio(container, opts.watchPath));
   cleanups.push(wireRedaction(container));
 
   void renderMermaid(container, opts.theme);

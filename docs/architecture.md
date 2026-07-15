@@ -300,15 +300,17 @@ live sync (each worker has empty registry). Comprehensive spec: `handovers/done/
   element via `requestAnimationFrame` after navigation, incl. same-path hash links); global same-origin
   `<a>` click interception (preventDefault + navigate with hash/search preserved)
 - `src/lib/api.ts` — typed `/api` fetchers (no runes, ordinary TypeScript)
-- `src/lib/components/` — reusable components (Breadcrumbs, SearchBar, ThemeToggle, ConnectionDot)
+- `src/lib/components/` — reusable components: `Breadcrumbs` (path trail + special root case "home | today"; S31.1), `DirPage` (folder listing; root renders branding title "awīwī /awi:ˈi:/" + italic subtitle + today quick-link breadcrumbs per S31.1), `SearchBar`, `ThemeToggle`, `ConnectionDot`
 - `src/lib/enhance/` — pipeline for rendered markdown: Shiki dual-theme (lazy singleton, CSS-var
   theme flip, `textContent` read for unknown-lang fallback; ADR D18), mermaid (lazy, re-themed on
   toggle), checkbox wiring (PATCH relpath, 409 → refetch), copy buttons on `<pre>`, table export
-  (markdown/CSV/HTML via `tableExport.ts`), image rewrite + lightbox (lazy), drawio (lazy
-  `viewer-static.min.js` vendor script, no re-highlighting; ADR D22). Language hint from backend
-  `guess_language` (ext map + vim-modeline).
+  (markdown/CSV/HTML via `tableExport.ts`), image rewrite + lightbox (lazy), drawio-inline (S31.2:
+  enhance pass that replaces `.drawio` links in doc bodies with inline-rendered diagrams via shared
+  `loadDrawioViewer()` singleton, graceful fallback to original link on error, idempotent). Language
+  hint from backend `guess_language` (ext map + vim-modeline).
+- `src/lib/drawioViewer.ts` — singleton lazy-loader for vendor drawio viewer script (shared by DrawioView component + drawio-inline enhance pass; S31.2)
 - `src/routes/` — route views (Home, Dir, Todo, Journal, Asset, Recipes, Search, NotFound)
-- `public/vendor/drawio/` — pinned `viewer-static.min.js` (lazy-loaded by DrawioView)
+- `public/vendor/drawio/` — pinned `viewer-static.min.js` (lazy-loaded by `drawioViewer.ts` singleton, no app.diagrams.net ever contacted; ADR D22)
 
 **Build**: `npm run build` produces byte-identical `frontend/dist/` (reproducible, no Node at serve
 time). **Committed-dist policy** (ADR D20): dist is force-added to git (`.gitignore` ignores it but

@@ -1,30 +1,3 @@
-<script module lang="ts">
-  // Lazy, singleton classic-script injection for the self-hosted drawio
-  // viewer bundle (see public/vendor/drawio/README.md for the pinned
-  // release + rationale). One <script> tag for the whole app lifetime,
-  // regardless of how many DrawioView instances mount.
-  let scriptPromise: Promise<void> | null = null;
-
-  function loadDrawioScript(): Promise<void> {
-    if (!scriptPromise) {
-      scriptPromise = new Promise((resolve, reject) => {
-        const el = document.createElement("script");
-        el.src = `${import.meta.env.BASE_URL}vendor/drawio/viewer-static.min.js`;
-        el.onload = () => resolve();
-        el.onerror = () => reject(new Error("failed to load drawio viewer script"));
-        document.head.appendChild(el);
-      });
-    }
-    return scriptPromise;
-  }
-
-  declare global {
-    interface Window {
-      GraphViewer?: { processElements: () => void };
-    }
-  }
-</script>
-
 <script lang="ts">
   // kind === "drawio": render .drawio XML client-side via the self-hosted
   // mxgraph viewer. `lightbox: false` is deliberate (see vendor README) — the
@@ -33,6 +6,7 @@
   // if that path stays open, so we drop it (and the "Open in draw.io" button
   // the mockup shows) rather than ship the leak.
   import { rawUrl, type DocPayload } from "../api";
+  import { loadDrawioViewer } from "../drawioViewer";
 
   interface Props {
     doc: DocPayload;
@@ -55,7 +29,7 @@
     if (!container) return;
     status = "loading";
     let cancelled = false;
-    loadDrawioScript()
+    loadDrawioViewer()
       .then(() => {
         if (cancelled) return;
         container.innerHTML = "";

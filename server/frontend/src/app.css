@@ -357,6 +357,11 @@ hr { border: 0; border-top: 1px solid var(--border-subtle); }
   letter-spacing: 0.05em;
   color: var(--text-primary);
 }
+/* Root/index page only (S31.1): motto under the "awīwī" h1. */
+.page-subtitle {
+  font-style: italic;
+  color: var(--text-muted);
+}
 
 /* -- deco corner-bracket card / dialog frame -- */
 .deco-card {
@@ -750,6 +755,23 @@ hr { border: 0; border-top: 1px solid var(--border-subtle); }
   min-height: 180px;
 }
 
+/* -- inline drawio diagrams (enhance/drawio.ts: body `.drawio` links rendered
+   in place; the original link survives as the figcaption) -- */
+.markdown-body figure.drawio-inline {
+  margin-top: var(--space-4);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background: var(--bg-sunken);
+  padding: var(--space-4);
+  overflow-x: auto;
+}
+.markdown-body figure.drawio-inline figcaption {
+  margin-top: var(--space-3);
+  text-align: center;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
 /* -- rendered markdown body (MarkdownView's `.markdown-body` wrapper) --
    Ported from mockups/journal.html's `.journal-body` (T25.3: same content,
    renamed to match the container class MarkdownView actually emits). */
@@ -856,6 +878,7 @@ mark.hit-match { background: rgba(201, 162, 75, 0.35); color: var(--accent-brass
    Ported from mockups/search.html's inline <style> (S25.4, T22 mockup was
    never given canonical app.css rules for these — same CSS custom
    properties either way, so identical dark/light). */
+.search-field { max-width: 480px; }
 .search-toolbar { display: flex; align-items: center; gap: var(--space-3); }
 .regex-toggle { display: inline-flex; align-items: center; gap: var(--space-2); font-size: var(--text-sm); color: var(--text-muted); cursor: pointer; }
 .switch { position: relative; width: 34px; height: 18px; flex: none; }
