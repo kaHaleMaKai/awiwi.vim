@@ -1,6 +1,19 @@
 # State — Lua rewrite
 
-_Updated: 2026-07-15 (35th run) — **T28 visual-parity flow CLOSED** (plan
+_Updated: 2026-07-15 (36th run) **T29–T34 stakeholder-feedback round 1 CLOSED** (plan
+`tasks/feedback-round-1-plan.md`, source `tasks/feedback.md`): T29 reactive router
+query/hash + search UX (`67b3a76`), T30 TOC-rail overflow fix + collapsible rail
+(`425ca1e`), T31 index branding "awīwī /awi:ˈi:/" + inline drawio in doc bodies
+(`caf3ab3`), T32 dash-bullet checkboxes + RENDERED redaction reveal — ADR **D24**
+(`a67a3ae`), T33 asset URL alias mappings (`c246fcc`), T34 close-out (fresh dist per
+ADR D20, ledger, handovers archived). Backend 263 green, frontend 140 green,
+svelte-check 0. Two feedback items were interpreted (garbled source, flagged to user):
+"quick link right of home" → `home | today` crumb linking to today's journal;
+"drawio link … sub text" → inline-rendered diagram with the link as figcaption.
+Env note: `/home` hit 100% disk — `uv cache prune` freed ~1.7G; `~/.cache/podman`
+(4.4G) is the next reclaim candidate, left for the user._
+
+_Previous (35th run) — **T28 visual-parity flow CLOSED** (plan
 `the-new-web-version-graceful-sparrow.md`): T28.0 mdrender tag/mention root-cause fix
 (`ec907a4`, backend 237 green), T28.1 committed visual fixture + pairs manifest (`e55e2bb`),
 T28.2 dep-free CDP screenshot harness `server/tests/visual/shoot.mjs` (`22494ed`), T28.3 two
@@ -116,6 +129,12 @@ _Previous (26th run) — **T11 UNBLOCKED and CLOSED**: user added the nvim allow
 - [x] T28.1 — visual-parity fixture + pairs manifest (2026-07-15, sonnet e55e2bb) — committed notes tree `server/tests/visual/fixture/home/` reproducing mockup sample content; `pairs.json` 12 pairs + recipe-audit; per-page comparator exclusion lists; handover `handovers/visual-parity/T28.1-fixture.md`
 - [x] T28.2 — CDP screenshot harness (2026-07-15, sonnet 22494ed) — dep-free `server/tests/visual/shoot.mjs` (chromium headless CDP, full-page byte-stability capture, light-theme injection, ImageMagick RMSE + band slices); handover `handovers/visual-parity/T28.2-harness.md`
 - [x] T28.3 — comparison+fix loop (2026-07-15, 13× haiku comparators/round + sonnet fixer; 7526d75 batch 1 F1–F21, 7ea8010 batch 2 G1–G11) — 5 pages haiku-verified PARITY (todo, 404, asset-drawio, download, recipe-audit), 8 pages fixed+fixer-verified (journal ×2, dir ×2, search ×2, asset-image, asset-text); frontend 123 green; **all open items 1–4 resolved in T28.4**
+- [x] T29 — search stack (2026-07-15, 67b3a76) — RouterState reactive search/hash + hash-scroll (S29.1); SearchBar keystroke-clobber fixed, SearchPage reactive urlState + on-page search field (S29.2-3); frontend 130 green at commit
+- [x] T30 — TOC rail (2026-07-15, 425ca1e) — minmax(0,1fr) overflow fix, collapsible rail (aria-expanded), <700px default-collapsed (S30.1)
+- [x] T31 — index branding + inline drawio (2026-07-15, caf3ab3) — root h1 "awīwī /awi:ˈi:/" + italic subtext, home|today crumb (S31.1); enhance/drawio.ts inline viewer + figcaption link, shared drawioViewer.ts singleton (S31.2); frontend 140 green
+- [x] T32 — dash checkboxes + rendered redaction (2026-07-15, a67a3ae) — `- [ ]` bullets render/toggle (S32.1); section-redaction embeds carry rendered HTML, ADR D24, inline form unchanged (S32.2); backend 263 green
+- [x] T33 — asset URL aliases (2026-07-15, c246fcc) — normalize_asset_path() in /api/doc + /api/raw, new dashed-segment 302 (S33.1)
+- [x] T34 — feedback-r1 close-out (2026-07-15) — fresh dist (ADR D20), full suites green, handovers archived handovers/done/feedback-r1/
 - [x] T28.4 — kb close-out (2026-07-15, kb-curator) — .gitignore fix + fresh dist committed (`2c9d5b5`), final independent sweep all-PARITY (13/13 pages), harness note added to `docs/architecture.md` §Toolchain, `handovers/visual-parity/` archived to `handovers/done/visual-parity/`; kb-detect passes
 
 Cadence per transaction: S.1 recon (vim-archaeologist) → S.2 port (lua-port-engineer, red/green TDD) → S.3 verify (qa-verifier PASS/FAIL) → S.4 curate+commit (kb-curator, pre-commit kb-detect gate). Full suite `nvim --clean --headless -l tests/run.lua` after each.
