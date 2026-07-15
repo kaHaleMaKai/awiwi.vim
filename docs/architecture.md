@@ -359,6 +359,11 @@ Python-markdown + local extensions, byte-identical per ADR D13:
 **Tests**: `cd server && uv run pytest` (testpaths=`tests/`, no external service deps).
 **Lint/format**: `uv run ruff check .` (line-length 90, double quotes), `uv run ruff format .`.
 **Type check**: `uv run basedpyright` (0 errors/warnings/notes).
+**Visual-regression harness**: `server/tests/visual/shoot.mjs` (dep-free CDP screenshot
+harness: chromium headless, full-page capture, ImageMagick RMSE + band slices). Rerunnable;
+fixture tree at `server/tests/visual/fixture/home/`, manifest at `pairs.json`; used for
+SPA↔mockup parity loop (T28), mockups are ground truth. See `handovers/done/visual-parity/`
+for run results and exclusion lists.
 **Git/pre-commit**: `scripts/kb-detect.sh` (rules in `.claude/kb/rules.tsv`) gates changes to
 `server/src` or `server/pyproject.toml` against fresh knowledge layers (`docs/architecture.md` or
 `docs/INDEX.md`); `DOCS_OK=1 git commit` to escape if docs are unchanged.

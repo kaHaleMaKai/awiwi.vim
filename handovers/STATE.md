@@ -1,6 +1,18 @@
 # State — Lua rewrite
 
-_Updated: 2026-07-15 (34th run) — **T28 visual parity SPA↔mockups, stopped-by-user after batch 2
+_Updated: 2026-07-15 (35th run) — **T28 visual-parity flow CLOSED** (plan
+`the-new-web-version-graceful-sparrow.md`): T28.0 mdrender tag/mention root-cause fix
+(`ec907a4`, backend 237 green), T28.1 committed visual fixture + pairs manifest (`e55e2bb`),
+T28.2 dep-free CDP screenshot harness `server/tests/visual/shoot.mjs` (`22494ed`), T28.3 two
+comparator→fixer iterations (13 haiku comparators/round, sonnet fixer batches `7526d75` +
+`7ea8010`; frontend 123 green), **T28.4 kb close-out complete**: .gitignore fix (`2c9d5b5`,
+fresh dist committed), final independent sweep of 8 batch-2 pages (all PARITY), harness note
+added to architecture.md §Toolchain, handovers/visual-parity/ archived to handovers/done/.
+**13/13 pages verified PARITY within documented exclusions.** Escalated (not fixed): drawio
+"Open in draw.io" button (security), mockup factual errors (MIME claim, stray back-link),
+G6 fixture-limited chip-state residual (won't-fix, documented)._
+
+_Previous (34th run) — **T28 visual parity SPA↔mockups, stopped-by-user after batch 2
 (plan `the-new-web-version-graceful-sparrow.md`)**: T28.0 mdrender tag/mention root-cause fix
 (`ec907a4`, backend 237 green), T28.1 committed visual fixture + pairs manifest (`e55e2bb`),
 T28.2 dep-free CDP screenshot harness `server/tests/visual/shoot.mjs` (`22494ed`), T28.3 two
@@ -103,8 +115,8 @@ _Previous (26th run) — **T11 UNBLOCKED and CLOSED**: user added the nvim allow
 - [x] T28.0 — mdrender tag/mention root-cause fix (2026-07-15, sonnet ec907a4) — whole-token `@@mention` spans, new `#tag` emission, class contract `awiwi-mention`/`awiwi-tag` (app.css selectors aligned), fence-aware substitution fixed latent `@bug`-in-code-fence bug; backend 229→237 green; handover `handovers/visual-parity/T28.0-tag-mention.md`
 - [x] T28.1 — visual-parity fixture + pairs manifest (2026-07-15, sonnet e55e2bb) — committed notes tree `server/tests/visual/fixture/home/` reproducing mockup sample content; `pairs.json` 12 pairs + recipe-audit; per-page comparator exclusion lists; handover `handovers/visual-parity/T28.1-fixture.md`
 - [x] T28.2 — CDP screenshot harness (2026-07-15, sonnet 22494ed) — dep-free `server/tests/visual/shoot.mjs` (chromium headless CDP, full-page byte-stability capture, light-theme injection, ImageMagick RMSE + band slices); handover `handovers/visual-parity/T28.2-harness.md`
-- [x] T28.3 — comparison+fix loop, STOPPED BY USER after batch 2 (2026-07-15, 13× haiku comparators/round + sonnet fixer; 7526d75 batch 1 F1–F21, 7ea8010 batch 2 G1–G11) — 5 pages haiku-verified PARITY (todo, 404, asset-drawio, download, recipe-audit), 8 pages fixed+fixer-verified (journal ×2, dir ×2, search ×2, asset-image, asset-text); frontend 123 green; **global handover `handovers/visual-parity/T28.3-parity-loop.md` — Open items 1–4 pending, incl. CRITICAL stale-committed-dist/.gitignore conflict**
-- [ ] T28.4 — kb close-out NOT RUN (stopped) — architecture.md harness note, archive handovers/visual-parity/, dist decision/ADR
+- [x] T28.3 — comparison+fix loop (2026-07-15, 13× haiku comparators/round + sonnet fixer; 7526d75 batch 1 F1–F21, 7ea8010 batch 2 G1–G11) — 5 pages haiku-verified PARITY (todo, 404, asset-drawio, download, recipe-audit), 8 pages fixed+fixer-verified (journal ×2, dir ×2, search ×2, asset-image, asset-text); frontend 123 green; **all open items 1–4 resolved in T28.4**
+- [x] T28.4 — kb close-out (2026-07-15, kb-curator) — .gitignore fix + fresh dist committed (`2c9d5b5`), final independent sweep all-PARITY (13/13 pages), harness note added to `docs/architecture.md` §Toolchain, `handovers/visual-parity/` archived to `handovers/done/visual-parity/`; kb-detect passes
 
 Cadence per transaction: S.1 recon (vim-archaeologist) → S.2 port (lua-port-engineer, red/green TDD) → S.3 verify (qa-verifier PASS/FAIL) → S.4 curate+commit (kb-curator, pre-commit kb-detect gate). Full suite `nvim --clean --headless -l tests/run.lua` after each.
 
@@ -131,6 +143,7 @@ Cadence per transaction: S.1 recon (vim-archaeologist) → S.2 port (lua-port-en
 
 ## What the next session needs
 
+- **T28 fully closed (2026-07-15)** — visual-parity loop complete, all 13 pages verified PARITY, knowledge base updated, handovers archived.
 - **T21 — kitty dogfood checklist for inline images (user, manual, in a real kitty session):**
   1. Get snacks.nvim on the rtp — e.g. `nvim --cmd 'set rtp+=/tmp/snacks.nvim'` (a shallow clone
      from S19.2 sits at `/tmp/snacks.nvim`) or install it properly via the plugin manager.
