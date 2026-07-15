@@ -478,8 +478,14 @@ hr { border: 0; border-top: 1px solid var(--border-subtle); }
 }
 .chip:focus-visible { outline: none; box-shadow: var(--shadow-focus-cyan); }
 
-.tag { color: var(--accent-brass-strong); font-weight: 600; }
-.mention { color: var(--accent-cyan); font-weight: 600; }
+/* Class contract: the server (awiwi.mdrender) emits `awiwi-tag`/
+   `awiwi-mention` (T28.0), consistent with its other inline-markup spans
+   (`awiwi-bug`/`awiwi-change`/`awiwi-incident`/`awiwi-issue`,
+   `awiwi-checkbox`). Selector names only differ from the T22 mockups'
+   `.tag`/`.mention` (mockups/tokens.css) -- the visual rule bodies below are
+   copied verbatim from there. */
+.awiwi-tag { color: var(--accent-brass-strong); font-weight: 600; }
+.awiwi-mention { color: var(--accent-cyan); font-weight: 600; }
 
 /* -- redaction (click to reveal) --
    Obscured by default; a click (or Enter/Space) toggles .is-revealed.

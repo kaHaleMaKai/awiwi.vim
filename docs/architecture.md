@@ -202,8 +202,9 @@ re-derivation for WebSocket (HTTP middleware doesn't cover ASGI `websocket` scop
 - `content.py` — date parsing + aliases, journal prev/next nav, path safety, dir listing, breadcrumbs
 - `checkbox.py` — line hashing (MD5, legacy-compatible), in-place toggle with domain-specific errors
 - `search.py` — ripgrep arg building, output parsing, hit sorting
-- `mdrender.py` — `RenderedDoc`, `render_markdown` with pre-filters (redaction, checkbox, @tag/@mention,
-  ordinal sup); fenced code as plain `<pre><code class="language-x">` (client-side Shiki highlights,
+- `mdrender.py` — `RenderedDoc`, `render_markdown` with pre-filters (redaction, checkbox,
+  `@tag`/`@@mention`/`#tag` inline-markup spans (T28.0), ordinal sup); fenced code as plain
+  `<pre><code class="language-x">` (client-side Shiki highlights,
   per ADR D18; CodeHilite dropped T23); `guess_language(path, text)` ext-map + vim-modeline hint;
   redacted blocks stay in HTML obscured (`span.redacted`, click-to-reveal in SPA), except remote
   (D23 no-sanitization stance)
@@ -341,6 +342,17 @@ Python-markdown + local extensions, byte-identical per ADR D13:
 - Redaction: inline `[~secret~]` → `<span class="redacted">` with content visible on localhost
   (click-to-reveal in SPA), blanked off-localhost (403 route-level gate prevents the `/api/raw`
   bytes entirely)
+- Inline tag/mention markup (T28.0, `mdrender._filter_body`'s `_INLINE_MARKUP_RE`, applied
+  line-by-line before python-markdown conversion): `@bug`/`@change`/`@incident`/`@issue` →
+  `<span class="awiwi-{type}">`; `@@word` (full token, e.g. `@@lars`) →
+  `<span class="awiwi-mention">`; `#word` / `#path/style-tag` (e.g. `#project-awiwi`,
+  `#recipes/sourdough-starter`) → `<span class="awiwi-tag">`. The class contract is server-driven —
+  `frontend/src/app.css` styles `.awiwi-tag`/`.awiwi-mention` (visuals copied from the T22 mockups'
+  `.tag`/`.mention` in `mockups/tokens.css`, selector renamed to match). `#tag` never fires on a
+  heading marker (`# `/`## ` always have a space after the last `#`, so the "immediate word char"
+  requirement excludes it structurally) or a markdown link href (`](#anchor)`); none of the three
+  patterns fire inside an inline code span (`` `...` ``) or a fenced code block (```` ``` ````,
+  including ```` ```mermaid ```` diagram source) — both tracked/skipped in the same per-line loop.
 
 ### Toolchain
 

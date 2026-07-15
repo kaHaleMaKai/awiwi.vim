@@ -50,7 +50,49 @@ from awiwi.checkbox import hash_line
 _HEADING_RE = re.compile(r"^(?P<marker>##+) ")
 _CHECKBOX_LINE_RE = re.compile(r"^(\s*\* )(\[[x ]\])( .*$)")
 _TAG_PATTERN = re.compile(r"@(?P<type>bug|change|incident|issue)\b")
-_PERSON_TAG_PATTERN = re.compile(r"@(@[^\s,;.)}\]])")
+# `@@word` mentions: the whole token (both `@`s plus the name) is one match,
+# so the whole thing lands in one span -- earlier this was
+# `@(@[^\s,;.)}\]])`, which only captured `@` + one char (`@@lars` ->
+# `<span ...>@l</span>ars`), a bug fixed in T28.0. Terminates on the first
+# char outside `[\w-]` (whitespace/punctuation), same "stop at the next
+# non-word char" convention as `_HASHTAG_PATTERN` below.
+_PERSON_TAG_PATTERN = re.compile(r"@@[\w-]+")
+# `#tag`/`#path/style-tag` (T28.0): a bare `#` immediately followed by a word
+# char, then more word chars/hyphens/slashes (for `#recipes/sourdough-
+# starter`-style path tags). The immediate-word-char requirement is what
+# keeps this from ever matching a markdown heading marker (`# `/`## ` always
+# have a space after the last `#`) -- no separate heading check needed. The
+# two lookbehinds reject `##foo` (a malformed/escaped heading, previous char
+# is `#`) and `word#tag` (previous char is a word char), and `](#anchor)`
+# markdown-link hrefs (previous char is the link's opening paren).
+_HASHTAG_PATTERN = re.compile(r"(?<!\()(?<![\w#])#[\w][\w/-]*")
+# Inline code spans (`` `...` ``, single line only -- fenced multi-line
+# blocks are handled separately, see `_FENCE_DELIM_RE`) must never have their
+# contents rewritten by the tag/mention/hashtag patterns above: matched
+# first in the alternation below and passed through verbatim.
+_CODE_SPAN_RE = re.compile(r"`[^`\n]*`")
+# One combined pass over each line: try a code span first (pass through
+# untouched), then each tag-ish pattern in turn (first match at each
+# position wins, per normal regex alternation) -- this is what keeps
+# `@bug`/`@@mention`/`#hashtag` spans from ever being emitted *inside*
+# inline code, without needing three separate scans that would each have to
+# re-discover where the code spans are.
+_INLINE_MARKUP_RE = re.compile(
+    "|".join(
+        [
+            rf"(?P<code>{_CODE_SPAN_RE.pattern})",
+            rf"(?P<tag>{_TAG_PATTERN.pattern})",
+            rf"(?P<mention>{_PERSON_TAG_PATTERN.pattern})",
+            rf"(?P<hashtag>{_HASHTAG_PATTERN.pattern})",
+        ]
+    )
+)
+# Fenced code block delimiter (```, optionally with a language after it, e.g.
+# ` ```python `) -- toggled on/off in `_filter_body`'s line loop so lines
+# *inside* a fence (including ```mermaid diagram source) never reach
+# `_INLINE_MARKUP_RE` either. Deliberately the same "no leading whitespace
+# tolerance" convention as `_MermaidPreprocessor._FENCE` below.
+_FENCE_DELIM_RE = re.compile(r"^```")
 _ORDINAL_RE = re.compile(r"\b([0-9]{1,2})(st|nd|rd|th)\b")
 _REDACTION_MARKER = "!!redacted"
 
@@ -169,12 +211,25 @@ def _replace_date_ordinal(text: str) -> str:
     return _ORDINAL_RE.sub(r"\1<sup>\2</sup>", text)
 
 
+def _wrap_inline_markup(m: re.Match[str]) -> str:
+    """`_INLINE_MARKUP_RE`'s replacement: dispatch on whichever named
+    alternative matched and return the (possibly span-wrapped) replacement
+    text for that one match."""
+    if m.group("code") is not None:
+        return m.group("code")
+    if m.group("tag") is not None:
+        return f'<span class="awiwi-{m.group("type")}">{m.group("tag")}</span>'
+    if m.group("mention") is not None:
+        return f'<span class="awiwi-mention">{m.group("mention")}</span>'
+    return f'<span class="awiwi-tag">{m.group("hashtag")}</span>'
+
+
 def _filter_body(
     lines: list[str], offset: int, *, embed_redacted: bool = False
 ) -> tuple[list[str], dict[str, str]]:
     """Apply the legacy line-level pre-filters, in order: `!!redacted`
     section hiding, checkbox -> `<input>` injection (hash from
-    `awiwi.checkbox.hash_line`), `@tag`/`@@mention` spans, ordinal
+    `awiwi.checkbox.hash_line`), `@tag`/`@@mention`/`#tag` spans, ordinal
     superscripts.
 
     `offset` is the 0-indexed line number of `lines[0]` in the *original,
@@ -185,6 +240,10 @@ def _filter_body(
     Ported verbatim from `server.old/app.py:filter_body` (same control flow,
     same regexes), minus the final `.replace("\\n", "")` -- callers here pass
     lines without trailing newlines to begin with (`str.splitlines()`).
+    T28.0 additions on top of the port: `#tag` span emission (legacy never
+    had it), the `@@mention` full-token fix (see `_PERSON_TAG_PATTERN`), and
+    fenced-code/inline-code-span exclusion for all three (`_INLINE_MARKUP_RE`,
+    `_FENCE_DELIM_RE`) -- none of that existed in `server.old`.
 
     `embed_redacted` (S23.4, ADR-pending): when `True`, the original
     redacted content is *kept*, HTML-escaped and wrapped in
@@ -212,6 +271,7 @@ def _filter_body(
     # never collide with one.
     run_id = uuid4().hex
     hide = False
+    in_fence = False
     marker_depth = 7  # deeper than any real heading (# .. ######)
     hidden_lines: list[str] = []
 
@@ -238,6 +298,21 @@ def _filter_body(
         hidden_lines.clear()
 
     for line_no, line in enumerate(lines, start=offset):
+        # Fenced code blocks (```...```, including ```mermaid diagram
+        # source) are tracked *outside* the hide/redaction/checkbox chain
+        # below and always win: their content -- and the delimiter lines
+        # themselves -- must never reach `_INLINE_MARKUP_RE`/the ordinal
+        # substitution. Skipped entirely while a redacted section is hiding
+        # (`hide`) since that content never runs through any pre-filter
+        # either way (see `_flush_hidden`'s docstring) -- so fence state
+        # simply doesn't change for lines that are already invisible.
+        if not hide and _FENCE_DELIM_RE.match(line):
+            in_fence = not in_fence
+            out.append(line)
+            continue
+        if in_fence:
+            out.append(line)
+            continue
         if hide:
             m = _HEADING_RE.match(line)
             if m:
@@ -282,8 +357,7 @@ def _filter_body(
                     f'data-hash="{digest}"> '
                     f'<label for="checkbox-line-{line_no}"><span>{m.group(3)}</span></label>'
                 )
-        line = _TAG_PATTERN.sub(r'<span class="awiwi-\1">\g<0></span>', line)
-        line = _PERSON_TAG_PATTERN.sub(r'<span class="awiwi-mention">\1</span>', line)
+        line = _INLINE_MARKUP_RE.sub(_wrap_inline_markup, line)
         out.append(_replace_date_ordinal(line))
     # EOF while still hiding: a redacted section that runs to the end of the
     # document with no closing same-or-shallower heading still needs its

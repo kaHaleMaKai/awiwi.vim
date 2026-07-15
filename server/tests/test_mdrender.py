@@ -325,9 +325,49 @@ class TestTagsAndMentions:
             assert f'<span class="awiwi-{tag}">@{tag}</span>' in doc.html
 
     def test_mention_gets_wrapped_span(self):
-        # Ported verbatim from server.old/app.py's PERSON_TAG_PATTERN, incl.
-        # its single-character-capture quirk (`@([^\s,;.)}\]])` only grabs
-        # one char after the leading `@`) -- this is live, shipped rendering
-        # behavior, not something this rewrite silently fixes.
+        # T28.0: fixed a bug ported from server.old/app.py's
+        # PERSON_TAG_PATTERN (`@([^\s,;.)}\]])`), which only captured one
+        # char after the leading `@` (`@@lars` -> `<span ...>@l</span>ars`).
+        # The whole `@@word` token now lands inside one span.
         doc = render_markdown("cc @@lars.\n")
-        assert '<span class="awiwi-mention">@l</span>ars.' in doc.html
+        assert '<span class="awiwi-mention">@@lars</span>.' in doc.html
+
+    def test_mention_with_hyphen_gets_wrapped_span(self):
+        doc = render_markdown("cc @@lars-w, thanks.\n")
+        assert '<span class="awiwi-mention">@@lars-w</span>,' in doc.html
+
+    def test_hashtag_gets_wrapped_span(self):
+        doc = render_markdown("Filed under #project-awiwi today.\n")
+        assert '<span class="awiwi-tag">#project-awiwi</span>' in doc.html
+
+    def test_path_style_hashtag_gets_wrapped_span(self):
+        doc = render_markdown("See #recipes/sourdough-starter for the method.\n")
+        assert '<span class="awiwi-tag">#recipes/sourdough-starter</span>' in doc.html
+
+    def test_heading_marker_is_not_mistaken_for_a_hashtag(self):
+        doc = render_markdown("# Title\n\n## Section\n\nBody text.\n", title="X")
+        assert "awiwi-tag" not in doc.html
+
+    def test_markdown_link_href_is_not_mistaken_for_a_hashtag(self):
+        doc = render_markdown("See [the section](#section-one) above.\n")
+        assert "awiwi-tag" not in doc.html
+
+    def test_hashtag_inside_inline_code_span_is_untouched(self):
+        doc = render_markdown("Use `#project-awiwi` as a literal example.\n")
+        assert "awiwi-tag" not in doc.html
+        assert "<code>#project-awiwi</code>" in doc.html
+
+    def test_mention_inside_inline_code_span_is_untouched(self):
+        doc = render_markdown("Type `@@lars` literally.\n")
+        assert "awiwi-mention" not in doc.html
+        assert "<code>@@lars</code>" in doc.html
+
+    def test_tag_and_hashtag_inside_fenced_code_block_are_untouched(self):
+        text = (
+            "```python\n# a comment with @bug and #project-awiwi and @@lars\nx = 1\n```\n"
+        )
+        doc = render_markdown(text)
+        assert "awiwi-bug" not in doc.html
+        assert "awiwi-tag" not in doc.html
+        assert "awiwi-mention" not in doc.html
+        assert "# a comment with @bug and #project-awiwi and @@lars" in doc.html
