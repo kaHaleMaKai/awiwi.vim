@@ -199,7 +199,7 @@ re-derivation for WebSocket (HTTP middleware doesn't cover ASGI `websocket` scop
 ### Module map (`server/src/awiwi/`)
 
 - `config.py` — `Settings` (pydantic-settings, env `AWIWI_HOME`), `PluginConfig` (permissive JSON)
-- `content.py` — date parsing + aliases, journal prev/next nav, path safety, dir listing, breadcrumbs
+- `content.py` — date parsing + aliases, `normalize_asset_path()` (S33.1: asset URL alias canonicalization), journal prev/next nav, path safety, dir listing, breadcrumbs
 - `checkbox.py` — line hashing (MD5, legacy-compatible), in-place toggle with domain-specific errors
 - `search.py` — ripgrep arg building, output parsing, hit sorting
 - `mdrender.py` — `RenderedDoc`, `render_markdown` with pre-filters (redaction, checkbox,
@@ -219,7 +219,7 @@ re-derivation for WebSocket (HTTP middleware doesn't cover ASGI `websocket` scop
 - `routers/api.py` — `/api/*` JSON routes: `/journal/{date}`, `/todo`, `/doc/{path}`, `/dir[/{path}]`,
   `/meta`, `/raw/{path}` (ETag conditional), `/ws` (WebSocket), `PATCH /checkbox` (relpath),
   `/search?q=&mode=&scope=` (ripgrep)
-- `routers/redirects.py` — legacy 302 redirects (bare-date/`.md`/ymd-asset forms) + SPA catch-all
+- `routers/redirects.py` — legacy 302 redirects (bare-date/`.md`/ymd-asset forms + asset-alias redundant-dashed-segment form per S33.1) + SPA catch-all
   `GET /{path:path}` → `index.html` no-cache (T26)
 - `watch.py` — `DocWatcher`: in-memory `watch_path → {socket}` subscriptions (single-process only —
   never `--workers`); `broadcast(path)` rebuilds payload + pushes `doc`/`deleted` messages; `run()`
@@ -238,14 +238,14 @@ matches in order, so `/api/*` is checked before the SPA catch-all. Comprehensive
 | mount | `/_app` | StaticFiles over `frontend/dist` (hashed assets, long-cacheable) |
 | GET | `/api/journal/{date_str}` | Journal day as `DocPayload`; `date_str` = ISO date or `today`/`yesterday`/`prev`/`previous` |
 | GET | `/api/todo` | `journal/todos.md` as `DocPayload` |
-| GET | `/api/doc/{path:path}` | Any doc by relpath, kind-dispatched (markdown/text/image/drawio/binary) |
+| GET | `/api/doc/{path:path}` | Any doc by relpath, kind-dispatched (markdown/text/image/drawio/binary); asset paths may use alias forms (`assets/YYYY-MM-DD/name` or `assets/YYYY/MM/DD/YYYY-MM-DD/name`) which normalize to disk shape before resolution (S33.1) |
 | GET | `/api/dir[/{path:path}]` | Directory listing as `DirPayload` |
 | GET | `/api/meta` | Metadata: `{today, home, version}` |
-| GET | `/api/raw/{path:path}` | Raw bytes; ETag `{mtime_ns}-{size}`/304 on If-None-Match; `?download=1` → attachment |
+| GET | `/api/raw/{path:path}` | Raw bytes; ETag `{mtime_ns}-{size}`/304 on If-None-Match; `?download=1` → attachment; asset paths support alias forms (S33.1, same as `/api/doc/{path}`) |
 | GET | `/api/ws` | WebSocket (see WS protocol below) |
 | PATCH | `/api/checkbox` | Relpath-addressed toggle: `{path, line_no, line_hash, checked}` → `{success, line_hash, mtime_ns}` |
 | GET | `/api/search?q=&mode=&scope=` | Ripgrep search: `q` (required), `mode=fixed\|regex` (default `fixed`), `scope=journal,assets,recipes` |
-| — | `/{y}/{m}/{d}/{file}`, `/journal/{y}/{m}/{file}`, `/journal/{date}.md`, `/{d}.md`, etc. | 302 redirects (legacy URLs) → canonical SPA paths |
+| — | `/{y}/{m}/{d}/{file}`, `/journal/{y}/{m}/{file}`, `/journal/{date}.md`, `/{d}.md`, `/assets/{y}/{m}/{d}/{YYYY-MM-DD}/{file}`, etc. | 302 redirects (legacy URLs + asset-alias redundant-dashed-segment form per S33.1) → canonical SPA paths |
 | GET | `/{path:path}` | **SPA catch-all (last)**: `frontend/dist/index.html` no-cache; client router resolves `/`, `/dir/*`, `/todo`, `/journal/:date`, `/assets/:date/:file`, `/recipes/*`, `/search`, `/*` notfound |
 | — | `/api/{rest:path}` | JSON 404 catch-all (within `api` router, last among its routes) |
 | exc | `FileNotFoundError` | → JSON `{"detail": "not found"}`, status 404 |

@@ -15,6 +15,7 @@ from awiwi.content import (
     get_prev_and_next_journal,
     list_directory,
     make_breadcrumbs,
+    normalize_asset_path,
     parse_date,
     safe_resolve,
 )
@@ -166,6 +167,65 @@ class TestSafeResolve:
     def test_accepts_path_object(self, notes_home: Path):
         got = safe_resolve(Path("recipes/cooking/pasta.md"), notes_home)
         assert got == (notes_home / "recipes" / "cooking" / "pasta.md").resolve()
+
+
+class TestNormalizeAssetPath:
+    """Stakeholder feedback (S33.1): journal/asset markdown links the format
+    `assets/YYYY/MM/DD/YYYY-MM-DD/name.ext` (and the plain dashed
+    `assets/YYYY-MM-DD/name.ext` public shape) alongside the on-disk
+    `assets/YYYY/MM/DD/name.ext` layout. This helper canonicalizes any of
+    those shapes down to the on-disk relpath so `/api/doc` and `/api/raw`
+    can serve all of them via `safe_resolve`."""
+
+    def test_disk_shape_passes_through_unchanged(self):
+        assert (
+            normalize_asset_path("assets/2026/07/01/photo.png")
+            == "assets/2026/07/01/photo.png"
+        )
+
+    def test_dashed_public_shape_maps_to_disk_shape(self):
+        assert (
+            normalize_asset_path("assets/2026-07-01/photo.png")
+            == "assets/2026/07/01/photo.png"
+        )
+
+    def test_redundant_dashed_segment_is_dropped(self):
+        assert (
+            normalize_asset_path("assets/2026/07/01/2026-07-01/photo.png")
+            == "assets/2026/07/01/photo.png"
+        )
+
+    def test_nested_filename_is_preserved(self):
+        assert (
+            normalize_asset_path("assets/2026-07-01/sub/dir/photo.png")
+            == "assets/2026/07/01/sub/dir/photo.png"
+        )
+        assert (
+            normalize_asset_path("assets/2026/07/01/2026-07-01/sub/photo.png")
+            == "assets/2026/07/01/sub/photo.png"
+        )
+
+    def test_mismatched_redundant_segment_passes_through_unchanged(self):
+        # The dashed segment disagrees with the Y/M/D prefix -- not a shape
+        # this alias covers, leave untouched (safe_resolve/404 downstream).
+        got = "assets/2026/07/01/2026-07-02/photo.png"
+        assert normalize_asset_path(got) == got
+
+    def test_non_asset_path_passes_through_unchanged(self):
+        assert (
+            normalize_asset_path("journal/2026/07/2026-07-01.md")
+            == "journal/2026/07/2026-07-01.md"
+        )
+
+    def test_non_matching_asset_shape_passes_through_unchanged(self):
+        assert normalize_asset_path("assets/not-a-date/photo.png") == (
+            "assets/not-a-date/photo.png"
+        )
+
+    def test_accepts_path_object(self):
+        assert normalize_asset_path(Path("assets/2026-07-01/photo.png")) == (
+            "assets/2026/07/01/photo.png"
+        )
 
 
 class TestListDirectory:

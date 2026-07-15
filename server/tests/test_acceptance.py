@@ -98,6 +98,49 @@ def test_asset_ymd_redirects_to_dashed(client: Client) -> None:
     assert resp.headers["location"] == "/assets/2026-07-01/photo.png"
 
 
+def test_asset_ymd_dashed_redirects_to_dashed(client: Client) -> None:
+    # S33.1: the redundant-dashed-segment alias page URL
+    # (`/assets/YYYY/MM/DD/YYYY-MM-DD/file`) also lands on the canonical
+    # dashed page URL.
+    resp = client.get(
+        "/assets/2026/07/01/2026-07-01/photo.png", follow_redirects=False
+    )
+    assert resp.status_code in (301, 302, 307, 308)
+    assert resp.headers["location"] == "/assets/2026-07-01/photo.png"
+
+
+# S33.1: /api/doc and /api/raw both serve every alias shape stakeholder
+# feedback named, alongside the on-disk shape already in use.
+@pytest.mark.parametrize(
+    "alias_path",
+    [
+        "assets/2026/07/01/photo.png",  # on-disk shape (already worked)
+        "assets/2026-07-01/photo.png",  # dashed public shape
+        "assets/2026/07/01/2026-07-01/photo.png",  # redundant dashed segment
+    ],
+)
+def test_api_doc_serves_all_asset_alias_shapes(client: Client, alias_path: str) -> None:
+    resp = client.get(f"/api/doc/{alias_path}")
+    assert resp.status_code == 200
+    payload = resp.json()
+    assert payload["watch_path"] == "assets/2026/07/01/photo.png"
+    assert payload["raw_url"] == "/api/raw/assets/2026/07/01/photo.png"
+
+
+@pytest.mark.parametrize(
+    "alias_path",
+    [
+        "assets/2026/07/01/photo.png",
+        "assets/2026-07-01/photo.png",
+        "assets/2026/07/01/2026-07-01/photo.png",
+    ],
+)
+def test_api_raw_serves_all_asset_alias_shapes(client: Client, alias_path: str) -> None:
+    resp = client.get(f"/api/raw/{alias_path}")
+    assert resp.status_code == 200
+    assert resp.headers["content-type"].startswith("image/png")
+
+
 # 4. /api/todo returns the todos doc with checkbox markup.
 def test_api_todo_has_checkboxes(client: Client) -> None:
     resp = client.get("/api/todo")

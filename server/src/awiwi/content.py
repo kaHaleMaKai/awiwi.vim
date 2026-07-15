@@ -13,6 +13,7 @@ on the relevant function's docstring.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from datetime import date, timedelta
 from pathlib import Path
@@ -166,6 +167,54 @@ def make_breadcrumbs(
         breadcrumbs.append(Breadcrumb(name=p.stem, target=f"/dir/{p}"))
         p = p.parent
     return list(reversed(breadcrumbs))
+
+
+_ASSET_YMD_DASHED_RE = re.compile(r"^assets/(\d{4})-(\d{2})-(\d{2})/(.+)$")
+_ASSET_YMD_REDUNDANT_DASHED_RE = re.compile(
+    r"^assets/(\d{4})/(\d{2})/(\d{2})/(\d{4})-(\d{2})-(\d{2})/(.+)$"
+)
+
+
+def normalize_asset_path(relative: str | Path) -> str:
+    """Canonicalize an asset relpath to its on-disk shape
+    (`assets/YYYY/MM/DD/name.ext`).
+
+    Stakeholder feedback (S33.1): journals and other docs link assets in
+    several URL shapes that all denote the same on-disk file (which lives
+    at `assets/{year}/{month}/{day}/{name}`, see `docs.py`'s
+    `journal_date` derivation):
+
+    - `assets/YYYY-MM-DD/name.ext` -- the dashed "public" shape -- maps to
+      the disk shape by splitting the date into `Y/M/D` segments.
+    - `assets/YYYY/MM/DD/YYYY-MM-DD/name.ext` -- disk-shape Y/M/D prefix
+      with a redundant dashed-date segment repeated in front of the
+      filename -- maps to the disk shape by dropping that segment, *only*
+      when it agrees with the Y/M/D prefix (a disagreeing date is not a
+      shape this alias covers and is left untouched, so it 404s downstream
+      via `safe_resolve` rather than silently resolving to the wrong day).
+    - `assets/YYYY/MM/DD/name.ext` -- already the disk shape -- passes
+      through unchanged.
+
+    Anything else (non-asset paths, non-matching shapes) passes through
+    unchanged, `str`-coerced. Pure string/path manipulation -- no
+    filesystem access, no traversal guarding (that's `safe_resolve`'s job;
+    callers must run this *before* `safe_resolve`, not instead of it).
+    """
+    relative = Path(relative).as_posix()
+
+    m = _ASSET_YMD_REDUNDANT_DASHED_RE.match(relative)
+    if m:
+        year, month, day, dyear, dmonth, dday, rest = m.groups()
+        if (year, month, day) == (dyear, dmonth, dday):
+            return f"assets/{year}/{month}/{day}/{rest}"
+        return relative
+
+    m = _ASSET_YMD_DASHED_RE.match(relative)
+    if m:
+        year, month, day, rest = m.groups()
+        return f"assets/{year}/{month}/{day}/{rest}"
+
+    return relative
 
 
 def safe_resolve(relative: str | Path, root: Path) -> Path | None:

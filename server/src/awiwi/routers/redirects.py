@@ -47,6 +47,23 @@ def asset_ymd_redirect(year: str, month: str, day: str, file: str) -> RedirectRe
     return RedirectResponse(f"/assets/{year}-{month}-{day}/{file}", status_code=302)
 
 
+@router.get("/assets/{year}/{month}/{day}/{_dashed}/{file}")
+def asset_ymd_dashed_redirect(
+    year: str, month: str, day: str, _dashed: str, file: str
+) -> RedirectResponse:
+    """`/assets/YYYY/MM/DD/YYYY-MM-DD/file` -- the disk-shape Y/M/D prefix
+    with the redundant dashed-date segment repeated in front of the
+    filename (S33.1 stakeholder feedback: this is the shape journals/other
+    assets actually link with). 302s to the same canonical dashed page URL
+    as the plain `/assets/YYYY/MM/DD/file` alias above, regardless of
+    whether `dashed` agrees with `year`/`month`/`day` -- the SPA page route
+    only understands the canonical `/assets/{date}/{file}` shape, so there
+    is no useful "pass through unchanged" fallback at this layer (unlike
+    `content.normalize_asset_path`, which has a real disk path to fall back
+    to and must not paper over a genuine mismatch)."""
+    return RedirectResponse(f"/assets/{year}-{month}-{day}/{file}", status_code=302)
+
+
 @router.get("/journal/{year}/{month}/{file}")
 def journal_full_path_redirect(file: str) -> RedirectResponse:
     return RedirectResponse(f"/journal/{file.replace('.md', '')}", status_code=302)

@@ -45,7 +45,7 @@ from awiwi.checkbox import (
     NotACheckboxLineError,
     toggle_checkbox,
 )
-from awiwi.content import safe_resolve
+from awiwi.content import normalize_asset_path, safe_resolve
 from awiwi.docs import build_dir_payload, build_doc_payload, build_journal_payload
 from awiwi.httputil import get_home, is_localhost
 from awiwi.schemas import DirPayload, DocPayload
@@ -114,7 +114,7 @@ def api_todo(request: Request) -> DocPayload:
 @router.get("/doc/{path:path}")
 def api_doc(request: Request, path: str) -> DocPayload:
     home = get_home(request)
-    resolved = safe_resolve(path, home)
+    resolved = safe_resolve(normalize_asset_path(path), home)
     if resolved is None or not resolved.is_file():
         raise HTTPException(status_code=404, detail=f"no such document: {path!r}")
 
@@ -204,7 +204,7 @@ def api_raw(
     request: Request, path: str, download: Annotated[bool, Query()] = False
 ) -> Response:
     home = get_home(request)
-    resolved = safe_resolve(path, home)
+    resolved = safe_resolve(normalize_asset_path(path), home)
     if resolved is None or not resolved.is_file():
         raise HTTPException(status_code=404, detail=f"no such file: {path!r}")
 
