@@ -1,0 +1,83 @@
+{
+  "spaBase": "http://127.0.0.1:5824",
+  "pairs": [
+    {
+      "id": "journal",
+      "mockup": "journal.html",
+      "spaUrl": "/journal/2026-07-14",
+      "theme": "dark"
+    },
+    {
+      "id": "journal-light",
+      "mockup": "journal-light.html",
+      "spaUrl": "/journal/2026-07-14",
+      "theme": "light"
+    },
+    {
+      "id": "dir-root",
+      "mockup": "dir-root.html",
+      "spaUrl": "/",
+      "theme": "dark"
+    },
+    {
+      "id": "dir-month",
+      "mockup": "dir-journal-month.html",
+      "spaUrl": "/dir/journal/2026/07",
+      "theme": "dark"
+    },
+    {
+      "id": "todo",
+      "mockup": "todo.html",
+      "spaUrl": "/todo",
+      "theme": "dark"
+    },
+    {
+      "id": "search",
+      "mockup": "search.html",
+      "spaUrl": "/search?q=token",
+      "theme": "dark"
+    },
+    {
+      "id": "search-light",
+      "mockup": "search-light.html",
+      "spaUrl": "/search?q=token",
+      "theme": "light"
+    },
+    {
+      "id": "asset-image",
+      "mockup": "asset-image.html",
+      "spaUrl": "/assets/2026-07-14/architecture-sketch.png",
+      "theme": "dark"
+    },
+    {
+      "id": "asset-text",
+      "mockup": "asset-text.html",
+      "spaUrl": "/assets/2026-07-14/deploy-notes.txt",
+      "theme": "dark"
+    },
+    {
+      "id": "asset-drawio",
+      "mockup": "asset-drawio.html",
+      "spaUrl": "/assets/2026-07-14/request-flow.drawio",
+      "theme": "dark"
+    },
+    {
+      "id": "download",
+      "mockup": "download.html",
+      "spaUrl": "/assets/2026-07-12/backup.tar.gz",
+      "theme": "dark"
+    },
+    {
+      "id": "404",
+      "mockup": "404.html",
+      "spaUrl": "/definitely-not-a-page",
+      "theme": "dark"
+    },
+    {
+      "id": "recipe-audit",
+      "mockup": null,
+      "spaUrl": "/recipes/sourdough-starter",
+      "theme": "dark"
+    }
+  ]
+}

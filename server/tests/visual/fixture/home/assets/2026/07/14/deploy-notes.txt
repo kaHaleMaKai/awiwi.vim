@@ -1,0 +1,15 @@
+# vim: ft=bash.
+# staging deploy — rotate secrets after this run
+set -euo pipefail
+
+deploy() {
+  local env="$1"
+  echo "deploying to ${env}..."
+  uv run alembic upgrade head
+  uv run uvicorn server.app:app --host 0.0.0.0 --port 8420
+}
+
+export AWIWI_TOKEN="sk-live-9f2a...c001"  # rotate before next deploy
+export AWIWI_HOME="/srv/awiwi"
+
+deploy staging
