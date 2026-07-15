@@ -67,6 +67,18 @@
     if (!articleEl || !tocEl) return;
     return watchToc(articleEl, tocEl);
   });
+
+  // Collapsible TOC rail (S30.1): below 700px it starts collapsed (seeded
+  // once from matchMedia, not re-evaluated on resize -- session-only default,
+  // no persistence). The toggle then always wins over that default. The
+  // `.rail`/`.toc` DOM stays mounted either way (only hidden via CSS) so
+  // `tocEl` and watchToc's scrollspy above are unaffected by collapsing.
+  let railCollapsed = $state(
+    typeof window !== "undefined" && window.matchMedia("(max-width: 700px)").matches,
+  );
+  function toggleRail(): void {
+    railCollapsed = !railCollapsed;
+  }
 </script>
 
 {#if notFound}
@@ -79,7 +91,7 @@
     ]}
   />
 {:else if doc}
-  <div class="layout-with-rail">
+  <div class="layout-with-rail" class:rail-collapsed={railCollapsed}>
     <article class="stack" bind:this={articleEl}>
       <div>
         <span class="deco-title">Daily Journal</span>
@@ -118,9 +130,20 @@
     </article>
 
     {#if doc.toc}
-      <aside class="rail">
+      <aside class="rail" class:is-collapsed={railCollapsed}>
         <div class="rail-section">
-          <div class="deco-title">On this page</div>
+          <div class="rail-header">
+            <div class="deco-title">On this page</div>
+            <button
+              type="button"
+              class="rail-toggle"
+              aria-expanded={!railCollapsed}
+              aria-label={railCollapsed ? "Expand table of contents" : "Collapse table of contents"}
+              onclick={toggleRail}
+            >
+              {railCollapsed ? "«" : "»"}
+            </button>
+          </div>
           <nav class="toc u-mt-2" bind:this={tocEl}>{@html doc.toc}</nav>
         </div>
       </aside>

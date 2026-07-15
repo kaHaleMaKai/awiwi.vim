@@ -309,7 +309,7 @@ live sync (each worker has empty registry). Comprehensive spec: `handovers/done/
   `loadDrawioViewer()` singleton, graceful fallback to original link on error, idempotent). Language
   hint from backend `guess_language` (ext map + vim-modeline).
 - `src/lib/drawioViewer.ts` — singleton lazy-loader for vendor drawio viewer script (shared by DrawioView component + drawio-inline enhance pass; S31.2)
-- `src/routes/` — route views (Home, Dir, Todo, Journal, Asset, Recipes, Search, NotFound)
+- `src/routes/` — route views (Home, Dir, Todo, Journal, Asset, Recipes, Search, NotFound); **JournalPage** features a collapsible TOC rail with sticky positioning; layout uses `.layout-with-rail { grid-template-columns: minmax(0, 1fr) 310px; }` to prevent wide content (`<pre>`, `<table>`) from pushing the rail off-screen (S30.1: overflow-x rules on `.markdown-body pre`/`table`, rail default-collapsed below 700px viewport)
 - `public/vendor/drawio/` — pinned `viewer-static.min.js` (lazy-loaded by `drawioViewer.ts` singleton, no app.diagrams.net ever contacted; ADR D22)
 
 **Build**: `npm run build` produces byte-identical `frontend/dist/` (reproducible, no Node at serve

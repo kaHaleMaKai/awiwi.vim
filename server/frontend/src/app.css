@@ -302,14 +302,18 @@ hr { border: 0; border-top: 1px solid var(--border-subtle); }
 }
 .layout-with-rail {
   display: grid;
-  grid-template-columns: 1fr 310px;
+  /* minmax(0, 1fr): without the 0 min-width, non-wrapping wide content
+     (pre/table) in the article track expands past its fraction and shoves
+     the fixed 310px rail off the right edge of the viewport (S30.1). */
+  grid-template-columns: minmax(0, 1fr) 310px;
   gap: var(--space-6);
   align-items: start;
 }
 /* Rail pins below the sticky .app-header while only the article scrolls;
    taller-than-viewport rails scroll internally (without the max-height cap,
    sticky never engages visually). --header-h approximates the rendered
-   header height (padding + line + border). */
+   header height (padding + line + border). Being the grid's last column,
+   sticky keeps it flush with the layout's right edge (S30.1). */
 .layout-with-rail .rail {
   position: sticky;
   /* top == the rail's natural offset (header + main's u-mt-6 margin), so it
@@ -318,10 +322,44 @@ hr { border: 0; border-top: 1px solid var(--border-subtle); }
   max-height: calc(100vh - var(--header-h) - var(--space-6) - var(--space-5));
   overflow-y: auto;
 }
+/* Collapsible rail (S30.1): JournalPage toggles `.rail-collapsed` on
+   `.layout-with-rail` and `.is-collapsed` on the `.rail` itself, so the grid
+   column shrinks to the toggle button's width and the TOC content hides,
+   leaving a slim affordance to re-expand. */
+.layout-with-rail.rail-collapsed { grid-template-columns: minmax(0, 1fr) auto; }
+.rail-header { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
+.rail-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface-raised);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  line-height: 1;
+  cursor: pointer;
+}
+.rail-toggle:hover { color: var(--text-secondary); }
+.rail.is-collapsed .rail-header .deco-title,
+.rail.is-collapsed .toc {
+  display: none;
+}
 @media (max-width: 900px) {
-  .layout-with-rail { grid-template-columns: 1fr; }
+  .layout-with-rail, .layout-with-rail.rail-collapsed { grid-template-columns: 1fr; }
   .layout-with-rail .rail { position: static; max-height: none; overflow-y: visible; }
 }
+/* Below 700px the rail starts collapsed by default: JournalPage seeds its
+   `railCollapsed` state from `matchMedia("(max-width: 700px)")` on mount.
+   The visuals are already covered by `.is-collapsed`/`.rail-collapsed`
+   above at any width, so this query has no rules of its own — it only
+   documents the default-collapse breakpoint and how it reconciles with the
+   900px single-column stacking rule (900-700px: stacked but expanded by
+   default; below 700px: stacked and collapsed by default; user toggle
+   always wins over the default in either range, for this session only). */
 .stack { display: flex; flex-direction: column; }
 .stack > * + * { margin-top: var(--space-4); }
 .cluster { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2); }
@@ -781,6 +819,13 @@ hr { border: 0; border-top: 1px solid var(--border-subtle); }
 .markdown-body ul { padding-left: var(--space-5); list-style: disc; }
 .markdown-body ol { padding-left: var(--space-5); }
 .markdown-body img { max-width: 100%; border-radius: var(--radius-sm); }
+/* S30.1: with the article track now minmax(0, 1fr), wide non-wrapping
+   content must scroll inside itself instead of stretching the track (and
+   pushing the rail off-screen again). Fenced code already scrolls via
+   shiki.ts's injected `.shiki` rule / .code-block's own `pre` rule once
+   enhanced; this covers the plain, pre-enhancement `<pre>` and wide tables. */
+.markdown-body pre { overflow-x: auto; }
+.markdown-body table { display: block; overflow-x: auto; max-width: 100%; }
 
 /* -- TOC / rail --
    `.toc-h3`/`.is-active` are the mockups' flat markup; the server's
