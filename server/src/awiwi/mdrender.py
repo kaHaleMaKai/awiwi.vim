@@ -48,7 +48,7 @@ from awiwi.checkbox import hash_line
 # --- pre-filter patterns (ported from server.old/app.py) -------------------
 
 _HEADING_RE = re.compile(r"^(?P<marker>##+) ")
-_CHECKBOX_LINE_RE = re.compile(r"^(\s*\* )(\[[x ]\])( .*$)")
+_CHECKBOX_LINE_RE = re.compile(r"^(\s*[*-] )(\[[x ]\])( .*$)")
 _TAG_PATTERN = re.compile(r"@(?P<type>bug|change|incident|issue)\b")
 # `@@word` mentions: the whole token (both `@`s plus the name) is one match,
 # so the whole thing lands in one span -- earlier this was
@@ -245,24 +245,27 @@ def _filter_body(
     fenced-code/inline-code-span exclusion for all three (`_INLINE_MARKUP_RE`,
     `_FENCE_DELIM_RE`) -- none of that existed in `server.old`.
 
-    `embed_redacted` (S23.4, ADR-pending): when `True`, the original
-    redacted content is *kept*, HTML-escaped and wrapped in
-    `class="redacted"` markup, right alongside the usual placeholder
-    wording -- for the frontend to click-reveal. `False` (the default)
+    `embed_redacted` (S23.4/S32.2): when `True`, the original redacted
+    content is *kept* inside `class="redacted"` markup, right alongside
+    the usual placeholder wording -- for the frontend to click-reveal.
+    Heading sections embed the RENDERED section (S32.2): the heading with
+    the `!!redacted` marker stripped plus the body, run through the same
+    pre-filters + markdown pipeline as visible text (see `_flush_hidden`).
+    Inline redactions embed the HTML-escaped raw value (see the `<span>`
+    emission below): a revealed inline value is typically a secret that
+    must read back character-for-character, and markdown inline processors
+    would otherwise re-render punctuation inside it (`pass*word*123` ->
+    `pass<em>word</em>123`, dropping the asterisks). `False` (the default)
     reproduces the legacy stripping behavior byte-identically: nothing but
-    the placeholder text ever reaches the output. See `_flush_hidden`
-    (section form) and the inline `<span>` emission below (line form) for
-    the exact markup contract.
+    the placeholder text ever reaches the output.
 
     Returns `(filtered_lines, embeds)`. `embeds` maps opaque one-shot tokens
     (planted inside the `class="redacted"` wrappers in `filtered_lines`) to
-    the HTML-escaped redacted values they stand for; empty unless
-    `embed_redacted`. `render_markdown` substitutes each token *after*
-    markdown conversion, so hidden values never travel through
-    python-markdown at all -- a revealed value must read back
-    character-for-character, and inline processors would otherwise
-    re-render markdown punctuation inside it (`pass*word*123` ->
-    `pass<em>word</em>123`, dropping the asterisks).
+    the HTML fragments they stand for (pre-rendered section html, or an
+    HTML-escaped inline value); empty unless `embed_redacted`.
+    `render_markdown` substitutes each token *after* markdown conversion,
+    so hidden content never travels through the *outer* python-markdown
+    pass at all.
     """
     out: list[str] = []
     embeds: dict[str, str] = {}
@@ -274,24 +277,34 @@ def _filter_body(
     in_fence = False
     marker_depth = 7  # deeper than any real heading (# .. ######)
     hidden_lines: list[str] = []
+    hidden_start = 0  # original line number of the redacted heading
 
     def _stash(value: str) -> str:
         token = f"awiwiredacted{run_id}n{len(embeds)}"
-        embeds[token] = html.escape(value)
+        embeds[token] = value
         return token
 
     def _flush_hidden() -> None:
-        """Emit the buffered body of a just-closed redacted heading section
-        (embed mode only) as one raw HTML block: blank-line-delimited so
-        python-markdown passes it through untouched rather than wrapping it
-        in a `<p>` or trying to parse its contents. The original lines
-        (including any blank lines between hidden paragraphs) are joined
-        verbatim and stashed as one text blob behind a token -- no markdown
-        re-rendering, no per-line pre-filter re-application (tags/mentions/
-        checkboxes/ordinals never ran on these lines to begin with, in
-        either mode)."""
+        """Emit the just-closed redacted heading section (embed mode only)
+        as one raw HTML block: blank-line-delimited so python-markdown
+        passes it through untouched rather than wrapping it in a `<p>` or
+        trying to parse its contents. The buffered section -- its heading
+        with the `!!redacted` marker stripped, plus every body line
+        verbatim -- is re-run through `_filter_body` at its original file
+        offset (so checkbox `data-line-nr` still points at real file lines
+        and tags/mentions/ordinals apply like normal text) and rendered by
+        a fresh markdown instance (S32.2; previously the raw lines were
+        embedded HTML-escaped). The nested pass runs with
+        `embed_redacted=False`, so a `!!redacted` marker *inside* the
+        hidden section is stripped, never recursed into -- doubly-redacted
+        content stays hidden even after reveal, and no recursion loop is
+        possible. The rendered fragment is stashed behind an inert token so
+        it never travels through the outer markdown conversion."""
         if embed_redacted and hidden_lines:
-            token = _stash("\n".join(hidden_lines))
+            nested, _ = _filter_body(
+                hidden_lines, offset=hidden_start, embed_redacted=False
+            )
+            token = _stash(_new_markdown().convert("\n".join(nested)))
             out.append("")
             out.append(f'<div class="redacted">{token}</div>')
             out.append("")
@@ -330,6 +343,12 @@ def _filter_body(
             if m:
                 marker_depth = len(m.group("marker"))
                 hide = True
+                # Buffer the heading itself (marker and anything after it
+                # stripped) as the first line of the hidden section, at its
+                # real file line number -- `_flush_hidden` renders the
+                # whole buffer from `hidden_start`.
+                hidden_start = line_no
+                hidden_lines.append(line.partition(_REDACTION_MARKER)[0].rstrip())
                 line = f"{m.group('marker')} _…redacted…_"
             else:
                 before, _, rest = line.partition(_REDACTION_MARKER)
@@ -340,7 +359,7 @@ def _filter_body(
                     else " --- redacted --- "
                 )
                 if embed_redacted:
-                    token = _stash(before.rstrip())
+                    token = _stash(html.escape(before.rstrip()))
                     out.append(f'<span class="redacted">{token}</span>{placeholder}')
                 else:
                     out.append(placeholder)
@@ -468,12 +487,14 @@ def render_markdown(
     just means the caller doesn't want the standalone TOC block surfaced
     (e.g. the `/todo` page).
 
-    `embed_redacted` (S23.4): `False` (the default) is the legacy, byte-
-    identical stripping behavior -- `!!redacted` lines/sections never leave
-    any trace of their original content in `html`. `True` opt-in keeps the
-    original content in `html`, HTML-escaped and wrapped in
-    `class="redacted"` markup (obscured by CSS, not by this function), for
-    a click-to-reveal frontend. See `_filter_body` for the exact markup.
+    `embed_redacted` (S23.4/S32.2): `False` (the default) is the legacy,
+    byte-identical stripping behavior -- `!!redacted` lines/sections never
+    leave any trace of their original content in `html`. `True` opt-in
+    keeps the original content in `html` wrapped in `class="redacted"`
+    markup (obscured by CSS, not by this function), for a click-to-reveal
+    frontend: heading sections as the RENDERED section html (marker-
+    stripped heading + body through the normal pipeline, S32.2), inline
+    values HTML-escaped verbatim. See `_filter_body` for the exact markup.
     Callers gate this on their own trust boundary (`docs.py`'s builders
     pass `True` only when the deployment is guaranteed localhost-only) --
     this function has no opinion on when embedding is safe.
@@ -490,11 +511,12 @@ def render_markdown(
 
     md = _new_markdown()
     rendered = md.convert(md_text)
-    # Redacted values (already HTML-escaped by `_filter_body`) are planted
-    # as inert tokens and substituted only now, *after* conversion -- they
-    # must never pass through python-markdown (see `_filter_body`).
-    for token, escaped_value in embeds.items():
-        rendered = rendered.replace(token, escaped_value)
+    # Redacted embeds (pre-rendered section html / HTML-escaped inline
+    # values, see `_filter_body`) were planted as inert tokens and are
+    # substituted only now, *after* conversion -- they must never pass
+    # through the outer python-markdown run (see `_filter_body`).
+    for token, fragment in embeds.items():
+        rendered = rendered.replace(token, fragment)
     # `TocExtension` sets `toc` on the `Markdown` instance dynamically (it's
     # not part of the base class's declared attributes), hence `getattr`.
     toc: str = getattr(md, "toc", "") if add_toc else ""

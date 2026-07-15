@@ -281,12 +281,14 @@ def test_api_doc_recipe_source_text_with_language(client: Client) -> None:
 
 
 # 9. !!redacted sections are embedded obscured (localhost, click-revealable),
-#    not stripped, and the section after the redaction still renders.
+#    not stripped; the reveal shows the RENDERED section (S32.2) and the
+#    section after the redaction still renders.
 def test_api_journal_redacted_section_obscured(client: Client) -> None:
     resp = client.get("/api/journal/2026-07-01")
     assert resp.status_code == 200
     html = resp.json()["html"]
     assert 'class="redacted"' in html
+    assert "<p>super secret data</p>" in html  # rendered, not escaped raw text
     assert "visible tail text" in html  # section after the redaction resumes
 
 

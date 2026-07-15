@@ -524,5 +524,41 @@ limitation / known risk that requires front-end mitigation.
 
 ---
 
-**High-water mark: D23**
+## D24 — Section-redaction embeds render markdown; inline embeds stay raw-escaped
+
+- **Date:** 2026-07-15
+- **Status:** accepted
+- **Context:** S23.4 introduced the `embed_redacted` mode where redacted sections (marked with
+  `!!redacted`) reveal their hidden content client-side via click-to-reveal in the SPA (`class="redacted"`
+  divs). The initial implementation (S23.4) embedded the raw, HTML-escaped lines, never passing them
+  through markdown rendering, to preserve byte-fidelity for reveal. User feedback (feedback-round-1,
+  tasks/feedback.md) requested that revealed redacted sections read as rendered documents (with links,
+  emphasis, lists, tables, etc.), not as raw text. Inline redactions (char-level, e.g., `[~secret~]`)
+  were not affected by this feedback and remain unchanged. Localhost-only per D23 scope.
+- **Decision:** (1) **Heading-section redaction embeds** now contain the RENDERED HTML of the hidden
+  section: the marker-stripped heading + body re-run through `_filter_body` (at the real file offset,
+  so checkbox `data-line-nr`/`data-hash` values remain PATCH-valid) and a fresh markdown instance
+  (S32.2, `server/src/awiwi/mdrender.py:_flush_hidden`). Nested `!!redacted` markers inside the
+  hidden section are stripped (not recursed), so doubly-redacted content stays hidden after reveal.
+  (2) **Inline redaction embeds** remain unchanged: HTML-escaped raw values (`<span class="redacted">`)
+  for character-fidelity on reveal (inline secrets like passwords must read back byte-exact, and
+  markdown processors would re-render punctuation, e.g., `pass*word*123` → `pass<em>word</em>123`,
+  losing asterisks). (3) Both forms use the token-substitution mechanism: pre-rendered content is
+  stashed behind inert tokens and substituted *after* the outer markdown conversion, so embedded
+  content never travels through python-markdown a second time. (4) Non-embed mode (the legacy
+  `embed_redacted=False`, used off-localhost per D14/D23) is byte-identical to S23.4 behavior.
+- **Consequences:** (1) Revealed redacted sections are rendered, structured content (with links, lists,
+  tables, syntax highlighting via Shiki). (2) Revealed inline redactions are still raw text (fidelity
+  for secrets). (3) `server/src/awiwi/mdrender.py:_filter_body` docstring updated to clarify the
+  two branches; `_flush_hidden` refactored to call `_filter_body` + markdown render on the buffered
+  section. (4) Test suite: 263 passed (S32.1 + S32.2 combined; baseline 260); `render_markdown` tests
+  rewritten to assert rendered HTML in embeds (`<p>super secret data</p>`, not escaped text); all
+  existing stripping + inline-form tests untouched, still pass. (5) `docs/architecture.md` redaction
+  section updated to document both forms. (6) This decision supersedes the "hidden content never passes
+  through python-markdown" clause of S23.4 for heading sections only; inline and non-embed behavior
+  unchanged.
+
+---
+
+**High-water mark: D24**
 

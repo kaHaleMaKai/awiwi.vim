@@ -42,6 +42,17 @@ class TestHashLine:
     def test_non_checkbox_line(self):
         assert hash_line("not a checkbox line\n") == "9098f8d0a0fc139ff9d642bcda02ffc5"
 
+    def test_dash_bullet_unchecked_box(self):
+        # S32.1: dash bullets (stakeholder's notes use `- [ ]`) must strip
+        # the box before hashing too, same as asterisk bullets, so toggling
+        # doesn't change a dash line's own hash.
+        assert hash_line("- [ ] buy milk\n") == hash_line("- [x] buy milk\n")
+
+    def test_dash_and_asterisk_bullet_hash_differ(self):
+        # Sanity check: the bullet glyph itself is part of the hashed
+        # content -- a dash line and an asterisk line are different lines.
+        assert hash_line("- [ ] buy milk\n") != hash_line("* [ ] buy milk\n")
+
 
 class TestToggleCheckbox:
     def _write(self, tmp_path: Path, lines: list[str]) -> Path:
@@ -111,6 +122,26 @@ class TestToggleCheckbox:
         # catchable error instead.
         with pytest.raises(LineNotFoundError):
             toggle_checkbox(path, 5, True, "irrelevant")
+
+    def test_checks_an_unchecked_dash_bullet_box(self, tmp_path: Path):
+        # S32.1: dash bullets must round-trip through toggle_checkbox the
+        # same way asterisk bullets do.
+        line = "- [ ] buy milk\n"
+        path = self._write(tmp_path, ["# TODO\n", line])
+        h = hash_line(line)
+
+        toggle_checkbox(path, 1, True, h)
+
+        assert path.read_text() == "# TODO\n- [x] buy milk\n"
+
+    def test_preserves_indentation_for_dash_bullet(self, tmp_path: Path):
+        lines = ["# TODO\n", "  - [ ] nested todo\n", "trailer\n"]
+        path = self._write(tmp_path, lines)
+        h = hash_line(lines[1])
+
+        toggle_checkbox(path, 1, True, h)
+
+        assert path.read_text() == "# TODO\n  - [x] nested todo\ntrailer\n"
 
     def test_non_checkbox_line_raises(self, tmp_path: Path):
         line = "just prose, no checkbox\n"

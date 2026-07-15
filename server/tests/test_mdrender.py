@@ -5,10 +5,22 @@ Pure text-in/text-out module -- no filesystem/`notes_home` fixture needed.
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 from awiwi.checkbox import hash_line
 from awiwi.mdrender import RenderedDoc, guess_language, render_markdown
+
+
+def _redacted_div(html: str) -> str:
+    """Content of the (first) `.redacted` div -- the click-to-reveal embed.
+
+    The embedded fragment contains no nested divs (headings, paragraphs,
+    lists, spans only), so scanning to the next `</div>` is exact.
+    """
+    start = html.index('<div class="redacted">')
+    end = html.index("</div>", start)
+    return html[start:end]
 
 
 class TestTitleExtraction:
@@ -136,7 +148,26 @@ class TestRedactionEmbed:
         assert "<code>" not in doc.html
         assert "<del>" not in doc.html
 
-    def test_section_embed_wraps_whole_hidden_body_in_one_div(self):
+    def test_section_embed_reveals_rendered_markdown(self):
+        # S32.2 stakeholder feedback, verbatim snippet: revealing a redacted
+        # heading section must show a complete RENDERED block -- the heading
+        # itself (marker stripped, correct h-level) plus the body as html --
+        # not the escaped raw markdown text.
+        text = (
+            "### AT Media: AI + tech hub !!redacted\n\n"
+            "[AT Media prompt](../../../assets/2026/06/23/at-media-prompt.md)\n"
+        )
+        doc = render_markdown(text, embed_redacted=True)
+        div = _redacted_div(doc.html)
+        assert re.search(r"<h3[^>]*>AT Media: AI \+ tech hub</h3>", div)
+        link = (
+            '<a href="../../../assets/2026/06/23/at-media-prompt.md">AT Media prompt</a>'
+        )
+        assert link in div
+        assert "!!redacted" not in doc.html
+        assert "[AT Media prompt](" not in doc.html
+
+    def test_section_embed_wraps_whole_rendered_section_in_one_div(self):
         text = (
             "# Title\n\n"
             "## Secret !!redacted\n\n"
@@ -147,30 +178,75 @@ class TestRedactionEmbed:
             "Visible again.\n"
         )
         doc = render_markdown(text, embed_redacted=True)
-        # Placeholder heading unchanged from stripping mode.
+        # Obscured placeholder heading unchanged from stripping mode.
         assert "…redacted…" in doc.html
         assert doc.html.count('<div class="redacted">') == 1
-        # Whole hidden body embedded as escaped plain text, in one wrapper --
-        # nested markdown NOT re-rendered (the `###` heading stays literal).
-        assert "Hidden paragraph." in doc.html
-        assert "### Even more hidden" in doc.html
-        assert "Still hidden." in doc.html
-        assert "<h3" not in doc.html
+        # S32.2: whole hidden section embedded RENDERED, in one wrapper --
+        # heading (marker stripped) plus body as html, nested deeper
+        # headings included.
+        div = _redacted_div(doc.html)
+        assert re.search(r"<h2[^>]*>Secret</h2>", div)
+        assert "<p>Hidden paragraph.</p>" in div
+        assert re.search(r"<h3[^>]*>Even more hidden</h3>", div)
+        assert "### Even more hidden" not in doc.html
+        assert "<p>Still hidden.</p>" in div
         # The section still ends where it always did.
         assert "Next Section" in doc.html
         assert "Visible again." in doc.html
 
-    def test_section_embed_escapes_html_in_hidden_body(self):
-        text = "## S !!redacted\n\n<script>alert('x')</script>\n\n## T\n\nok\n"
+    def test_section_embed_applies_prefilters_with_original_line_numbers(self):
+        # Hidden content goes through the same per-line pre-filters as
+        # visible text; checkbox data-line-nr must still point at the REAL
+        # file line (PATCH /checkbox contract), even inside the embed.
+        text = (
+            "# T\n"  # line 0 (consumed as title)
+            "\n"  # line 1
+            "## Secret !!redacted\n"  # line 2
+            "\n"  # line 3
+            "* [ ] hidden task\n"  # line 4
+            "\n"  # line 5
+            "seen by @bug on the 1st\n"  # line 6
+        )
         doc = render_markdown(text, embed_redacted=True)
-        assert "<script>" not in doc.html
-        assert "&lt;script&gt;alert" in doc.html
+        div = _redacted_div(doc.html)
+        assert 'data-line-nr="4"' in div
+        assert f'data-hash="{hash_line("* [ ] hidden task")}"' in div
+        assert '<span class="awiwi-bug">@bug</span>' in div
+        assert "1<sup>st</sup>" in div
+
+    def test_section_embed_strips_nested_redaction_markers(self):
+        # A `!!redacted` inside an already-hidden section must not recurse:
+        # the nested render strips it (legacy stripping semantics), so
+        # doubly-redacted content stays hidden even after reveal.
+        text = (
+            "## Outer !!redacted\n\n"
+            "visible-on-reveal\n\n"
+            "### Inner !!redacted\n\n"
+            "never-shown\n\n"
+            "## Public\n\nok\n"
+        )
+        doc = render_markdown(text, embed_redacted=True)
+        div = _redacted_div(doc.html)
+        assert "visible-on-reveal" in div
+        assert "never-shown" not in doc.html
+        assert "!!redacted" not in doc.html
+
+    def test_section_embed_renders_hidden_content_like_visible_content(self):
+        # S32.2 contract change: hidden sections run through the same
+        # pipeline as visible content, so raw inline html passes through
+        # instead of arriving escaped (localhost-only, ADR D23; non-embed
+        # mode still strips everything).
+        text = "## S !!redacted\n\nkeep <b>bold</b> & more\n\n## T\n\nok\n"
+        doc = render_markdown(text, embed_redacted=True)
+        div = _redacted_div(doc.html)
+        assert "<b>bold</b>" in div
+        assert "&amp; more" in div
 
     def test_section_embed_at_end_of_document_still_flushes(self):
         text = "# T\n\n## Secret !!redacted\n\nHidden tail.\n"
         doc = render_markdown(text, embed_redacted=True)
         assert '<div class="redacted">' in doc.html
-        assert "Hidden tail." in doc.html
+        assert "<p>Hidden tail.</p>" in _redacted_div(doc.html)
 
 
 class TestCheckboxInjection:
@@ -197,6 +273,35 @@ class TestCheckboxInjection:
         # data-line-nr so it lines up with toggle_checkbox's contract.
         doc = render_markdown("# Todos\n\n* [ ] one\n")
         assert 'data-line-nr="2"' in doc.html
+
+    def test_dash_bullet_unchecked_box_gets_input_and_matching_hash(self):
+        # S32.1: stakeholder notes use `- [ ]` dash bullets, not `* [ ]`
+        # asterisk bullets -- these must render the same checkbox markup.
+        doc = render_markdown("- [ ] buy milk\n- [x] pay bills\n")
+        expected_hash = hash_line("- [ ] buy milk")
+        assert 'class="awiwi-checkbox"' in doc.html
+        assert f'data-hash="{expected_hash}"' in doc.html
+        assert 'data-line-nr="0"' in doc.html
+        assert 'id="checkbox-line-0"' in doc.html
+        assert "<label" in doc.html
+        assert "buy milk" in doc.html
+
+    def test_dash_bullet_checked_box_carries_checked_attribute_and_own_hash(self):
+        doc = render_markdown("- [ ] buy milk\n- [x] pay bills\n")
+        expected_hash = hash_line("- [x] pay bills")
+        assert 'data-line-nr="1"' in doc.html
+        assert f'data-hash="{expected_hash}"' in doc.html
+        assert "checked" in doc.html
+
+    def test_dash_bullet_indented_gets_checkbox(self):
+        doc = render_markdown("  - [ ] nested todo\n")
+        assert 'class="awiwi-checkbox"' in doc.html
+        assert 'data-line-nr="0"' in doc.html
+
+    def test_plus_bullet_not_treated_as_checkbox(self):
+        # Explicitly out of scope (unit spec): `+ [ ]` stays literal text.
+        doc = render_markdown("+ [ ] not a checkbox\n")
+        assert 'class="awiwi-checkbox"' not in doc.html
 
 
 class TestMermaid:

@@ -344,9 +344,25 @@ Python-markdown + local extensions, byte-identical per ADR D13:
 - Fenced code: pre-rendered as plain `<pre><code class="language-x">` (no server-side
   syntax highlight; CodeHilite removed T27). Shiki highlights client-side (ADR D18) — language hint
   via `guess_language` (ext-map + vim-modeline), unknown langs show unhighlighted.
-- Redaction: inline `[~secret~]` → `<span class="redacted">` with content visible on localhost
-  (click-to-reveal in SPA), blanked off-localhost (403 route-level gate prevents the `/api/raw`
-  bytes entirely)
+- Redaction (D23, D24): two forms, both click-to-reveal in the SPA:
+  - **Inline redaction** `[~secret~]` → `<span class="redacted">` with HTML-escaped raw value
+    embedded (D24: stays unchanged from S23.4). Revealed secrets read back character-exact (critical
+    for passwords, API keys, where markdown punctuation like `pass*word*123` must preserve asterisks);
+    inline markers are stripped. Always plain text on reveal (no markdown rendering).
+  - **Heading-section redaction** `!!redacted` heading → `<div class="redacted">` with **rendered HTML**
+    of the hidden section (D24 change from S23.4; previously raw-escaped). The section's heading
+    (marker stripped) + body are re-run through pre-filters (checkboxes, tags/mentions, ordinals) and
+    markdown rendering, then embedded. Nested `!!redacted` inside the section are stripped, staying
+    hidden even after reveal. Checkbox `data-line-nr`/`data-hash` use real file offsets, so PATCH
+    `/checkbox` works correctly on embedded checkboxes.
+  - **Shared mechanism**: Both use inert-token substitution — content stashed behind
+    `awiwiredacted<uuid>n<i>` tokens, planted in filtered output, substituted *after* outer
+    `md.convert` so embedded content never travels through python-markdown a second time. Non-embed
+    mode (legacy, `embed_redacted=False`) byte-identical to stripping behavior: `!!redacted` elided,
+    no trace in HTML.
+  - **Scope**: localhost-only (403 off-localhost per D14); no HTML sanitization (D23). On localhost,
+    revealed sections show rendered markdown (links, lists, tables, syntax-highlighted code via
+    Shiki); revealed inline values show raw text
 - Inline tag/mention markup (T28.0, `mdrender._filter_body`'s `_INLINE_MARKUP_RE`, applied
   line-by-line before python-markdown conversion): `@bug`/`@change`/`@incident`/`@issue` →
   `<span class="awiwi-{type}">`; `@@word` (full token, e.g. `@@lars`) →

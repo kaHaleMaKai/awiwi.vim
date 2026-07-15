@@ -69,11 +69,11 @@ class TestJournalPayload:
         # @bug tag span.
         assert 'class="awiwi-bug"' in doc.html
         # Redacted section: default (non-remote) builder call embeds the
-        # original body escaped inside an obscured `.redacted` wrapper
+        # RENDERED section (S32.2) inside an obscured `.redacted` wrapper
         # instead of stripping it; gating itself is pinned by
         # TestRedactionEmbedGating below.
         assert '<div class="redacted">' in doc.html
-        assert "super secret data" in doc.html
+        assert "<p>super secret data</p>" in doc.html
         # H1 title line extracted, not duplicated into the body.
         assert "<h1" not in doc.html
 
@@ -123,21 +123,23 @@ class TestRedactionEmbedGating:
     keeps the old stripping behavior -- redacted values must never reach a
     deployment that admits non-localhost clients. The fixture's
     2026-07-01 journal page carries a `!!redacted` section containing
-    "super secret data"."""
+    "super secret data". S32.2: the embed carries the RENDERED section
+    (heading sans marker + body as html), not escaped raw markdown."""
 
     def test_default_embeds_redacted_section(self, acceptance_home: Path) -> None:
         doc = build_journal_payload("2026-07-01", acceptance_home, is_localhost=True)
         assert doc is not None
         assert doc.html is not None
         assert '<div class="redacted">' in doc.html
-        assert "super secret data" in doc.html
+        # Rendered, not raw: the hidden body arrives as a real paragraph.
+        assert "<p>super secret data</p>" in doc.html
 
     def test_default_doc_builder_embeds_too(self, acceptance_home: Path) -> None:
         path = acceptance_home / "journal" / "2026" / "07" / "2026-07-01.md"
         doc = build_doc_payload(path, acceptance_home, is_localhost=True)
         assert doc.html is not None
         assert '<div class="redacted">' in doc.html
-        assert "super secret data" in doc.html
+        assert "<p>super secret data</p>" in doc.html
 
     def test_allow_remote_strips_redacted_values_from_journal_payload(
         self, acceptance_home: Path
