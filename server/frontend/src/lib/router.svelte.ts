@@ -26,6 +26,17 @@ export interface Route {
   path: string;
 }
 
+/** `router.current`'s shape: a matched `Route` plus the current querystring
+ * and hash, kept reactive across every navigation (including query-only or
+ * hash-only ones, which don't change `name`/`params`/`path`).
+ *
+ * `search` and `hash` mirror `URL.search`/`URL.hash`: each is `""` when
+ * absent, otherwise includes its leading punctuation (`"?q=x"`, `"#foo"`). */
+export interface RouterState extends Route {
+  search: string;
+  hash: string;
+}
+
 type Matcher = (segments: string[]) => Record<string, string> | null;
 
 const matchers: [RouteName, Matcher][] = [
@@ -55,9 +66,25 @@ function isModifiedOrNewTab(e: MouseEvent): boolean {
   return e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey;
 }
 
+/** Scrolls the element whose id matches `hash` (sans leading "#") into
+ * view. Deferred a frame so it runs after the route's reactive re-render,
+ * including a same-path, hash-only navigation that doesn't remount
+ * anything. No-op without a hash, without a match, or outside a browser. */
+function scrollToHash(hash: string): void {
+  if (!hash || typeof document === "undefined") return;
+  const id = hash.slice(1);
+  requestAnimationFrame(() => {
+    document.getElementById(id)?.scrollIntoView();
+  });
+}
+
+function stateFor(url: URL): RouterState {
+  return { ...matchRoute(url.pathname), search: url.search, hash: url.hash };
+}
+
 class Router {
-  current = $state<Route>(
-    matchRoute(typeof location !== "undefined" ? location.pathname : "/"),
+  current = $state<RouterState>(
+    stateFor(new URL(typeof location !== "undefined" ? location.href : "/", "http://localhost/")),
   );
   #started = false;
 
@@ -66,7 +93,9 @@ class Router {
       if (replace) history.replaceState(null, "", path);
       else history.pushState(null, "", path);
     }
-    this.current = matchRoute(path.split("?")[0].split("#")[0]);
+    const url = new URL(path, typeof location !== "undefined" ? location.href : "http://localhost/");
+    this.current = stateFor(url);
+    scrollToHash(url.hash);
   }
 
   /** Wire popstate + global same-origin <a> click interception. Idempotent. */
@@ -75,7 +104,8 @@ class Router {
     this.#started = true;
 
     window.addEventListener("popstate", () => {
-      this.current = matchRoute(location.pathname);
+      this.current = stateFor(new URL(location.href));
+      scrollToHash(location.hash);
     });
 
     document.addEventListener("click", (e: MouseEvent) => {

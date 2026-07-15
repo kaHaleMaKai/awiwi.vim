@@ -294,8 +294,11 @@ live sync (each worker has empty registry). Comprehensive spec: `handovers/done/
 - `src/App.svelte` — shell: header (Breadcrumbs, SearchBar, ConnectionDot, ThemeToggle) + route switch
 - `src/lib/theme.svelte.ts` — reactive theme store (`dark`/`light`), persists to `localStorage['awiwi.theme']`
 - `src/lib/router.svelte.ts` — hand-rolled runes router (path-mode URLs): `/`, `/dir/*`, `/todo`,
-  `/journal/:date`, `/assets/:date/:file`, `/recipes/*`, `/search`, `/*` notfound; global same-origin
-  `<a>` click interception
+  `/journal/:date`, `/assets/:date/:file`, `/recipes/*`, `/search`, `/*` notfound; exports
+  `RouterState` interface (extends `Route` with reactive `search` and `hash` fields, updated on
+  every navigation including query/hash-only updates); hash-scroll behavior (scrolls to hash-target
+  element via `requestAnimationFrame` after navigation, incl. same-path hash links); global same-origin
+  `<a>` click interception (preventDefault + navigate with hash/search preserved)
 - `src/lib/api.ts` — typed `/api` fetchers (no runes, ordinary TypeScript)
 - `src/lib/components/` — reusable components (Breadcrumbs, SearchBar, ThemeToggle, ConnectionDot)
 - `src/lib/enhance/` — pipeline for rendered markdown: Shiki dual-theme (lazy singleton, CSS-var

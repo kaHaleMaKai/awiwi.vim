@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { matchRoute } from "./router.svelte";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { matchRoute, router } from "./router.svelte";
 
 describe("matchRoute", () => {
   it("matches the home route", () => {
@@ -76,5 +76,75 @@ describe("matchRoute", () => {
       params: { date: "2026-07-14" },
       path: "/journal/2026-07-14/",
     });
+  });
+});
+
+describe("router.current — search & hash", () => {
+  afterEach(() => {
+    router.navigate("/", { replace: true });
+  });
+
+  it("exposes an empty search/hash for a plain path", () => {
+    router.navigate("/todo", { replace: true });
+    expect(router.current.search).toBe("");
+    expect(router.current.hash).toBe("");
+  });
+
+  it("exposes the querystring (with leading '?') reactively, even query-only", () => {
+    router.navigate("/search", { replace: true });
+    router.navigate("/search?q=cats", { replace: true });
+    expect(router.current.name).toBe("search");
+    expect(router.current.search).toBe("?q=cats");
+  });
+
+  it("exposes the hash (with leading '#') reactively, even hash-only", () => {
+    router.navigate("/todo", { replace: true });
+    router.navigate("/todo#section-2", { replace: true });
+    expect(router.current.hash).toBe("#section-2");
+  });
+
+  it("re-derives search/hash on a query-only navigation on the same path", () => {
+    router.navigate("/journal/2026-07-14?x=1", { replace: true });
+    const first = router.current;
+    router.navigate("/journal/2026-07-14?x=2", { replace: true });
+    expect(router.current).not.toBe(first);
+    expect(router.current.search).toBe("?x=2");
+  });
+});
+
+describe("router — hash scroll", () => {
+  afterEach(() => {
+    document.body.innerHTML = "";
+    router.navigate("/", { replace: true });
+  });
+
+  it("scrolls the matching element into view after navigating to a hash", async () => {
+    const el = document.createElement("div");
+    el.id = "section-2";
+    document.body.appendChild(el);
+    const spy = vi.spyOn(el, "scrollIntoView").mockImplementation(() => {});
+
+    router.navigate("/todo#section-2", { replace: true });
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+
+    expect(spy).toHaveBeenCalled();
+  });
+
+  it("scrolls on a same-path, hash-only navigation (no route change)", async () => {
+    router.navigate("/todo", { replace: true });
+    const el = document.createElement("div");
+    el.id = "section-3";
+    document.body.appendChild(el);
+    const spy = vi.spyOn(el, "scrollIntoView").mockImplementation(() => {});
+
+    router.navigate("/todo#section-3", { replace: true });
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+
+    expect(spy).toHaveBeenCalled();
+  });
+
+  it("does not throw when navigating without a hash", async () => {
+    router.navigate("/todo", { replace: true });
+    await new Promise((resolve) => requestAnimationFrame(resolve));
   });
 });

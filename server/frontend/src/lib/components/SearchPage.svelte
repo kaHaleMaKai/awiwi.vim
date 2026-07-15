@@ -17,15 +17,40 @@
   import { highlightMatch } from "../searchHighlight";
 
   const SCOPES: SearchScope[] = ["journal", "assets", "recipes"];
+  const DEBOUNCE_MS = 300;
 
-  // Re-parsed on every router.current reassignment — router.navigate()
-  // always creates a fresh Route object, including for query-only
-  // (replaceState) navigations that keep the same "/search" path, so this
-  // derived value tracks chip/regex/typing updates too, not just full nav.
-  const urlState = $derived<SearchUrlState>(parseSearchUrl(location.search));
+  // Re-parsed on every router.current reassignment — router.current.search
+  // is reactive (incl. query-only/replaceState navigations that keep the
+  // same "/search" path — see router.svelte.ts), so this derived value
+  // tracks chip/regex/typing updates too, not just full navigations.
+  const urlState = $derived<SearchUrlState>(parseSearchUrl(router.current.search));
 
   function pushState(next: Partial<SearchUrlState>): void {
     router.navigate(searchPath({ ...urlState, ...next }), { replace: true });
+  }
+
+  // Page's own query input (feedback: the results view had no visible way
+  // to edit the query). Same controlled-input + resync-only-on-external-
+  // change pattern as SearchBar.svelte, so typing here doesn't get clobbered
+  // by the debounced replaceState it itself triggers.
+  const initialQ = parseSearchUrl(router.current.search).q;
+  let qValue = $state(initialQ);
+  let lastKnownQ = initialQ;
+  let qDebounceTimer: ReturnType<typeof setTimeout> | undefined;
+
+  $effect(() => {
+    const q = urlState.q;
+    if (q !== lastKnownQ) {
+      qValue = q;
+      lastKnownQ = q;
+    }
+  });
+
+  function onQueryInput(e: Event): void {
+    qValue = (e.target as HTMLInputElement).value;
+    lastKnownQ = qValue;
+    clearTimeout(qDebounceTimer);
+    qDebounceTimer = setTimeout(() => pushState({ q: qValue }), DEBOUNCE_MS);
   }
 
   function toggleScope(scope: SearchScope): void {
@@ -95,6 +120,15 @@
     </h1>
   </div>
   <div class="deco-rule"></div>
+
+  <input
+    class="input search-field"
+    type="search"
+    placeholder="Search notes…"
+    aria-label="Search query"
+    value={qValue}
+    oninput={onQueryInput}
+  />
 
   <div class="search-toolbar">
     <div class="cluster">
