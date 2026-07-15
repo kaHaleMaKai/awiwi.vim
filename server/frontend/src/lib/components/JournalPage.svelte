@@ -4,7 +4,7 @@
   // the payload's `nav`, MarkdownView + enhance for the body.
   import { getJournal, ApiError, type DocPayload } from "../api";
   import { breadcrumbs, fallbackCrumbs, withCurrent } from "../breadcrumbs.svelte";
-  import { journalTitle, shortDayDate } from "../format";
+  import { journalTitle, shortDayDate, dayOfMonth } from "../format";
   import { useLiveDoc } from "../ws.svelte";
   import { watchToc } from "../enhance/tocSpy";
   import MarkdownView from "./MarkdownView.svelte";
@@ -25,7 +25,10 @@
     getJournal(d)
       .then((payload) => {
         doc = payload;
-        breadcrumbs.set(withCurrent(payload.breadcrumbs, d, `/journal/${d}`));
+        // mockups/journal.html's last crumb is the day number only ("14"),
+        // not the full ISO date ("2026-07-14") -- the year/month are already
+        // covered by the preceding crumbs from the payload itself.
+        breadcrumbs.set(withCurrent(payload.breadcrumbs, dayOfMonth(d), `/journal/${d}`));
       })
       .catch((err) => {
         notFound = true;

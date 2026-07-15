@@ -73,6 +73,18 @@
   <div class="code-block-file" bind:this={container}></div>
 </div>
 
+<!-- mockups/asset-text.html's file-info card: no "File info" eyebrow (unlike
+     asset-image.html's), just the Path row -- Size/Linked-from stay
+     data-gap-excluded (not in DocPayload). -->
+<div class="card u-mt-6">
+  <div
+    class="u-mt-1"
+    style="display:grid; grid-template-columns: 140px 1fr; row-gap: var(--space-2); font-size: var(--text-sm);"
+  >
+    <span class="u-muted">Path</span><span class="u-mono">{doc.watch_path}</span>
+  </div>
+</div>
+
 <style>
   /* Line-number gutter (mockups/asset-text.html's `.file-pre`/`.file-line`),
      re-keyed off Shiki's own `.line` class so it works for both the

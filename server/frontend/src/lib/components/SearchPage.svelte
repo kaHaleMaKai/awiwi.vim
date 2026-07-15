@@ -99,7 +99,7 @@
   <div class="search-toolbar">
     <div class="cluster">
       {#each SCOPES as scope (scope)}
-        {@const active = urlState.scopes.length === 0 || urlState.scopes.includes(scope)}
+        {@const active = urlState.scopes.includes(scope)}
         <button
           class="chip"
           class:is-active={active}

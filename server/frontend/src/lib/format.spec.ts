@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { journalTitle, shortDayDate, ordinalSuffix } from "./format";
+import { journalTitle, shortDayDate, ordinalSuffix, dayOfMonth, monthTitle } from "./format";
 
 describe("ordinalSuffix", () => {
   const cases: [number, string][] = [
@@ -58,5 +58,34 @@ describe("shortDayDate — day-nav / dir-month row shape", () => {
   it("returns non-dates unchanged", () => {
     expect(shortDayDate("recipes")).toBe("recipes");
     expect(shortDayDate("2026-13-01")).toBe("2026-13-01");
+  });
+});
+
+describe("dayOfMonth — journal breadcrumb last-segment shape", () => {
+  it('formats "2026-07-14" as "14"', () => {
+    expect(dayOfMonth("2026-07-14")).toBe("14");
+  });
+
+  it("stays zero-padded for single-digit days", () => {
+    expect(dayOfMonth("2026-07-06")).toBe("06");
+  });
+
+  it("returns non-dates unchanged", () => {
+    expect(dayOfMonth("not-a-date")).toBe("not-a-date");
+  });
+});
+
+describe("monthTitle — dir-journal-month.html H1 shape", () => {
+  it('formats ("2026", "07") as "July 2026"', () => {
+    expect(monthTitle("2026", "07")).toBe("July 2026");
+  });
+
+  it("handles unpadded month numbers", () => {
+    expect(monthTitle("2026", "1")).toBe("January 2026");
+  });
+
+  it("falls back to year/month unchanged for invalid input", () => {
+    expect(monthTitle("2026", "13")).toBe("2026/13");
+    expect(monthTitle("2026", "not-a-month")).toBe("2026/not-a-month");
   });
 });

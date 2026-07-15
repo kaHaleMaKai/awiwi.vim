@@ -28,6 +28,16 @@
     <h1 class="page-title u-mt-2">{filename}</h1>
   </div>
   <button class="btn btn-primary" type="button" onclick={() => openLightbox(src, filename)}>
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="1.5"
+      aria-hidden="true"
+      ><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" /></svg
+    >
     View fullscreen
   </button>
 </div>
@@ -42,9 +52,6 @@
   >
     <img {src} alt={filename} onload={onImgLoad} />
   </button>
-  {#if dims}
-    <figcaption class="u-muted u-mt-3" style="font-size: var(--text-sm);">{dims}</figcaption>
-  {/if}
 </figure>
 
 <div class="card u-mt-6">
@@ -66,6 +73,12 @@
   .image-frame {
     display: block;
     width: 100%;
+    /* mockups/asset-image.html's .placeholder-art caps at 640px; matching
+       that keeps the frame from stretching to the real image's full
+       intrinsic width (which, via the .container-wide grid item's
+       fit-content sizing, was pulling the whole page wider than the
+       title/rule above it). */
+    max-width: 640px;
     padding: 0;
     border: 1px solid var(--border-default);
     border-radius: var(--radius-md);

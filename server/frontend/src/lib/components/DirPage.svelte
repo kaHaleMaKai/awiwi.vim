@@ -10,12 +10,13 @@
   import { getDir, getMeta, rawUrl, ApiError, type DirPayload, type DirEntry } from "../api";
   import { breadcrumbs, fallbackCrumbs } from "../breadcrumbs.svelte";
   import { bandByWeek, isJournalDayName } from "../weekBands";
-  import { shortDayDate } from "../format";
+  import { shortDayDate, monthTitle } from "../format";
   import EmptyState from "./EmptyState.svelte";
 
-  // Root-only row order/icons (mockups/dir-root.html) — the fixed home
-  // subtrees in their documented display order, not the backend's
-  // (alphabetical) entry order. Anything else falls back to its name.
+  // Root-only row order/icons/descriptions (mockups/dir-root.html) — the
+  // fixed home subtrees in their documented display order, not the
+  // backend's (alphabetical) entry order. Anything else falls back to its
+  // name/no description.
   const ROOT_ORDER = ["journal", "assets", "recipes"];
   const ROOT_ICON: Record<string, string> = {
     journal:
@@ -24,6 +25,15 @@
       '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 7a2 2 0 0 1 2-2h3l1.5-2h5L16 5h3a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><circle cx="12" cy="13" r="3.5"/></svg>',
     recipes:
       '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 19.5V6a2 2 0 0 1 2-2h8.5L20 8.5V18a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2.5Z"/><path d="M14 4v4.5H18.5"/></svg>',
+  };
+  // Static per-doc-type blurb (mockups/dir-root.html's row-meta text). The
+  // mockup's journal row also shows a "· 2019–2026" year range, but that's
+  // derived from real journal contents the backend doesn't expose (no
+  // earliest/latest-entry field on DirPayload) -- omitted as a data-gap.
+  const ROOT_DESC: Record<string, string> = {
+    journal: "daily journals",
+    assets: "images, text files, drawio diagrams",
+    recipes: "nested how-tos, linkable from any note",
   };
 
   interface Props {
@@ -65,8 +75,17 @@
       });
   });
 
-  const title = $derived(path ? (path.split("/").pop() ?? path) + "/" : "g:awiwi_home");
-  const deco = $derived(path ? "Directory" : "Awiwi Home");
+  // journal/YYYY/MM dirs get their own eyebrow/title (mockups/dir-journal-month.html:
+  // "Journal" / "July 2026") instead of the generic "Directory" / "MM/".
+  const journalMonthMatch = $derived(/^journal\/(\d{4})\/(\d{2})$/.exec(path));
+  const title = $derived(
+    journalMonthMatch
+      ? monthTitle(journalMonthMatch[1], journalMonthMatch[2])
+      : path
+        ? (path.split("/").pop() ?? path) + "/"
+        : "g:awiwi_home",
+  );
+  const deco = $derived(journalMonthMatch ? "Journal" : path ? "Directory" : "Awiwi Home");
 
   const fileEntries = $derived(dir?.entries.filter((e) => !e.is_dir) ?? []);
   const dayEntries = $derived(fileEntries.filter((e) => isJournalDayName(e.name)));
@@ -140,7 +159,9 @@
             {/if}
             <span class="row-title">{entry.name}{entry.is_dir ? "/" : ""}</span>
           </span>
-          <span class="row-meta">{entry.doc_type !== "other" ? entry.doc_type : ""}</span>
+          <span class="row-meta">
+            {isRoot ? (ROOT_DESC[entry.name] ?? "") : entry.doc_type !== "other" ? entry.doc_type : ""}
+          </span>
         </a>
       {/each}
     </div>
@@ -163,5 +184,13 @@
     display: inline-flex;
     color: var(--accent-brass);
     flex: none;
+  }
+  /* mockups/dir-journal-month.html's .day-row.is-current is plain cyan text
+     with no background/border (its .day-row has no border at all). Our
+     shared .row always carries border-bottom + .is-current's bg tint
+     (app.css), which reads as a "boxed" highlight here — drop the tint in
+     this one context to match the mockup's plainer look. */
+  .week-band .row.is-current {
+    background: none;
   }
 </style>

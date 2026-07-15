@@ -139,3 +139,26 @@ export function shortDayDate(value: string | Date): string {
   // this is consistent with that mockup too.
   return strftime(dt, "%a, %b %d");
 }
+
+/** Breadcrumb day segment, e.g. `14` (mockups/journal.html's last crumb --
+ * the parent year/month crumbs are already zero-padded directory names, so
+ * this stays zero-padded too). Non-dates pass through unchanged, matching
+ * journalTitle/shortDayDate's convention. */
+export function dayOfMonth(value: string | Date): string {
+  const dt = toDate(value);
+  if (dt === null) return String(value);
+  return strftime(dt, "%d");
+}
+
+/** Journal month-directory title, e.g. `July 2026`
+ * (mockups/dir-journal-month.html H1) -- derived from a `journal/YYYY/MM`
+ * directory path's year/month segments (not a full date). Invalid/
+ * out-of-range input falls back to `YYYY/MM` unchanged. */
+export function monthTitle(year: string, month: string): string {
+  const y = Number(year);
+  const m = Number(month);
+  if (!Number.isInteger(y) || !Number.isInteger(m) || m < 1 || m > 12) {
+    return `${year}/${month}`;
+  }
+  return `${MON_LONG[m - 1]} ${y}`;
+}
