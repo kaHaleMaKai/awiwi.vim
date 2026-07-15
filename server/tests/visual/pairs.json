@@ -76,7 +76,7 @@
     {
       "id": "recipe-audit",
       "mockup": null,
-      "spaUrl": "/recipes/sourdough-starter",
+      "spaUrl": "/recipes/sourdough-starter.md",
       "theme": "dark"
     }
   ]
