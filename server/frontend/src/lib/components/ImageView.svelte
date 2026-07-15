@@ -47,13 +47,29 @@
   {/if}
 </figure>
 
+<div class="card u-mt-6">
+  <span class="u-muted" style="font-size: var(--text-xs); letter-spacing:.06em; text-transform:uppercase;">
+    File info
+  </span>
+  <div
+    class="u-mt-3"
+    style="display:grid; grid-template-columns: 140px 1fr; row-gap: var(--space-2); font-size: var(--text-sm);"
+  >
+    <span class="u-muted">Path</span><span class="u-mono">{doc.watch_path}</span>
+    {#if dims}
+      <span class="u-muted">Dimensions</span><span>{dims}</span>
+    {/if}
+  </div>
+</div>
+
 <style>
   .image-frame {
     display: block;
     width: 100%;
     padding: 0;
-    border: 1px solid var(--border-subtle);
+    border: 1px solid var(--border-default);
     border-radius: var(--radius-md);
+    box-shadow: var(--shadow-noir);
     background: var(--bg-sunken);
     cursor: zoom-in;
   }

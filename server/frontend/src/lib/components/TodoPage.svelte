@@ -8,6 +8,7 @@
   import { getTodo, ApiError, type DocPayload } from "../api";
   import { breadcrumbs, fallbackCrumbs, withCurrent } from "../breadcrumbs.svelte";
   import { useLiveDoc } from "../ws.svelte";
+  import { watchToc } from "../enhance/tocSpy";
   import MarkdownView from "./MarkdownView.svelte";
   import EmptyState from "./EmptyState.svelte";
 
@@ -48,36 +49,63 @@
       refetch: load,
     },
   );
+
+  let articleEl: HTMLElement | undefined = $state();
+  let tocEl: HTMLElement | undefined = $state();
+  $effect(() => {
+    void doc?.toc;
+    void doc?.html;
+    if (!articleEl || !tocEl) return;
+    return watchToc(articleEl, tocEl);
+  });
 </script>
 
 {#if notFound}
   <EmptyState glyph="404" message="No todo file found yet." />
 {:else if doc}
   <div class="layout-with-rail">
-    <article class="stack">
+    <article class="stack" bind:this={articleEl}>
       <div>
         <span class="deco-title">Journal</span>
-        <h1 class="page-title u-mt-2">Todos</h1>
+        <h1 class="page-title u-mt-2">Todo</h1>
       </div>
       <div class="deco-rule"></div>
-      <MarkdownView
-        html={doc.html ?? ""}
-        watchPath={doc.watch_path}
-        onCheckboxStale={load}
-        onCheckboxSuccess={(mtimeNs) => {
-          if (doc) doc.mtime_ns = mtimeNs;
-          live.ackMtime(mtimeNs);
-        }}
-      />
+      <div class="todo-body">
+        <MarkdownView
+          html={doc.html ?? ""}
+          watchPath={doc.watch_path}
+          onCheckboxStale={load}
+          onCheckboxSuccess={(mtimeNs) => {
+            if (doc) doc.mtime_ns = mtimeNs;
+            live.ackMtime(mtimeNs);
+          }}
+        />
+      </div>
     </article>
 
     {#if doc.toc}
       <aside class="rail">
         <div class="rail-section">
           <div class="deco-title">On this page</div>
-          <nav class="toc u-mt-2">{@html doc.toc}</nav>
+          <nav class="toc u-mt-2" bind:this={tocEl}>{@html doc.toc}</nav>
         </div>
       </aside>
     {/if}
   </div>
 {/if}
+
+<style>
+  /* journal/todos.md's `## Overdue`/`## Today`/`## Upcoming` are plain
+     markdown headings, but mockups/todo.html shows them as `.deco-title`
+     eyebrows (gold, all-caps) inside a card, not page-body headings — the
+     structured card/badges themselves are a data-gap (no due-date/status
+     metadata from the API), but the heading typography is achievable. */
+  .todo-body :global(.markdown-body h2) {
+    font-family: var(--font-ui);
+    font-size: var(--text-sm);
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent-brass-title);
+  }
+</style>

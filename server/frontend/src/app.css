@@ -674,9 +674,11 @@ hr { border: 0; border-top: 1px solid var(--border-subtle); }
 }
 .copy-menu-list button:hover { background: var(--bg-hover); color: var(--accent-cyan); }
 
-/* -- tables -- */
-.data-table { font-size: var(--text-sm); }
-.data-table th {
+/* -- tables --
+   Also applied to plain markdown-rendered `<table>`s (mdrender's TableExtension
+   output has no class of its own) so real tables get the same look. */
+.data-table, .markdown-body table { font-size: var(--text-sm); }
+.data-table th, .markdown-body table th {
   text-align: left;
   padding: var(--space-2) var(--space-3);
   color: var(--accent-brass-title);
@@ -685,16 +687,22 @@ hr { border: 0; border-top: 1px solid var(--border-subtle); }
   text-transform: uppercase;
   border-bottom: 1px solid var(--border-default);
 }
-.data-table td {
+.data-table td, .markdown-body table td {
   padding: var(--space-2) var(--space-3);
   border-bottom: 1px solid var(--border-subtle);
   color: var(--text-secondary);
 }
-.data-table tr:hover td { background: var(--bg-hover); }
+.data-table tr:hover td, .markdown-body table tr:hover td { background: var(--bg-hover); }
 
-/* -- checkboxes / task list -- */
+/* -- checkboxes / task list --
+   `.task-item` is the mockups' own markup; the server (mdrender.py) instead
+   emits a plain `<li><input class="awiwi-checkbox"> <label>...</label></li>`,
+   so the same checkbox look is repeated for that real selector below. The
+   done/strikethrough label style is injected at runtime by checkbox.ts
+   (`.awiwi-checkbox-done`), not here. */
 .task-item { display: flex; align-items: flex-start; gap: var(--space-2); padding: var(--space-1) 0; }
-.task-item input[type='checkbox'] {
+.task-item input[type='checkbox'],
+.markdown-body input.awiwi-checkbox {
   appearance: none;
   width: 16px;
   height: 16px;
@@ -706,8 +714,10 @@ hr { border: 0; border-top: 1px solid var(--border-subtle); }
   position: relative;
   cursor: pointer;
 }
-.task-item input[type='checkbox']:checked { background: var(--accent-brass); border-color: var(--accent-brass); }
-.task-item input[type='checkbox']:checked::after {
+.task-item input[type='checkbox']:checked,
+.markdown-body input.awiwi-checkbox:checked { background: var(--accent-brass); border-color: var(--accent-brass); }
+.task-item input[type='checkbox']:checked::after,
+.markdown-body input.awiwi-checkbox:checked::after {
   content: '';
   position: absolute;
   left: 4px;
@@ -718,11 +728,14 @@ hr { border: 0; border-top: 1px solid var(--border-subtle); }
   border-width: 0 2px 2px 0;
   transform: rotate(45deg);
 }
-.task-item input[type='checkbox']:focus-visible { outline: none; box-shadow: var(--shadow-focus-cyan); }
+.task-item input[type='checkbox']:focus-visible,
+.markdown-body input.awiwi-checkbox:focus-visible { outline: none; box-shadow: var(--shadow-focus-cyan); }
 .task-item.is-done .task-label { color: var(--text-muted); text-decoration: line-through; }
+/* Real task lists are plain `<ul><li>` — drop the bullet, the checkbox is the marker. */
+.markdown-body ul:has(> li > input.awiwi-checkbox) { list-style: none; padding-left: 0; }
 
 /* -- mermaid placeholder -- */
-.mermaid-box {
+.mermaid-box, .markdown-body div.mermaid {
   border: 1px dashed var(--border-strong);
   border-radius: var(--radius-md);
   background: var(--bg-sunken);
@@ -747,12 +760,20 @@ hr { border: 0; border-top: 1px solid var(--border-subtle); }
 .markdown-body ol { padding-left: var(--space-5); }
 .markdown-body img { max-width: 100%; border-radius: var(--radius-sm); }
 
-/* -- TOC / rail -- */
+/* -- TOC / rail --
+   `.toc-h3`/`.is-active` are the mockups' flat markup; the server's
+   TocExtension instead nests a real `<ul><li>` per heading level, so the
+   list itself is flattened visually (no bullets/indent from the list, only
+   from the `a`'s own padding) and depth is read off list nesting instead of
+   a class. Active-state highlighting is applied at runtime (lib/enhance's
+   TOC scrollspy) via the same `.is-active` class. */
 .toc { font-size: var(--text-sm); }
+.toc ul { list-style: none; margin: 0; padding: 0; }
+.toc li { margin: 0; }
 .toc a { display: block; padding: var(--space-1) 0; color: var(--text-muted); border-left: 2px solid transparent; padding-left: var(--space-3); }
 .toc a:hover { color: var(--text-secondary); }
 .toc a.is-active { color: var(--accent-cyan); border-left-color: var(--accent-cyan); }
-.toc .toc-h3 { padding-left: var(--space-5); }
+.toc .toc-h3, .toc ul ul a { padding-left: var(--space-5); }
 
 /* -- prev/next day nav -- */
 .day-nav {

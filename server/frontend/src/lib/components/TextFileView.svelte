@@ -33,7 +33,21 @@
     const pre = document.createElement("pre");
     const code = document.createElement("code");
     code.className = `language-${codeLang}`;
-    code.textContent = src;
+    if (skip) {
+      // Too big to Shiki-highlight, but still numbered per line (mockups/
+      // asset-text.html) — build the same `.line`-per-row shape Shiki's own
+      // output uses, so the CSS-counter gutter below works either way.
+      const lines = src.split("\n");
+      lines.forEach((line, i) => {
+        const span = document.createElement("span");
+        span.className = "line";
+        span.textContent = line;
+        code.appendChild(span);
+        if (i < lines.length - 1) code.appendChild(document.createTextNode("\n"));
+      });
+    } else {
+      code.textContent = src;
+    }
     pre.appendChild(code);
     container.appendChild(pre);
     const cleanup = addCopyButton(pre);
@@ -56,5 +70,42 @@
           : ""}</span
     >
   </div>
-  <div bind:this={container}></div>
+  <div class="code-block-file" bind:this={container}></div>
 </div>
+
+<style>
+  /* Line-number gutter (mockups/asset-text.html's `.file-pre`/`.file-line`),
+     re-keyed off Shiki's own `.line` class so it works for both the
+     highlighted and too-big-to-highlight (plain `.line` spans above) paths.
+     Scoped to this file view only -- MarkdownView's embedded code fences
+     don't get line numbers. */
+  .code-block-file :global(pre) {
+    counter-reset: line;
+  }
+  .code-block-file :global(.line) {
+    /* NB: no `display: block` here -- Shiki's real output (and our own
+       too-big-fallback markup above) already separates `.line` spans with a
+       literal newline text node; adding block display would double every
+       line break. */
+    counter-increment: line;
+  }
+  .code-block-file :global(.line)::before {
+    content: counter(line);
+    display: inline-block;
+    width: 3em;
+    margin-right: var(--space-4);
+    text-align: right;
+    color: var(--text-muted);
+    user-select: none;
+  }
+
+  /* This view already sits inside its own `.code-block`/`.code-toolbar` box
+     (mockups/asset-text.html); copyButtons.ts's `.awiwi-code-block` wrapper
+     would otherwise add a second, redundant border/padding around the
+     Shiki output here (see enhance/shiki.ts) -- strip it back out. */
+  .code-block-file :global(.shiki) {
+    border: none;
+    border-radius: 0;
+    padding: 0;
+  }
+</style>

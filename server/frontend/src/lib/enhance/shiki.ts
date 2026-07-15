@@ -27,10 +27,28 @@ function injectThemeSwitchCss(): void {
   styleInjected = true;
   const style = document.createElement("style");
   style.id = "awiwi-shiki-theme";
+  // Token colors come from Shiki's own dual-theme CSS variables, but the
+  // background follows the app's own `--code-bg` token rather than the
+  // github-light/dark themes' baked-in background — otherwise light mode
+  // renders a plain white box instead of the Noir-Deco tan/beige card.
+  // Border/padding/radius (the rest of mockups/tokens.css's `.code-block`
+  // look) only apply inside `.awiwi-code-block` (copyButtons.ts's wrapper,
+  // used by MarkdownView's bare fenced code) — TextFileView already sits
+  // inside its own `.code-block`/`.code-toolbar` box and strips this back
+  // out (see its own <style>) so the two boxes don't nest.
   style.textContent = `
-.shiki, .shiki span { color: var(--shiki-light); background-color: var(--shiki-light-bg); }
+.shiki, .shiki span { color: var(--shiki-light); }
 :root[data-theme='dark'] .shiki,
-:root[data-theme='dark'] .shiki span { color: var(--shiki-dark); background-color: var(--shiki-dark-bg); }
+:root[data-theme='dark'] .shiki span { color: var(--shiki-dark); }
+.shiki { background: var(--code-bg); }
+.awiwi-code-block .shiki {
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  overflow-x: auto;
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+}
 `;
   document.head.appendChild(style);
 }

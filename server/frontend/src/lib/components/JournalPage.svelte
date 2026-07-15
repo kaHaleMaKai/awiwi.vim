@@ -4,8 +4,9 @@
   // the payload's `nav`, MarkdownView + enhance for the body.
   import { getJournal, ApiError, type DocPayload } from "../api";
   import { breadcrumbs, fallbackCrumbs, withCurrent } from "../breadcrumbs.svelte";
-  import { beautifyDate } from "../format";
+  import { journalTitle, shortDayDate } from "../format";
   import { useLiveDoc } from "../ws.svelte";
+  import { watchToc } from "../enhance/tocSpy";
   import MarkdownView from "./MarkdownView.svelte";
   import EmptyState from "./EmptyState.svelte";
 
@@ -54,6 +55,15 @@
       refetch: () => load(date),
     },
   );
+
+  let articleEl: HTMLElement | undefined = $state();
+  let tocEl: HTMLElement | undefined = $state();
+  $effect(() => {
+    void doc?.toc;
+    void doc?.html;
+    if (!articleEl || !tocEl) return;
+    return watchToc(articleEl, tocEl);
+  });
 </script>
 
 {#if notFound}
@@ -67,10 +77,10 @@
   />
 {:else if doc}
   <div class="layout-with-rail">
-    <article class="stack">
+    <article class="stack" bind:this={articleEl}>
       <div>
         <span class="deco-title">Daily Journal</span>
-        <h1 class="page-title u-mt-2">{@html beautifyDate(date, "%B %Y")}</h1>
+        <h1 class="page-title u-mt-2">{journalTitle(date)}</h1>
       </div>
       <div class="deco-rule"></div>
 
@@ -79,7 +89,7 @@
           {#if doc.nav.prev}
             <a href={`/journal/${doc.nav.prev}`}>
               <span class="day-nav-label">&larr; Prev</span>
-              <span class="day-nav-date">{@html beautifyDate(doc.nav.prev)}</span>
+              <span class="day-nav-date">{shortDayDate(doc.nav.prev)}</span>
             </a>
           {:else}
             <span></span>
@@ -87,7 +97,7 @@
           {#if doc.nav.next}
             <a class="day-nav-next" href={`/journal/${doc.nav.next}`}>
               <span class="day-nav-label">Next &rarr;</span>
-              <span class="day-nav-date">{@html beautifyDate(doc.nav.next)}</span>
+              <span class="day-nav-date">{shortDayDate(doc.nav.next)}</span>
             </a>
           {/if}
         </nav>
@@ -108,7 +118,7 @@
       <aside class="rail">
         <div class="rail-section">
           <div class="deco-title">On this page</div>
-          <nav class="toc u-mt-2">{@html doc.toc}</nav>
+          <nav class="toc u-mt-2" bind:this={tocEl}>{@html doc.toc}</nav>
         </div>
       </aside>
     {/if}

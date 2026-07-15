@@ -7,11 +7,24 @@
   // "no entry"/future placeholder rows and word-count summaries — the real
   // API only returns entries that exist on disk, with no size/summary
   // metadata, so those can't be reproduced.
-  import { getDir, rawUrl, ApiError, type DirPayload, type DirEntry } from "../api";
+  import { getDir, getMeta, rawUrl, ApiError, type DirPayload, type DirEntry } from "../api";
   import { breadcrumbs, fallbackCrumbs } from "../breadcrumbs.svelte";
   import { bandByWeek, isJournalDayName } from "../weekBands";
-  import { beautifyDate } from "../format";
+  import { shortDayDate } from "../format";
   import EmptyState from "./EmptyState.svelte";
+
+  // Root-only row order/icons (mockups/dir-root.html) — the fixed home
+  // subtrees in their documented display order, not the backend's
+  // (alphabetical) entry order. Anything else falls back to its name.
+  const ROOT_ORDER = ["journal", "assets", "recipes"];
+  const ROOT_ICON: Record<string, string> = {
+    journal:
+      '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 3v3M16 3v3"/></svg>',
+    assets:
+      '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 7a2 2 0 0 1 2-2h3l1.5-2h5L16 5h3a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><circle cx="12" cy="13" r="3.5"/></svg>',
+    recipes:
+      '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 19.5V6a2 2 0 0 1 2-2h8.5L20 8.5V18a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2.5Z"/><path d="M14 4v4.5H18.5"/></svg>',
+  };
 
   interface Props {
     /** Home-relative directory path; "" for the root. */
@@ -21,6 +34,15 @@
 
   let dir = $state<DirPayload | null>(null);
   let notFound = $state(false);
+  // Server's notion of "today" (date.today() in the app's own tz), used only
+  // to highlight the current day's row in a journal-month listing — fetched
+  // once, independent of which directory is being viewed.
+  let today = $state<string | null>(null);
+  getMeta()
+    .then((meta) => {
+      today = meta.today;
+    })
+    .catch(() => {});
 
   $effect(() => {
     const p = path;
@@ -30,7 +52,11 @@
     getDir(p)
       .then((payload) => {
         dir = payload;
-        breadcrumbs.set(payload.breadcrumbs);
+        // Root dir has no ancestors (backend returns `[]`) — mockups/dir-root.html
+        // shows a single "home" crumb rather than nothing.
+        breadcrumbs.set(
+          payload.breadcrumbs.length ? payload.breadcrumbs : [{ name: "home", target: "/" }],
+        );
       })
       .catch((err) => {
         notFound = true;
@@ -46,6 +72,17 @@
   const dayEntries = $derived(fileEntries.filter((e) => isJournalDayName(e.name)));
   const isJournalMonth = $derived(dayEntries.length > 0 && dayEntries.length === fileEntries.length);
   const weeks = $derived(isJournalMonth ? bandByWeek(dayEntries) : []);
+
+  const isRoot = $derived(!path);
+  // Root listing order/icons follow mockups/dir-root.html (journal, assets,
+  // recipes) rather than the backend's alphabetical entry order.
+  const rootEntries = $derived(
+    isRoot
+      ? [...(dir?.entries ?? [])].sort(
+          (a, b) => ROOT_ORDER.indexOf(a.name) - ROOT_ORDER.indexOf(b.name),
+        )
+      : [],
+  );
 
   function entryHref(e: DirEntry): string {
     if (e.is_dir) return `/dir/${e.relpath}`;
@@ -86,8 +123,8 @@
         <div class="week-band">
           <div class="week-label">{week.label}</div>
           {#each week.days as day (day.relpath)}
-            <a class="row" href={entryHref(day)}>
-              <span class="row-title">{@html beautifyDate(day.name)}</span>
+            <a class="row" class:is-current={day.name === today} href={entryHref(day)}>
+              <span class="row-title">{shortDayDate(day.name)}</span>
             </a>
           {/each}
         </div>
@@ -95,9 +132,14 @@
     </div>
   {:else if dir.entries.length}
     <div class="card u-mt-6">
-      {#each dir.entries as entry (entry.relpath)}
+      {#each (isRoot ? rootEntries : dir.entries) as entry (entry.relpath)}
         <a class="row" href={entryHref(entry)}>
-          <span class="row-title">{entry.name}{entry.is_dir ? "/" : ""}</span>
+          <span class="cluster">
+            {#if isRoot && ROOT_ICON[entry.name]}
+              <span class="dir-icon" aria-hidden="true">{@html ROOT_ICON[entry.name]}</span>
+            {/if}
+            <span class="row-title">{entry.name}{entry.is_dir ? "/" : ""}</span>
+          </span>
           <span class="row-meta">{entry.doc_type !== "other" ? entry.doc_type : ""}</span>
         </a>
       {/each}
@@ -115,5 +157,11 @@
     letter-spacing: 0.06em;
     text-transform: uppercase;
     color: var(--text-muted);
+  }
+  /* Root row icons (mockups/dir-root.html) — mockup-only, not in tokens.css. */
+  .dir-icon {
+    display: inline-flex;
+    color: var(--accent-brass);
+    flex: none;
   }
 </style>

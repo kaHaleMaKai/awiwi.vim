@@ -5,6 +5,7 @@
   import { getDoc, ApiError, type DocPayload } from "../api";
   import { breadcrumbs, fallbackCrumbs, withCurrent } from "../breadcrumbs.svelte";
   import { useLiveDoc } from "../ws.svelte";
+  import { watchToc } from "../enhance/tocSpy";
   import MarkdownView from "./MarkdownView.svelte";
   import TextFileView from "./TextFileView.svelte";
   import ImageView from "./ImageView.svelte";
@@ -42,7 +43,6 @@
   });
 
   const filename = $derived(path.split("/").pop() ?? path);
-  const backHref = $derived(doc?.journal_date ? `/journal/${doc.journal_date}` : null);
 
   const watchPath = $derived(doc?.watch_path);
   const live = useLiveDoc(
@@ -58,6 +58,15 @@
       refetch: () => load(path),
     },
   );
+
+  let articleEl: HTMLElement | undefined = $state();
+  let tocEl: HTMLElement | undefined = $state();
+  $effect(() => {
+    void doc?.toc;
+    void doc?.html;
+    if (!articleEl || !tocEl) return;
+    return watchToc(articleEl, tocEl);
+  });
 </script>
 
 {#if notFound}
@@ -70,16 +79,6 @@
     ]}
   />
 {:else if doc}
-  {#if backHref}
-    <a
-      class="link"
-      href={backHref}
-      style="font-size: var(--text-sm); display: block; margin-bottom: var(--space-3);"
-    >
-      &larr; Back to journal/{doc.journal_date}
-    </a>
-  {/if}
-
   {#if doc.kind === "text"}
     <TextFileView {doc} {path} />
   {:else if doc.kind === "image"}
@@ -89,19 +88,32 @@
   {:else if doc.kind === "binary"}
     <DownloadCard {doc} {path} />
   {:else}
-    <span class="deco-title">{doc.doc_type === "recipe" ? "Recipe" : "Document"}</span>
-    <h1 class="page-title u-mt-2">{filename}</h1>
-    <div class="deco-rule u-mt-4"></div>
-    <div class="u-mt-6">
-      <MarkdownView
-        html={doc.html ?? ""}
-        watchPath={doc.watch_path}
-        onCheckboxStale={() => load(path)}
-        onCheckboxSuccess={(mtimeNs) => {
-          if (doc) doc.mtime_ns = mtimeNs;
-          live.ackMtime(mtimeNs);
-        }}
-      />
+    <div class="layout-with-rail">
+      <article class="stack" bind:this={articleEl}>
+        <div>
+          <span class="deco-title">{doc.doc_type === "recipe" ? "Recipe" : "Document"}</span>
+          <h1 class="page-title u-mt-2">{filename}</h1>
+        </div>
+        <div class="deco-rule"></div>
+        <MarkdownView
+          html={doc.html ?? ""}
+          watchPath={doc.watch_path}
+          onCheckboxStale={() => load(path)}
+          onCheckboxSuccess={(mtimeNs) => {
+            if (doc) doc.mtime_ns = mtimeNs;
+            live.ackMtime(mtimeNs);
+          }}
+        />
+      </article>
+
+      {#if doc.toc}
+        <aside class="rail">
+          <div class="rail-section">
+            <div class="deco-title">On this page</div>
+            <nav class="toc u-mt-2" bind:this={tocEl}>{@html doc.toc}</nav>
+          </div>
+        </aside>
+      {/if}
     </div>
   {/if}
 {/if}

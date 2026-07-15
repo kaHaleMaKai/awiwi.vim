@@ -1,11 +1,12 @@
-// Client-side date beautification, pinned byte-for-byte to the Python
-// server's `templating.beautify_if_date` (ported from server.old/app.py).
-// The output intentionally includes the same `<sup>` ordinal markup — and the
-// same historical `11st`/`13rd` ordinal quirk (suffix keys off the last digit
-// only). See format.spec.ts for the reference fixtures generated from Python.
+// Client-side date formatting for the SPA (mockups/journal.html,
+// dir-journal-month.html). The server no longer beautifies dates itself
+// (DocPayload/DirEntry ship plain `YYYY-MM-DD` strings — see schemas.py) so
+// formatting is entirely the frontend's call. Two shapes are needed:
+//   journalTitle  "Tuesday, July 14 2026"  (journal H1)
+//   shortDayDate  "Mon, Jul 13"            (day-nav buttons, dir-month rows)
 //
 // The server runs in the C locale, so weekday/month names are English; these
-// tables reproduce that. Callers wanting the plain-text form strip `<sup>`.
+// tables reproduce that.
 
 const WDAY_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const WDAY_LONG = [
@@ -68,7 +69,24 @@ function parseIsoDate(value: string): Date | null {
 
 const pad2 = (n: number): string => String(n).padStart(2, "0");
 
-/** Minimal C-locale strftime for the tokens `beautify_if_date` can emit:
+/** English ordinal suffix for a day-of-month number. 11/12/13 are always
+ * "th" (the historical bug here keyed off the last digit only, so it said
+ * "11st"/"12nd"/"13rd" — this checks the 11-13 range first). */
+export function ordinalSuffix(day: number): string {
+  if (day >= 11 && day <= 13) return "th";
+  switch (day % 10) {
+    case 1:
+      return "st";
+    case 2:
+      return "nd";
+    case 3:
+      return "rd";
+    default:
+      return "th";
+  }
+}
+
+/** Minimal C-locale strftime for the tokens used below:
  * `%a %A %b %B %d %-d %m %y %Y %%`. Uses UTC getters (the Date is built in
  * UTC) so results are timezone-independent. */
 function strftime(dt: Date, pattern: string): string {
@@ -100,24 +118,24 @@ function strftime(dt: Date, pattern: string): string {
   });
 }
 
-/** Format an ISO date string (or a Date) as e.g. `Tue, 14<sup>th</sup>`,
- * optionally with a trailing strftime `format` suffix (the journal view uses
- * `"%B"` / `"%B %Y"`). Anything that isn't a valid date is returned unchanged
- * — matching `beautify_if_date`, so plain directory names pass through. */
-export function beautifyDate(value: string | Date, format?: string | null): string {
-  let dt: Date | null;
-  if (typeof value === "string") {
-    dt = parseIsoDate(value);
-    if (dt === null) return value;
-  } else {
-    dt = value;
-  }
-  const days = pad2(dt.getUTCDate());
-  let suffix: string;
-  if (days.endsWith("1")) suffix = "st";
-  else if (days.endsWith("2")) suffix = "nd";
-  else if (days.endsWith("3")) suffix = "rd";
-  else suffix = "th";
-  const monthYear = format ? ` ${format}` : "";
-  return strftime(dt, `%a, %-d<sup>${suffix}</sup>${monthYear}`);
+function toDate(value: string | Date): Date | null {
+  return typeof value === "string" ? parseIsoDate(value) : value;
+}
+
+/** Journal H1 date, e.g. `Tuesday, July 14 2026`. A value that isn't a valid
+ * ISO date is returned unchanged (so non-date strings pass through safely). */
+export function journalTitle(value: string | Date): string {
+  const dt = toDate(value);
+  if (dt === null) return String(value);
+  return strftime(dt, "%A, %B %-d %Y");
+}
+
+/** Short nav/row date, e.g. `Mon, Jul 13` (day-nav buttons, dir-month rows). */
+export function shortDayDate(value: string | Date): string {
+  const dt = toDate(value);
+  if (dt === null) return String(value);
+  // Zero-padded day (mockups/dir-journal-month.html: "Mon, Jul 06", not
+  // "Mon, Jul 6") -- journal.html's day-nav only ever shows 2-digit days so
+  // this is consistent with that mockup too.
+  return strftime(dt, "%a, %b %d");
 }

@@ -3,6 +3,7 @@
   // (mockups/download.html). No size/MIME from DocPayload — just a path
   // label and a direct download link.
   import { rawUrl, type DocPayload } from "../api";
+  import { guessMimeType } from "../mime";
 
   interface Props {
     doc: DocPayload;
@@ -10,6 +11,7 @@
   }
   const { doc, path }: Props = $props();
   const filename = $derived(path.split("/").pop() ?? path);
+  const mime = $derived(guessMimeType(filename));
 </script>
 
 <div class="deco-card download-card" style="max-width: 480px; margin-inline: auto;">
@@ -38,7 +40,13 @@
       Download
     </a>
   </div>
-  <div class="u-mt-4 u-mono" style="font-size: var(--text-xs); color: var(--text-muted);">
-    {doc.watch_path}
+  <div
+    class="u-mt-4"
+    style="font-size: var(--text-xs); color: var(--text-muted); display:grid; grid-template-columns: 100px 1fr; row-gap: var(--space-1); text-align:left;"
+  >
+    <span>Path</span><span class="u-mono">{doc.watch_path}</span>
+    {#if mime}
+      <span>MIME type</span><span>{mime}</span>
+    {/if}
   </div>
 </div>
