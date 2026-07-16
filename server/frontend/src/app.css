@@ -895,6 +895,44 @@ hr { border: 0; border-top: 1px solid var(--border-subtle); }
 }
 .lightbox-caption { text-align: center; margin-top: var(--space-3); color: var(--paper-100); font-size: var(--text-sm); }
 
+/* presentation mode */
+.pm-overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--bg-canvas);
+  display: flex;
+  flex-direction: column;
+  z-index: 200;
+}
+.pm-stage {
+  position: relative;
+  flex: 1;
+  overflow: hidden;
+}
+.pm-slide {
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+  max-width: min(80vw, 900px);
+  margin: 0 auto;
+  padding: var(--space-8) var(--space-6);
+}
+.pm-slide .copy-btn-float { display: none; }
+.pm-controls {
+  position: fixed;
+  right: var(--space-6);
+  bottom: var(--space-6);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  z-index: 201;
+}
+.pm-arrows { display: flex; gap: var(--space-2); }
+.pm-arrows .btn { font-size: var(--text-lg); }
+.pm-arrows .btn:disabled { cursor: default; }
+.pm-exit { font-size: var(--text-sm); }
+
 /* -- week banding (journal month listing) -- */
 .week-band { border-radius: var(--radius-sm); }
 .week-band:nth-of-type(odd) { background: var(--bg-surface); }

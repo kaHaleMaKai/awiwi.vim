@@ -289,7 +289,7 @@ live sync (each worker has empty registry). Comprehensive spec: `handovers/done/
   mounts `main.ts`
 - `vite.config.ts` — base `/_app/`, dev proxy `/api` → `localhost:5823` (WebSocket), vitest config
 - `src/app.css` — Noir-Deco design tokens (ink/paper/smoke/brass scales + neon accents), ported from
-  mockups (ADR D21 theme choice)
+  mockups (ADR D21 theme choice); presentation mode overlay styles (`.pm-overlay`, `.pm-stage`, `.pm-slide`, `.pm-controls`, `.pm-arrows`, `.pm-exit`)
 - `src/main.ts` — mounts `App.svelte`, imports `app.css`
 - `src/App.svelte` — shell: header (Breadcrumbs, SearchBar, ConnectionDot, ThemeToggle) + route switch
 - `src/lib/theme.svelte.ts` — reactive theme store (`dark`/`light`), persists to `localStorage['awiwi.theme']`
@@ -300,7 +300,8 @@ live sync (each worker has empty registry). Comprehensive spec: `handovers/done/
   element via `requestAnimationFrame` after navigation, incl. same-path hash links); global same-origin
   `<a>` click interception (preventDefault + navigate with hash/search preserved)
 - `src/lib/api.ts` — typed `/api` fetchers (no runes, ordinary TypeScript)
-- `src/lib/components/` — reusable components: `Breadcrumbs` (path trail + special root case "home | today"; S31.1), `DirPage` (folder listing; root renders branding title "awīwī /awi:ˈi:/" + italic subtitle + today quick-link breadcrumbs per S31.1), `SearchBar`, `ThemeToggle`, `ConnectionDot`
+- `src/lib/components/` — reusable components: `Breadcrumbs` (path trail + special root case "home | today"; S31.1), `DirPage` (folder listing; root renders branding title "awīwī /awi:ˈi:/" + italic subtitle + today quick-link breadcrumbs per S31.1), `DocPage` (document viewer with optional TOC rail; supports asset-only opt-in presentation mode via `PresentationMode` component — full-screen slideshow with `<h1>` boundaries, direction-aware arrow navigation, mousemove-revealed controls), `SearchBar`, `ThemeToggle`, `ConnectionDot`, `PresentationMode` (full-screen overlay slideshow component wired from `DocPage` for assets; clones `.markdown-body` DOM, renders per-slide inert HTML, direction-clamped arrow nav, mousemove-driven control visibility)
+- `src/lib/presentation/slides.ts` — pure utilities for presentation mode: `splitSlides()` (partition rendered HTML by top-level `<h1>`), `step()` (clamped navigation), `arrowOpacity()` (visual feedback at slide edges)
 - `src/lib/enhance/` — pipeline for rendered markdown: Shiki dual-theme (lazy singleton, CSS-var
   theme flip, `textContent` read for unknown-lang fallback; ADR D18), mermaid (lazy, re-themed on
   toggle), checkbox wiring (PATCH relpath, 409 → refetch), copy buttons on `<pre>`, table export

@@ -1,6 +1,22 @@
 # State — Lua rewrite
 
-_Updated: 2026-07-15 (36th run) **T29–T34 stakeholder-feedback round 1 CLOSED** (plan
+_Updated: 2026-07-16 (37th run) **Presentation mode CLOSED** (plan
+`add-a-presentation-mode-jiggly-locket.md`, T1–T3 complete, single feature commit): opt-in
+fullscreen slide deck for asset pages — `lib/presentation/slides.ts` pure fns
+(`splitSlides` per top-level h1 / `step` clamp / `arrowOpacity`, 15 new specs, TDD),
+`PresentationMode.svelte` (Fullscreen API + Esc fallback, direction-aware fly via
+`{#key}`, Arrow/Space/click nav with interactive-element guard, mousemove bottom-fifth
+controls, " Normal mode" exit), DocPage wiring (asset-gated " Present" rail button,
+reused `articleEl`). Frontend 140→155 green, svelte-check 0, dist rebuilt+committed
+(ADR D20). Flags: button labels carry a plain leading space — intended nerd-font glyph
+never arrived in the request; user to supply codepoint. No Svelte render tests exist
+(vitest pure-ts) → manual smoke checklist in
+`handovers/done/presentation-mode/S2.2-wiring.md`, **user should run it** (`:Awiwi serve`,
+multi-h1 asset). Unrelated uncommitted WIP (journal-heading strip: `docs.py`,
+`test_api.py`, architecture.md hunk) kept out of the commit — architecture.md hunk
+stash-popped back to the working tree._
+
+_Previous (36th run) — **T29–T34 stakeholder-feedback round 1 CLOSED** (plan
 `tasks/feedback-round-1-plan.md`, source `tasks/feedback.md`): T29 reactive router
 query/hash + search UX (`67b3a76`), T30 TOC-rail overflow fix + collapsible rail
 (`425ca1e`), T31 index branding "awīwī /awi:ˈi:/" + inline drawio in doc bodies

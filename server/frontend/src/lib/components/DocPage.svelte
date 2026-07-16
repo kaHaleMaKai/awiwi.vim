@@ -12,6 +12,7 @@
   import DrawioView from "./DrawioView.svelte";
   import DownloadCard from "./DownloadCard.svelte";
   import EmptyState from "./EmptyState.svelte";
+  import PresentationMode from "./PresentationMode.svelte";
 
   interface Props {
     /** Home-relative file path, e.g. "recipes/bread/sourdough.md". */
@@ -61,6 +62,7 @@
 
   let articleEl: HTMLElement | undefined = $state();
   let tocEl: HTMLElement | undefined = $state();
+  let presenter: PresentationMode | undefined = $state();
   $effect(() => {
     void doc?.toc;
     void doc?.html;
@@ -112,8 +114,21 @@
             <div class="deco-title">On this page</div>
             <nav class="toc u-mt-2" bind:this={tocEl}>{@html doc.toc}</nav>
           </div>
+
+          {#if doc.doc_type === "asset"}
+            <div class="rail-section">
+              <button class="btn btn-ghost" type="button" onclick={() => presenter?.open()}>
+                 Present
+              </button>
+            </div>
+          {/if}
         </aside>
       {/if}
+
+      <PresentationMode
+        bind:this={presenter}
+        getRoot={() => articleEl?.querySelector(".markdown-body") ?? null}
+      />
     </div>
   {/if}
 {/if}
