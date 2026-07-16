@@ -95,7 +95,13 @@ _INLINE_MARKUP_RE = re.compile(
 # *inside* a fence (including ```mermaid diagram source) never reach
 # `_INLINE_MARKUP_RE` either. Deliberately the same "no leading whitespace
 # tolerance" convention as `_MermaidPreprocessor._FENCE` below.
-_FENCE_DELIM_RE = re.compile(r"^```")
+# Fence *candidate* line, mirroring FencedCodeExtension's delimiters
+# (3+ backticks or tildes at column 0). Whether it actually opens a fence
+# is decided in `_filter_body` by scanning ahead for an exact closer —
+# same char, same run length, column 0, trailing spaces only — because
+# that's what FencedCodeExtension requires; without a closer the line is
+# ordinary text.
+_FENCE_DELIM_RE = re.compile(r"^(`{3,}|~{3,})")
 _ORDINAL_RE = re.compile(r"\b([0-9]{1,2})(st|nd|rd|th)\b")
 _REDACTION_MARKER = "!!redacted"
 
@@ -277,7 +283,7 @@ def _filter_body(
     # never collide with one.
     run_id = uuid4().hex
     hide = False
-    in_fence = False
+    fence_close = None  # exact delimiter string that will close the open fence
     marker_depth = 7  # deeper than any real heading (# .. ######)
     hidden_lines: list[str] = []
     hidden_start = 0  # original line number of the redacted heading
@@ -322,13 +328,27 @@ def _filter_body(
         # (`hide`) since that content never runs through any pre-filter
         # either way (see `_flush_hidden`'s docstring) -- so fence state
         # simply doesn't change for lines that are already invisible.
-        if not hide and _FENCE_DELIM_RE.match(line):
-            in_fence = not in_fence
-            out.append(line)
-            continue
-        if in_fence:
-            out.append(line)
-            continue
+        if not hide:
+            if fence_close is not None:
+                out.append(line)
+                if line.rstrip(" ") == fence_close:
+                    fence_close = None
+                continue
+            fence_m = _FENCE_DELIM_RE.match(line)
+            if fence_m:
+                delim = fence_m.group(1)
+                # Only a real fence if an exact closer follows (same char and
+                # run length, column 0, trailing spaces only) — matching
+                # FencedCodeExtension, which otherwise leaves the line as
+                # plain text. ponytail: scan-ahead looks at raw `lines`, so a
+                # closer hidden inside a redacted section can still diverge
+                # from what the outer Markdown pass sees; accepted, that
+                # corner was never in sync before either.
+                rest = lines[line_no - offset + 1 :]
+                if any(peek.rstrip(" ") == delim for peek in rest):
+                    fence_close = delim
+                    out.append(line)
+                    continue
         if hide:
             m = _HEADING_RE.match(line)
             if m:

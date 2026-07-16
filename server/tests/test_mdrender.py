@@ -379,6 +379,47 @@ class TestFencedCode:
         assert "&lt;script&gt;alert" in doc.html
 
 
+class TestFenceStateTracking:
+    """The pre-filter's fence tracking must agree with FencedCodeExtension's
+    semantics (a fence exists only when an exact same-char, same-length,
+    column-0 closer follows; `~~~` counts too) — a desync either skips
+    checkbox/tag injection on visible text or injects markup into code."""
+
+    def test_checkbox_after_fence_with_indented_closer(self):
+        # An indented ``` is NOT a closer for python-markdown, so the whole
+        # thing is inline text — checkboxes after it must still inject.
+        text = "```ini\nfoo=1\n ```\n\n* [x] `STOP REPLICA`\n* [ ] take an LVM snapshot\n"
+        doc = render_markdown(text)
+        assert doc.html.count('class="awiwi-checkbox"') == 2
+
+    def test_checkbox_after_backticks_inside_tilde_fence(self):
+        # ``` inside an open ~~~ fence is content, not a delimiter.
+        text = "~~~\n```\n~~~\n\n* [x] `STOP REPLICA`\n"
+        doc = render_markdown(text)
+        assert 'class="awiwi-checkbox"' in doc.html
+
+    def test_checkbox_after_longer_closer_run(self):
+        # ```` (4) does not close a ``` (3) fence for FencedCodeExtension;
+        # only the later exact ``` does.
+        text = "```\ncode\n````\nstill code\n```\n\n* [x] task after\n"
+        doc = render_markdown(text)
+        assert 'class="awiwi-checkbox"' in doc.html
+
+    def test_no_injection_inside_tilde_fence(self):
+        # ~~~ blocks are code: no checkbox inputs, no tag spans inside.
+        text = "~~~\n* [x] not a task\n@bug not a tag\n~~~\n"
+        doc = render_markdown(text)
+        assert "awiwi-checkbox" not in doc.html
+        assert "awiwi-bug" not in doc.html
+
+    def test_unclosed_fence_line_is_ordinary_text(self):
+        # No closer anywhere -> FencedCodeExtension treats the ``` line as
+        # plain text; lines after it must still get checkbox injection.
+        text = "```ini\n\n* [x] task after unclosed fence\n"
+        doc = render_markdown(text)
+        assert 'class="awiwi-checkbox"' in doc.html
+
+
 class TestGuessLanguage:
     """T23.3: `guess_language` is the Shiki-id hint for `DocKind.text`
     payloads -- extension map + shared vim-modeline sniff."""

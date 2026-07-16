@@ -380,7 +380,15 @@ Python-markdown + local extensions, byte-identical per ADR D13:
   heading marker (`# `/`## ` always have a space after the last `#`, so the "immediate word char"
   requirement excludes it structurally) or a markdown link href (`](#anchor)`); none of the three
   patterns fire inside an inline code span (`` `...` ``) or a fenced code block (```` ``` ````,
-  including ```` ```mermaid ```` diagram source) — both tracked/skipped in the same per-line loop.
+  including ```` ```mermaid ```` diagram source). Inline code and fences are tracked with exact state
+  (not toggled naively): **fence-state tracking mirrors FencedCodeExtension**, accepting both backtick
+  and tilde delimiters (3+ consecutive chars, column 0). A fence opener enters state only if an exact
+  closer exists later in the document (scan-ahead check); the state persists until a line matches the
+  opener's exact delimiter (same char, same run length, column 0, trailing spaces only). Known divergence:
+  scan-ahead examines raw document lines, so a closer hidden inside a redacted section can diverge from
+  what FencedCodeExtension observes (corner case accepted, was never in sync before either). This exact
+  tracking prevents false "in fence" states that would otherwise skip checkbox/tag/mention injection on
+  ordinary text incorrectly labeled fenced.
 
 ### Toolchain
 
