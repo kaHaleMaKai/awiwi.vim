@@ -53,6 +53,19 @@ class TestHashLine:
         # content -- a dash line and an asterisk line are different lines.
         assert hash_line("- [ ] buy milk\n") != hash_line("* [ ] buy milk\n")
 
+    def test_gfm_forms_hash_state_independently(self):
+        # GFM widening: every newly recognized form must strip the box
+        # before hashing so a toggle never changes the line's own hash.
+        pairs = [
+            ("+ [ ] plus task\n", "+ [x] plus task\n"),
+            ("- [ ] SHOUTED\n", "- [X] SHOUTED\n"),
+            ("-  [ ] two spaces\n", "-  [x] two spaces\n"),
+            ("1. [ ] first\n", "1. [x] first\n"),
+            ("2) [ ] second\n", "2) [x] second\n"),
+        ]
+        for unchecked, checked in pairs:
+            assert hash_line(unchecked) == hash_line(checked), unchecked
+
 
 class TestToggleCheckbox:
     def _write(self, tmp_path: Path, lines: list[str]) -> Path:
@@ -142,6 +155,21 @@ class TestToggleCheckbox:
         toggle_checkbox(path, 1, True, h)
 
         assert path.read_text() == "# TODO\n  - [x] nested todo\ntrailer\n"
+
+    def test_gfm_forms_round_trip(self, tmp_path: Path):
+        # GFM widening: plus bullets, ordered items, extra spaces and
+        # uppercase X all toggle in place; checking always writes a
+        # lowercase x.
+        cases = [
+            ("+ [ ] plus task\n", True, "+ [x] plus task\n"),
+            ("1. [ ] first\n", True, "1. [x] first\n"),
+            ("2) [X] second\n", False, "2) [ ] second\n"),
+            ("-  [ ] two spaces\n", True, "-  [x] two spaces\n"),
+        ]
+        for line, checked, expected in cases:
+            path = self._write(tmp_path, [line])
+            toggle_checkbox(path, 0, checked, hash_line(line))
+            assert path.read_text() == expected, line
 
     def test_non_checkbox_line_raises(self, tmp_path: Path):
         line = "just prose, no checkbox\n"

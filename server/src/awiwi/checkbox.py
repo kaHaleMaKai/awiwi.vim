@@ -17,9 +17,13 @@ import hashlib
 import re
 from pathlib import Path
 
-_CHECKBOX_ITEM_RE = re.compile(r"\s*[*-] \[[x ]\] ")
-_CHECKBOX_BOX_RE = re.compile(r"\[[ x]\]")
-_CHECKBOX_PREFIX_RE = re.compile(r"(\s*[*-] \[)([ x])")
+# GFM task-list forms: `*`/`-`/`+` bullets or ordered items (`1.`/`1)`),
+# one or more spaces, `[ ]`/`[x]`/`[X]`, optionally with no trailing text.
+# Kept in lockstep with mdrender._CHECKBOX_LINE_RE — a form the renderer
+# emits an <input> for must hash/toggle here, and vice versa.
+_CHECKBOX_ITEM_RE = re.compile(r"\s*(?:[*+-]|\d+[.)]) +\[[xX ]\]( |$)")
+_CHECKBOX_BOX_RE = re.compile(r"\[[ xX]\]")
+_CHECKBOX_PREFIX_RE = re.compile(r"(\s*(?:[*+-]|\d+[.)]) +\[)([ xX])")
 
 
 class CheckboxError(Exception):
@@ -42,8 +46,8 @@ class AlreadyInStateError(CheckboxError):
 
 
 class NotACheckboxLineError(CheckboxError):
-    """The target line doesn't look like `* [ ] ...` / `* [x] ...` (or the
-    dash-bullet equivalent, `- [ ] ...` / `- [x] ...`) at all.
+    """The target line doesn't look like a GFM task-list item
+    (`*`/`-`/`+`/ordered bullet followed by `[ ]`/`[x]`/`[X]`) at all.
 
     Legacy crash case: `server.old/app.py:update_checkbox_in_file` assumes
     the regex always matches and does `m.group(2)` unconditionally, raising
@@ -56,11 +60,12 @@ def hash_line(line: str) -> str:
     """MD5 hex digest identifying a checkbox (or plain) line, independent of
     its current checked state and trailing newline.
 
-    Ported verbatim from `server.old/app.py:hash_line`, plus S32.1's
-    dash-bullet extension:
-    1. If the line looks like a `* [ ] ` / `* [x] ` (or `- [ ] ` / `- [x] `)
-       list item, strip the `[ ]`/`[x]` box (first occurrence only) before
-       hashing — so toggling a box doesn't change its own hash.
+    Ported verbatim from `server.old/app.py:hash_line`, widened to GFM
+    task-list forms (S32.1 dash bullets, then `+`/ordered/`[X]`/bare boxes):
+    1. If the line looks like a GFM task-list item, strip the
+       `[ ]`/`[x]`/`[X]` box (first occurrence only) before hashing — so
+       toggling a box doesn't change its own hash. Hashes for the
+       previously supported `* `/`- ` single-space forms are unchanged.
     2. Strip one trailing `\\n`, if present.
     3. MD5 the result.
     """
@@ -83,8 +88,7 @@ def toggle_checkbox(path: Path, line_nr: int, check: bool, expected_hash: str) -
     - `FileNotFoundError` (builtin) if `path` doesn't exist.
     - `LineNotFoundError` if `line_nr` is at or past the end of the file.
     - `HashMismatchError` if `expected_hash` doesn't match the current line.
-    - `NotACheckboxLineError` if the line isn't a `* [ ]`/`* [x]` (or
-      `- [ ]`/`- [x]`) item.
+    - `NotACheckboxLineError` if the line isn't a GFM task-list item.
     - `AlreadyInStateError` if the box is already in the requested state.
 
     On success, exactly one character (the box glyph) is overwritten in
@@ -109,9 +113,11 @@ def toggle_checkbox(path: Path, line_nr: int, check: bool, expected_hash: str) -
 
         m = _CHECKBOX_PREFIX_RE.match(line)
         if m is None:
-            raise NotACheckboxLineError(f"line {line_nr} is not a checkbox line: {line!r}")
+            raise NotACheckboxLineError(
+                f"line {line_nr} is not a checkbox line: {line!r}"
+            )
 
-        is_checked = m.group(2) == "x"
+        is_checked = m.group(2) != " "
         if is_checked == check:
             state = "checked" if is_checked else "unchecked"
             raise AlreadyInStateError(f"checkbox is already {state}")

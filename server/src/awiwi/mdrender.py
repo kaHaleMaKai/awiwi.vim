@@ -48,7 +48,10 @@ from awiwi.checkbox import hash_line
 # --- pre-filter patterns (ported from server.old/app.py) -------------------
 
 _HEADING_RE = re.compile(r"^(?P<marker>##+) ")
-_CHECKBOX_LINE_RE = re.compile(r"^(\s*[*-] )(\[[x ]\])( .*$)")
+# GFM task-list forms (kept in lockstep with awiwi.checkbox's regexes):
+# `*`/`-`/`+` bullets or ordered items, 1+ spaces, `[ ]`/`[x]`/`[X]`,
+# optionally without trailing text. Blockquote-nested boxes stay plain.
+_CHECKBOX_LINE_RE = re.compile(r"^(\s*(?:[*+-]|\d+[.)]) +)(\[[xX ]\])( .*$|$)")
 _TAG_PATTERN = re.compile(r"@(?P<type>bug|change|incident|issue)\b")
 # `@@word` mentions: the whole token (both `@`s plus the name) is one match,
 # so the whole thing lands in one span -- earlier this was
@@ -368,7 +371,7 @@ def _filter_body(
             m = _CHECKBOX_LINE_RE.match(line)
             if m:
                 box = m.group(2)
-                checked = "checked" if "x" in box else ""
+                checked = "checked" if "x" in box.lower() else ""
                 digest = hash_line(line)
                 line = (
                     f'{m.group(1)}<input type="checkbox" id="checkbox-line-{line_no}" '

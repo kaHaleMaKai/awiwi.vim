@@ -298,9 +298,36 @@ class TestCheckboxInjection:
         assert 'class="awiwi-checkbox"' in doc.html
         assert 'data-line-nr="0"' in doc.html
 
-    def test_plus_bullet_not_treated_as_checkbox(self):
-        # Explicitly out of scope (unit spec): `+ [ ]` stays literal text.
-        doc = render_markdown("+ [ ] not a checkbox\n")
+    def test_plus_bullet_gets_checkbox(self):
+        # GFM widening: T32 excluded `+ [ ]`, but stakeholder notes still
+        # showed literal boxes, so recognition now covers all GFM task-list
+        # bullet forms.
+        doc = render_markdown("+ [ ] plus task\n")
+        assert 'class="awiwi-checkbox"' in doc.html
+        assert "plus task" in doc.html
+
+    def test_uppercase_x_renders_checked(self):
+        doc = render_markdown("- [X] shouted done\n")
+        assert 'class="awiwi-checkbox"' in doc.html
+        assert "checked" in doc.html
+
+    def test_multiple_spaces_after_bullet_gets_checkbox(self):
+        doc = render_markdown("-  [ ] two spaces\n")
+        assert 'class="awiwi-checkbox"' in doc.html
+
+    def test_bare_box_without_text_gets_checkbox(self):
+        doc = render_markdown("- [ ]\n- [x]\n")
+        assert doc.html.count('class="awiwi-checkbox"') == 2
+        assert "checked" in doc.html
+
+    def test_ordered_list_item_gets_checkbox(self):
+        doc = render_markdown("1. [ ] first step\n2) [x] second step\n")
+        assert doc.html.count('class="awiwi-checkbox"') == 2
+
+    def test_blockquote_checkbox_stays_plain(self):
+        # Deliberately unsupported: `>`-prefixed lines would need quote
+        # handling through hash/toggle as well. Revisit only on demand.
+        doc = render_markdown("> - [ ] quoted task\n")
         assert 'class="awiwi-checkbox"' not in doc.html
 
 

@@ -363,6 +363,13 @@ Python-markdown + local extensions, byte-identical per ADR D13:
   - **Scope**: localhost-only (403 off-localhost per D14); no HTML sanitization (D23). On localhost,
     revealed sections show rendered markdown (links, lists, tables, syntax-highlighted code via
     Shiki); revealed inline values show raw text
+- **GFM task-list checkboxes** (S32.1–S32.2, widened to full GFM semantics): recognized on lines
+  with bullets `*`/`-`/`+` or ordered items (`1.`/`1)`) followed by one-or-more spaces and a box
+  `[ ]`/`[x]`/`[X]` (uppercase `X` also renders checked), optionally with no trailing text. Toggle
+  writes lowercase `x`; hashes for legacy single-space `* `/`- ` forms unchanged. Blockquote-nested
+  checkboxes (`> - [ ]`) are deliberately not recognized (remain plain text). Rendered as
+  `<input type="checkbox" ... data-line-nr=... data-hash=...>` with PATCH endpoint wiring at
+  `/api/checkbox` (relpath, line_no, expected_hash → success + new hash + mtime).
 - Inline tag/mention markup (T28.0, `mdrender._filter_body`'s `_INLINE_MARKUP_RE`, applied
   line-by-line before python-markdown conversion): `@bug`/`@change`/`@incident`/`@issue` →
   `<span class="awiwi-{type}">`; `@@word` (full token, e.g. `@@lars`) →
