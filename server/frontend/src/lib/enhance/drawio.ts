@@ -17,30 +17,11 @@
 // inside them) are excluded from future passes over the same container.
 import { getDoc } from "../api";
 import { loadDrawioViewer } from "../drawioViewer";
-
-function isAbsolute(href: string): boolean {
-  return /^[a-z][a-z0-9+.-]*:/i.test(href) || href.startsWith("//") || href.startsWith("/");
-}
-
-/** Collapse `.`/`..` segments in a POSIX-style relative path. */
-function normalizePosix(path: string): string {
-  const out: string[] = [];
-  for (const seg of path.split("/")) {
-    if (seg === "" || seg === ".") continue;
-    if (seg === "..") out.pop();
-    else out.push(seg);
-  }
-  return out.join("/");
-}
+import { resolveRelpath } from "./paths";
 
 /** Resolve an `<a href>` to the home-relative relpath `getDoc` expects, or
  * `null` when the href is absolute (or empty) and can't be a local doc. */
-export function resolveDrawioPath(href: string, watchPath: string): string | null {
-  if (!href || isAbsolute(href)) return null;
-  if (href.startsWith("assets/")) return href;
-  const dir = watchPath.includes("/") ? watchPath.slice(0, watchPath.lastIndexOf("/")) : "";
-  return normalizePosix(dir ? `${dir}/${href}` : href);
-}
+export const resolveDrawioPath = resolveRelpath;
 
 async function renderOne(anchor: HTMLAnchorElement, watchPath: string): Promise<void> {
   anchor.dataset.drawioInline = "pending";

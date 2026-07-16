@@ -9,36 +9,13 @@
 // untouched.
 import { rawUrl } from "../api";
 import { openLightbox } from "./lightbox";
-
-function isAbsolute(src: string): boolean {
-  return /^[a-z][a-z0-9+.-]*:/i.test(src) || src.startsWith("//") || src.startsWith("/");
-}
-
-/** Collapse `.`/`..` segments in a POSIX-style relative path. */
-function normalizePosix(path: string): string {
-  const out: string[] = [];
-  for (const seg of path.split("/")) {
-    if (seg === "" || seg === ".") continue;
-    if (seg === "..") out.pop();
-    else out.push(seg);
-  }
-  return out.join("/");
-}
+import { resolveRelpath } from "./paths";
 
 /** Resolve an `<img src>` to its `/api/raw/...` URL, or `null` when the src is
  * absolute and needs no rewrite. `watchPath` is the doc's home-relative path. */
 export function resolveMediaSrc(src: string, watchPath: string): string | null {
-  if (!src || isAbsolute(src)) return null;
-  let relpath: string;
-  if (src.startsWith("assets/")) {
-    relpath = src;
-  } else {
-    const dir = watchPath.includes("/")
-      ? watchPath.slice(0, watchPath.lastIndexOf("/"))
-      : "";
-    relpath = normalizePosix(dir ? `${dir}/${src}` : src);
-  }
-  return rawUrl(relpath);
+  const relpath = resolveRelpath(src, watchPath);
+  return relpath === null ? null : rawUrl(relpath);
 }
 
 /** Rewrite relative image srcs under `container` and wire click-to-lightbox.

@@ -28,6 +28,18 @@ describe("resolveMediaSrc", () => {
     );
   });
 
+  it("treats a leading-slash home-root path as home-relative", () => {
+    expect(resolveMediaSrc("/assets/2022-03-23/nifi.png", JOURNAL)).toBe(
+      "/api/raw/assets/2022-03-23/nifi.png",
+    );
+    expect(resolveMediaSrc("/journal/2026/07/pic.png", JOURNAL)).toBe(
+      "/api/raw/journal/2026/07/pic.png",
+    );
+    expect(resolveMediaSrc("/recipes/bread/pic.png", JOURNAL)).toBe(
+      "/api/raw/recipes/bread/pic.png",
+    );
+  });
+
   it("leaves absolute URLs untouched (returns null)", () => {
     expect(resolveMediaSrc("https://example.com/a.png", JOURNAL)).toBeNull();
     expect(resolveMediaSrc("//cdn/a.png", JOURNAL)).toBeNull();

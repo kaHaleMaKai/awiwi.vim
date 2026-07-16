@@ -3,8 +3,9 @@
 // returned handle for its lifetime.
 //
 // Passes: Shiki highlighting + copy buttons on code blocks, table export
-// CopyMenus, checkbox PATCH wiring, lazy theme-aware mermaid, media rewrite +
-// lightbox, inline drawio-link rendering, and redaction click-to-reveal.
+// CopyMenus, checkbox PATCH wiring, lazy theme-aware mermaid, inline image-link
+// rendering, media rewrite + lightbox, inline drawio-link rendering, and
+// redaction click-to-reveal.
 // Everything is best-effort and
 // tolerant of missing structure — a doc with no code/tables/checkboxes just
 // gets fewer passes run.
@@ -14,6 +15,7 @@ import { addCopyButton } from "./copyButtons";
 import { enhanceTables } from "./tables";
 import { wireCheckboxes } from "./checkbox";
 import { renderMermaid } from "./mermaid";
+import { inlineImageLinks } from "./imageLinks";
 import { rewriteMedia } from "./media";
 import { enhanceDrawio } from "./drawio";
 import { wireRedaction } from "./redaction";
@@ -58,6 +60,9 @@ export function enhance(container: HTMLElement, opts: EnhanceOptions): EnhanceHa
       onSuccess: opts.onCheckboxSuccess,
     }),
   );
+  // Before rewriteMedia: converts image links to <img>, which rewriteMedia
+  // then resolves to /api/raw/... and makes click-to-zoom.
+  cleanups.push(inlineImageLinks(container, opts.watchPath));
   cleanups.push(rewriteMedia(container, opts.watchPath));
   cleanups.push(enhanceDrawio(container, opts.watchPath));
   cleanups.push(wireRedaction(container));
