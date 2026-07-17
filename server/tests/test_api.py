@@ -112,6 +112,27 @@ class TestJournalPayload:
         with pytest.raises(FileNotFoundError):
             _ = build_journal_payload("2099-01-01", acceptance_home, is_localhost=True)
 
+    def test_leading_blank_line_before_date_heading_not_duplicated(
+        self, tmp_path: Path
+    ) -> None:
+        # `h1.page-title` (JournalPage.svelte) is derived client-side from
+        # the route date, independent of the markdown body -- a leading
+        # blank line must not defeat the date-heading strip and leak a
+        # duplicate <h1> into div.markdown-body.
+        home = tmp_path
+        day_dir = home / "journal" / "2026" / "07"
+        day_dir.mkdir(parents=True)
+        _ = (day_dir / "2026-07-16.md").write_text(
+            "\n\n# 2026-07-16\n\n\nSome body text.\n"
+        )
+
+        doc = build_journal_payload("2026-07-16", home, is_localhost=True)
+
+        assert doc is not None
+        assert doc.html is not None
+        assert "<h1" not in doc.html
+        assert "<p>Some body text.</p>" in doc.html
+
 
 class TestRedactionEmbedGating:
     """S23.4: `build_doc_payload`/`build_journal_payload` pass

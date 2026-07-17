@@ -57,6 +57,10 @@ uv run basedpyright        # type check
 `pyproject.toml` carries leftover Django/mypy config from a template — the live stack is
 FastAPI + Pydantic + pytest + ruff + basedpyright. Ignore the Django/mypy overrides.
 
+**Frontend** (`cd server/frontend`, npm-managed): `server/frontend/dist/` is gitignored, not
+committed (ADR D25, supersedes D20). Run `npm run build` after any change under
+`server/frontend/` — the server serves whatever is currently in `dist/`.
+
 # Knowledge base — self-maintaining layered memory
 
 Operational knowledge lives in layered, git-tracked files. Start at `docs/INDEX.md` (the map) and

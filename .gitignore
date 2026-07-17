@@ -15,8 +15,6 @@ env/
 build/
 develop-eggs/
 dist/
-# ADR D20: the built SPA bundle is committed; re-include it despite the python dist/ rule above
-!server/frontend/dist/
 downloads/
 eggs/
 .eggs/

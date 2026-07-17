@@ -560,5 +560,30 @@ limitation / known risk that requires front-end mitigation.
 
 ---
 
-**High-water mark: D24**
+## D25 — Committed-dist policy reverted: `dist/` gitignored, build-on-checkout (2026-07-17)
+
+**Context.** D20 committed `server/frontend/dist/` to avoid CI rebuilds and enable
+single-click deployments. In practice this bloated repo history with hashed build
+artifacts (564 objects, ~46 MB) on every frontend change and required the
+`git add -f` wart on every rebuild. Traded for a one-line setup step.
+
+**Decision.** `server/frontend/dist/` is git-ignored again (the blanket `dist/` rule
+in `.gitignore` now applies unmodified; the D20 override and the
+`linguist-generated` `.gitattributes` entry for it are removed). History rewritten
+with `git filter-repo --path server/frontend/dist/ --invert-paths` to drop all past
+`dist/` blobs (`master` and any branch descending from the D20 commit got new
+commit hashes; branches that predate it were untouched). `npm run build` must be run
+after checkout and after any frontend change (`server/frontend/README.md`,
+`CLAUDE.md`).
+
+**Consequences.** (1) Repo history no longer carries build artifacts. (2) No
+Node.js-free deploy: the server environment must run `npm run build` before serving,
+or a CI/deploy step must build and ship `dist/` out-of-band (not yet automated —
+follow-up if a Node-less deploy target is needed again). (3) Supersedes D20 in full;
+`docs/architecture.md`'s D20 reference should read this decision for current
+policy.
+
+---
+
+**High-water mark: D25**
 

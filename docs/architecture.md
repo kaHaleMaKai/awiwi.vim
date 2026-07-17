@@ -181,7 +181,7 @@ The legacy Flask + Jinja server (`server.old/`) and template stack (`templates/`
 `routers/pages.py`, `routers/assets.py`, `routers/actions.py`, `templating.py`) were deleted at
 T27. All shipped behavior (markdown rendering, task tracking, secret gating) is preserved via
 backend-side Markdown rendering + client-side Shiki syntax highlighting (ADRs D13, D18), live
-filesystem sync (ADR D19), and committed-dist SPA (ADR D20).
+filesystem sync (ADR D19), and a gitignored, build-on-checkout SPA (ADR D20, superseded by D25).
 
 ### Config, auth, dev/serve
 
@@ -212,7 +212,9 @@ re-derivation for WebSocket (HTTP middleware doesn't cover ASGI `websocket` scop
   `watch_path` = WS key, secret blanking), `DirPayload`/`DirEntry`, `NavPayload`, `BreadcrumbPayload`,
   `SearchHit`
 - `docs.py` — payload builders `build_doc_payload`/`build_journal_payload`/`build_dir_payload` on
-  `content`/`mdrender`
+  `content`/`mdrender`; `build_journal_payload` strips a leading `# 20...` date heading (past any
+  leading blank lines) before rendering, since `h1.page-title` shows the date from the route
+  already — avoids a duplicate `<h1>` in `div.markdown-body`
 - `httputil.py` — `is_localhost`, `get_home` (relocated from deleted `templating.py`)
 - `app.py` — app factory, lifespan (config + watcher startup), localhost 403 middleware; mounts
   `/_app` StaticFiles + registers routers (`api` → `redirects`); `FileNotFoundError` → JSON 404
@@ -314,10 +316,10 @@ live sync (each worker has empty registry). Comprehensive spec: `handovers/done/
 - `public/vendor/drawio/` — pinned `viewer-static.min.js` (lazy-loaded by `drawioViewer.ts` singleton, no app.diagrams.net ever contacted; ADR D22)
 
 **Build**: `npm run build` produces byte-identical `frontend/dist/` (reproducible, no Node at serve
-time). **Committed-dist policy** (ADR D20): dist is force-added to git (`.gitignore` ignores it but
-file is tracked); future rebuilds show as normal diffs. On merge conflict: rebuild, never manually
-resolve (documented in `.gitattributes` `linguist-generated -diff` + this architecture note). New
-dist files need `git add -f` (wart of not un-ignoring `.gitignore`).
+time). **Build-on-checkout policy** (ADR D20, superseded by D25): `dist/` is gitignored and not
+tracked in git; run `npm run build` after checkout and after any frontend change
+(`server/frontend/README.md`, `CLAUDE.md`). On merge conflict in `dist/` (if it were ever tracked
+again): rebuild, never manually resolve.
 
 **No sanitization** (ADR D23): `{@html}` in `MarkdownView` injects server-rendered HTML directly,
 then `enhance()` post-processes. Scope: localhost-only own notes (auth gate + secret blanking in

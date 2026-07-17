@@ -98,6 +98,25 @@ def _doc_type(path: Path, home: Path) -> DocType:
     return "other"
 
 
+def _strip_date_heading(text: str) -> str:
+    """Drop a leading `# 20...` journal-date heading (and any blank lines
+    immediately around it) before rendering. `h1.page-title` (JournalPage.
+    svelte) already shows the date from the route, independent of the
+    markdown body -- unlike `mdrender._extract_title`, this looks past
+    leading blank lines so a stray blank before the heading doesn't leak a
+    duplicate `<h1>` into the body."""
+    lines = text.splitlines(keepends=True)
+    idx = 0
+    while idx < len(lines) and lines[idx].strip() == "":
+        idx += 1
+    if idx >= len(lines) or not lines[idx].lstrip("﻿").startswith("# 20"):
+        return text
+    idx += 1
+    while idx < len(lines) and lines[idx].strip() == "":
+        idx += 1
+    return "".join(lines[idx:])
+
+
 def _breadcrumbs(
     path: Path, home: Path, *, include_cur_dir: bool = False
 ) -> list[BreadcrumbPayload]:
@@ -337,7 +356,9 @@ def build_journal_payload(
             mtime_ns=mtime_ns,
         )
 
-    doc = render_markdown(file.read_text(), embed_redacted=not allow_remote)
+    doc = render_markdown(
+        _strip_date_heading(file.read_text()), embed_redacted=not allow_remote
+    )
     return DocPayload(
         kind="markdown",
         doc_type="journal",
