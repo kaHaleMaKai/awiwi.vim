@@ -36,6 +36,7 @@ from markdown.extensions.attr_list import AttrListExtension
 from markdown.extensions.def_list import DefListExtension
 from markdown.extensions.fenced_code import FencedCodeExtension
 from markdown.extensions.footnotes import FootnoteExtension
+from markdown.extensions.md_in_html import MarkdownInHtmlExtension
 from markdown.extensions.nl2br import Nl2BrExtension
 from markdown.extensions.sane_lists import SaneListExtension
 from markdown.extensions.tables import TableExtension
@@ -478,6 +479,9 @@ def _new_markdown() -> Markdown:
             FencedCodeExtension(),
             DefListExtension(),
             FootnoteExtension(),
+            # Opt-in via `markdown="1"`; lets a `<div class="fragment" ...>`
+            # wrapper render its inner markdown (presentation fragmenting).
+            MarkdownInHtmlExtension(),
             Nl2BrExtension(),
             SaneListExtension(),
             TocExtension(),

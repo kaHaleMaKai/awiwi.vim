@@ -8,7 +8,8 @@
   // S1.1), and renders each slide read-only via {@html} in a `.pm-slide`
   // clone — the original DOM is never touched.
   import { fly } from "svelte/transition";
-  import { splitSlides, step, arrowOpacity } from "../presentation/slides";
+  import { splitSlides, step } from "../presentation/slides";
+  import { parseSettings, fragmentSteps, type Settings } from "../presentation/fragments";
 
   interface Props {
     /** Returns the live `.markdown-body` root to split into slides, or null
@@ -28,12 +29,24 @@
 
   let overlayEl: HTMLElement | undefined = $state();
 
+  // Fragmenting: per-doc settings + per-slide count of revealed fragments.
+  // `revealed` is persistent for the session, so navigating away and back keeps
+  // each slide's reveal state; a never-visited slide starts at 0.
+  let settings = $state<Settings>({ fragmentAll: false });
+  let revealed = $state<number[]>([]);
+  // Fragment-step count of the current slide, for arrow enablement.
+  let stepCount = $state(0);
+
   const count = $derived(slides.length);
+  const hasPrev = $derived(index > 0 || (revealed[index] ?? 0) > 0);
+  const hasNext = $derived(index < count - 1 || (revealed[index] ?? 0) < stepCount);
 
   export function open() {
     const root = getRoot();
     if (!root) return;
     slides = splitSlides(root);
+    settings = parseSettings(root);
+    revealed = new Array(slides.length).fill(0);
     index = 0;
     dir = 1;
     controlsVisible = true;
@@ -50,14 +63,43 @@
     }
   }
 
+  // Fragments-first navigation: reveal/hide the current slide's fragments one
+  // at a time before crossing a slide boundary.
   function next() {
+    if ((revealed[index] ?? 0) < stepCount) {
+      revealed[index] = (revealed[index] ?? 0) + 1;
+      return;
+    }
     dir = 1;
     index = step(index, count, 1);
   }
 
   function prev() {
+    if ((revealed[index] ?? 0) > 0) {
+      revealed[index] = (revealed[index] ?? 0) - 1;
+      return;
+    }
     dir = -1;
     index = step(index, count, -1);
+  }
+
+  // Per-slide action: compute the slide's fragment steps once on mount, hide the
+  // ones past `shown`, and re-apply whenever `shown` changes. Scoped to each
+  // slide element so keyed transitions can't clobber a shared ref.
+  function fragmentize(node: HTMLElement, args: { shown: number; settings: Settings }) {
+    const steps = fragmentSteps(node, args.settings);
+    stepCount = steps.length;
+    const apply = (shown: number) =>
+      steps.forEach((frag, i) => {
+        frag.classList.add("pm-frag");
+        frag.classList.toggle("pm-frag-hidden", i >= shown);
+      });
+    apply(args.shown);
+    return {
+      update(arg: { shown: number }) {
+        apply(arg.shown);
+      },
+    };
   }
 
   // Clicking the overlay advances, unless the click landed on an in-slide
@@ -134,6 +176,7 @@
       {#key index}
         <div
           class="markdown-body pm-slide"
+          use:fragmentize={{ shown: revealed[index] ?? 0, settings }}
           in:fly={{ x: 80 * dir, duration: flyDuration() }}
           out:fly={{ x: -80 * dir, duration: flyDuration() }}
         >
@@ -150,16 +193,16 @@
             class="btn btn-icon"
             type="button"
             aria-label="Previous slide"
-            style:opacity={arrowOpacity(index, count, -1)}
-            disabled={index <= 0}
+            style:opacity={hasPrev ? 0.5 : 0.1}
+            disabled={!hasPrev}
             onclick={prev}
           >‹</button>
           <button
             class="btn btn-icon"
             type="button"
             aria-label="Next slide"
-            style:opacity={arrowOpacity(index, count, 1)}
-            disabled={index >= count - 1}
+            style:opacity={hasNext ? 0.5 : 0.1}
+            disabled={!hasNext}
             onclick={next}
           >›</button>
         </div>

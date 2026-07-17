@@ -302,8 +302,9 @@ live sync (each worker has empty registry). Comprehensive spec: `handovers/done/
   element via `requestAnimationFrame` after navigation, incl. same-path hash links); global same-origin
   `<a>` click interception (preventDefault + navigate with hash/search preserved)
 - `src/lib/api.ts` — typed `/api` fetchers (no runes, ordinary TypeScript)
-- `src/lib/components/` — reusable components: `Breadcrumbs` (path trail + special root case "home | today"; S31.1), `DirPage` (folder listing; root renders branding title "awīwī /awi:ˈi:/" + italic subtitle + today quick-link breadcrumbs per S31.1), `DocPage` (document viewer with optional TOC rail; supports asset-only opt-in presentation mode via `PresentationMode` component — full-screen slideshow with `<h1>` boundaries, direction-aware arrow navigation, mousemove-revealed controls), `SearchBar`, `ThemeToggle`, `ConnectionDot`, `PresentationMode` (full-screen overlay slideshow component wired from `DocPage` for assets; clones `.markdown-body` DOM, renders per-slide inert HTML, direction-clamped arrow nav, mousemove-driven control visibility)
+- `src/lib/components/` — reusable components: `Breadcrumbs` (path trail + special root case "home | today"; S31.1), `DirPage` (folder listing; root renders branding title "awīwī /awi:ˈi:/" + italic subtitle + today quick-link breadcrumbs per S31.1), `DocPage` (document viewer with optional TOC rail; supports asset-only opt-in presentation mode via `PresentationMode` component — full-screen slideshow with `<h1>` boundaries, direction-aware arrow navigation, mousemove-revealed controls), `SearchBar`, `ThemeToggle`, `ConnectionDot`, `PresentationMode` (full-screen overlay slideshow component wired from `DocPage` for assets; clones `.markdown-body` DOM, renders per-slide inert HTML, direction-clamped arrow nav, mousemove-driven control visibility; **fragmenting** — click/Space/→ reveals `.fragment` elements one step at a time before advancing a slide, per-slide reveal state persisted for the session, via a `use:fragmentize` action + `.pm-frag-hidden` CSS)
 - `src/lib/presentation/slides.ts` — pure utilities for presentation mode: `splitSlides()` (partition rendered HTML by top-level `<h1>`), `step()` (clamped navigation), `arrowOpacity()` (visual feedback at slide edges)
+- `src/lib/presentation/fragments.ts` — pure fragmenting logic: `parseSettings()` (reads the `#awiwi-settings` JSON blob; `fragmentAll` bool, tolerant of missing/malformed) and `fragmentSteps()` (ordered reveal list for a slide — `.fragment`/`.no-fragment` recursion, heading-section membership, `fragmentAll` default; step granularity is innermost block-level element / explicit inline). Authoring: `{: .fragment}` attr_list on headings/paragraphs/list-items (li attr must sit on its own line), or a `<div class="fragment" markdown="1">` container (needs `md_in_html`). `#awiwi-settings` is kept in the DOM but `display:none`
 - `src/lib/enhance/` — pipeline for rendered markdown: Shiki dual-theme (lazy singleton, CSS-var
   theme flip, `textContent` read for unknown-lang fallback; ADR D18), mermaid (lazy, re-themed on
   toggle), checkbox wiring (PATCH relpath, 409 → refetch), copy buttons on `<pre>`, table export
@@ -341,8 +342,9 @@ Backend must be running at `localhost:5823` for `/api` proxy to work in dev.
 ### Markdown rendering semantics
 
 Python-markdown + local extensions, byte-identical per ADR D13:
-- Built-ins enabled: `fenced_code`, `def_list`, `footnotes`, `nl2br`, `sane_lists`, `toc`, `tables`,
-  `attr_list`
+- Built-ins enabled: `fenced_code`, `def_list`, `footnotes`, `md_in_html`, `nl2br`, `sane_lists`,
+  `toc`, `tables`, `attr_list` (`md_in_html` is opt-in via `markdown="1"`; lets a
+  `<div class="fragment" markdown="1">` wrapper render its inner markdown — presentation fragmenting)
 - Local extensions: `_MermaidExtension`, `_StrikethroughExtension` (replace unmaintained third-party)
 - Fenced code: pre-rendered as plain `<pre><code class="language-x">` (no server-side
   syntax highlight; CodeHilite removed T27). Shiki highlights client-side (ADR D18) — language hint

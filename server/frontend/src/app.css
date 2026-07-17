@@ -918,6 +918,13 @@ hr { border: 0; border-top: 1px solid var(--border-subtle); }
   padding: var(--space-8) var(--space-6);
 }
 .pm-slide .copy-btn-float { display: none; }
+/* fragmenting: click-to-reveal elements (see presentation/fragments.ts).
+   The classes are inert outside the deck; only the JS-applied .pm-frag-hidden
+   hides. --dur-med is zeroed under prefers-reduced-motion. */
+.pm-slide .pm-frag { transition: opacity var(--dur-med) var(--ease-standard); }
+.pm-slide .pm-frag-hidden { opacity: 0; }
+/* presentation settings blob is metadata, never rendered */
+#awiwi-settings { display: none; }
 .pm-controls {
   position: fixed;
   right: var(--space-6);

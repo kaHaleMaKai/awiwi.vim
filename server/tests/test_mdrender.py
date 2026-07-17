@@ -544,3 +544,35 @@ class TestTagsAndMentions:
         assert "awiwi-tag" not in doc.html
         assert "awiwi-mention" not in doc.html
         assert "# a comment with @bug and #project-awiwi and @@lars" in doc.html
+
+
+class TestFragmentAuthoring:
+    """Authoring surface for presentation fragmenting: attr_list classes on
+    elements (heading/paragraph/list item) + `md_in_html` container wrapping."""
+
+    def test_fragment_class_on_heading(self):
+        doc = render_markdown("## Section {.fragment}\n")
+        assert '<h2 class="fragment"' in doc.html
+
+    def test_fragment_class_on_list_item_own_line(self):
+        # One-line `<li>` can't carry attr_list (BLOCK_RE needs a newline); the
+        # attr must sit on its own line under the item.
+        doc = render_markdown("- one\n  {: .fragment}\n- two\n")
+        assert '<li class="fragment">one' in doc.html
+        assert "<li>two</li>" in doc.html
+
+    def test_no_fragment_class_survives(self):
+        doc = render_markdown("Body.\n{: .no-fragment}\n")
+        assert 'class="no-fragment"' in doc.html
+
+    def test_settings_div_passes_through_verbatim(self):
+        doc = render_markdown('<div id="awiwi-settings">{"fragmentAll": true}</div>\n')
+        assert '<div id="awiwi-settings">{"fragmentAll": true}</div>' in doc.html
+
+    def test_md_in_html_renders_inner_markdown_of_fragment_div(self):
+        doc = render_markdown(
+            '<div class="fragment" markdown="1">\n\n- a\n- b\n\n</div>\n'
+        )
+        assert '<div class="fragment">' in doc.html
+        assert "<li>a</li>" in doc.html
+        assert "<li>b</li>" in doc.html

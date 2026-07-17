@@ -585,5 +585,46 @@ policy.
 
 ---
 
-**High-water mark: D25**
+## D26 — Presentation fragmenting: class-driven, client-side reveal (2026-07-17)
+
+**Context.** Stakeholders wanted presentation mode (`PresentationMode`, per-`<h1>` slides) to
+reveal content on click ("fragmenting", reveal.js style). Authoring should be class-driven:
+`.fragment` / `.no-fragment` on elements (recursive on containers and heading sections), plus a
+`#awiwi-settings` JSON blob with `fragmentAll` to fragment everything by default. The renderer
+already ships `attr_list`, so `{: .fragment}` lands as real classes on headings, paragraphs, and
+inline spans; a raw `<div id="awiwi-settings">…</div>` already passes through verbatim. Two gaps
+surfaced against python-markdown 3.10.2: (a) `attr_list` on a one-line `<li>` doesn't apply (it
+hits `BLOCK_RE`, which needs the attr on its own line); (b) wrapping markdown in
+`<div class="fragment">…</div>` left the inner markdown unrendered (no `md_in_html`).
+
+**Decision.** (1) **Server:** enable `MarkdownInHtmlExtension` in `_new_markdown()` — opt-in via
+`markdown="1"`, backward-compatible (existing raw-HTML embeds use no such attribute), so a
+`<div class="fragment" markdown="1">` container renders its inner markdown and becomes a
+fragmentable group. No other server change: classes and the settings blob already flow through.
+(2) **Frontend logic** lives in a pure module `src/lib/presentation/fragments.ts`
+(`parseSettings`, `fragmentSteps`) with 21 unit tests — mirrors `slides.ts`, no Svelte. Step
+granularity is "each child separately": a step is an *innermost* included block-level element
+(or an explicitly `.fragment` inline element); a fragmented container's frame shows immediately
+and its children step one by one. Membership precedence: self class > enclosing heading section
+(`.fragment` heading covers itself + following siblings until the next equal/shallower heading) >
+ancestor container > `fragmentAll`. `#awiwi-settings` never fragments. (3) **Wiring:**
+`PresentationMode.svelte` parses settings on `open()`, keeps a per-slide `revealed[]` count that
+persists for the session (navigate away and back preserves reveal state; `prev` un-reveals then
+crosses the slide boundary at 0), and applies visibility via a per-slide `use:fragmentize` action
+(self-scoped, so keyed slide transitions can't clobber a shared ref). CSS: inert `.pm-frag`
+transition + JS-applied `.pm-frag-hidden`; `#awiwi-settings { display:none }`.
+
+**Consequences.** (1) `md_in_html` is globally enabled — a documented capability increase
+(markdown inside `markdown="1"` HTML blocks) beyond just fragmenting. (2) Authoring caveat:
+per-item list fragmenting via `{: .fragment}` requires the attr on the item's *own line*;
+`fragmentAll:true` fragments each `<li>` automatically without any class. (3) Under `fragmentAll`,
+the slide's own `<h1>` is a fragment too (hidden until first click) unless given `{.no-fragment}`
+— spec-literal, user-overridable. (4) `.fragment`/`.no-fragment` are inert outside the deck (only
+the deck's JS hides). (5) Tests: server 281 (5 new render specs), frontend 184 (21 new fragment
+specs); `npm run check` + `build` green. (6) `docs/architecture.md` updated (presentation module
+list + markdown-extensions line).
+
+---
+
+**High-water mark: D26**
 
