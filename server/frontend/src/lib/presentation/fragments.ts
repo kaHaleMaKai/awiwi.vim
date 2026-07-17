@@ -10,19 +10,23 @@
 
 export interface Settings {
   fragmentAll: boolean;
+  /** When true, presentation mode logs its lifecycle to the console. */
+  debug: boolean;
 }
 
 /** Parse the `#awiwi-settings` JSON blob from the doc root. Tolerant: a missing
- * div, empty text, or malformed JSON all yield the defaults. Only `fragmentAll`
- * is honored for now. */
+ * div, empty text, or malformed JSON all yield the defaults. */
 export function parseSettings(root: Element | null): Settings {
   const el = root?.querySelector("#awiwi-settings");
-  if (!el) return { fragmentAll: false };
+  if (!el) return { fragmentAll: false, debug: false };
   try {
     const parsed = JSON.parse(el.textContent ?? "");
-    return { fragmentAll: parsed?.fragmentAll === true };
+    return {
+      fragmentAll: parsed?.fragmentAll === true,
+      debug: parsed?.debug === true,
+    };
   } catch {
-    return { fragmentAll: false };
+    return { fragmentAll: false, debug: false };
   }
 }
 

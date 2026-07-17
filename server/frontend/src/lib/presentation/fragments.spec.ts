@@ -7,8 +7,8 @@ function setup(html: string): HTMLElement {
   return container;
 }
 
-const OFF: Settings = { fragmentAll: false };
-const ALL: Settings = { fragmentAll: true };
+const OFF: Settings = { fragmentAll: false, debug: false };
+const ALL: Settings = { fragmentAll: true, debug: false };
 
 // Compact view of a step list for assertions: tag + class.
 function tags(steps: Element[]): string[] {
@@ -19,32 +19,37 @@ function texts(steps: Element[]): string[] {
 }
 
 describe("parseSettings", () => {
-  it("defaults to fragmentAll:false when the settings div is absent", () => {
-    expect(parseSettings(setup("<p>hi</p>"))).toEqual({ fragmentAll: false });
+  it("defaults to fragmentAll/debug false when the settings div is absent", () => {
+    expect(parseSettings(setup("<p>hi</p>"))).toEqual(OFF);
   });
 
   it("reads fragmentAll:true from the settings div", () => {
     const root = setup('<div id="awiwi-settings">{"fragmentAll": true}</div>');
-    expect(parseSettings(root)).toEqual({ fragmentAll: true });
+    expect(parseSettings(root)).toEqual(ALL);
   });
 
   it("reads fragmentAll:false explicitly", () => {
     const root = setup('<div id="awiwi-settings">{"fragmentAll": false}</div>');
-    expect(parseSettings(root)).toEqual({ fragmentAll: false });
+    expect(parseSettings(root)).toEqual(OFF);
+  });
+
+  it("reads debug:true from the settings div", () => {
+    const root = setup('<div id="awiwi-settings">{"debug": true}</div>');
+    expect(parseSettings(root)).toEqual({ fragmentAll: false, debug: true });
   });
 
   it("tolerates malformed JSON", () => {
     const root = setup('<div id="awiwi-settings">{not json}</div>');
-    expect(parseSettings(root)).toEqual({ fragmentAll: false });
+    expect(parseSettings(root)).toEqual(OFF);
   });
 
   it("tolerates a null root", () => {
-    expect(parseSettings(null)).toEqual({ fragmentAll: false });
+    expect(parseSettings(null)).toEqual(OFF);
   });
 
   it("ignores unknown keys", () => {
     const root = setup('<div id="awiwi-settings">{"wat": 1}</div>');
-    expect(parseSettings(root)).toEqual({ fragmentAll: false });
+    expect(parseSettings(root)).toEqual(OFF);
   });
 });
 

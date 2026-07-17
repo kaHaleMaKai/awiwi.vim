@@ -921,8 +921,12 @@ hr { border: 0; border-top: 1px solid var(--border-subtle); }
 /* fragmenting: click-to-reveal elements (see presentation/fragments.ts).
    The classes are inert outside the deck; only the JS-applied .pm-frag-hidden
    hides. --dur-med is zeroed under prefers-reduced-motion. */
-.pm-slide .pm-frag { transition: opacity var(--dur-med) var(--ease-standard); }
+.pm-slide .pm-frag { opacity: 1; }
 .pm-slide .pm-frag-hidden { opacity: 0; }
+/* Transition only on user-triggered reveal/hide (JS-added .pm-animate), never
+   the initial mount hide — else a fresh slide's fragment fades 1→0 and flashes
+   during the incoming fly. */
+.pm-slide .pm-frag.pm-animate { transition: opacity var(--dur-med) var(--ease-standard); }
 /* presentation settings blob is metadata, never rendered */
 #awiwi-settings { display: none; }
 .pm-controls {
